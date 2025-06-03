@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UAT COE Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: Arial; background: #1e1e2f; color: #fff; padding: 20px; }
+    h2 { color: #a78bfa; }
+    label, select { margin-right: 10px; padding: 4px; }
+    canvas { margin-bottom: 40px; background: #2d2d44; border-radius: 12px; padding: 20px; }
+  </style>
+</head>
+<body>
+  <h2>UAT COE Dashboard</h2>
+
+  <div style="margin-bottom: 20px;">
+    <label>Month:</label>
+    <select id="monthFilter"></select>
+
+    <label>LOB:</label>
+    <select id="lobFilter"></select>
+
+    <label>Sub Group:</label>
+    <select id="subGroupFilter"></select>
+
+    <label>Application:</label>
+    <select id="applicationFilter"></select>
+  </div>
+
+  <div class="chart-section">
+    <canvas id="passRateTrendChart"></canvas>
+    <canvas id="testStatusStackedChart"></canvas>
+    <canvas id="newTestCasesChart"></canvas>
+    <canvas id="executionStatusChart"></canvas>
+
+    <canvas id="defectStatusChart"></canvas>
+    <canvas id="defectSeverityChart"></canvas>
+    <canvas id="openDefectsTrendChart"></canvas>
+    <canvas id="defectDensityChart"></canvas>
+  </div>
+
+  <script>
+    let dashboardData = [];
+    let charts = {};
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeCharts();
+      loadExcelFromURL('https://yourusername.github.io/uat-dashboard/data/dashboard_data.xlsx');
+    });
+
+    async function loadExcelFromURL(url) {
+      const res = await fetch(url);
+      const data = new Uint8Array(await res.arrayBuffer());
+      const wb = XLSX.read(data, { type: 'array' });
+      dashboardData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      updateAll();
+    }
+
+    function updateAll() {
+      updatePassRateTrendChart(dashboardData);
+      updateTestStatusStackedChart(dashboardData);
+      updateNewTestCasesChart(dashboardData);
+      updateExecutionStatusChart(dashboardData);
+      updateDefectsByStatusChart(dashboardData);
+      updateDefectsBySeverityChart(dashboardData);
+      updateOpenDefectsTrendChart(dashboardData);
+      updateDefectDensityChart(dashboardData);
+    }
+
+    function initializeCharts() {
+      charts.passRateTrendChart = new Chart(document.getElementById('passRateTrendChart').getContext('2d'), {
+        type: 'line', data: { labels: [], datasets: [] }, options: { responsive: true }
+      });
+      charts.testStatusStackedChart = new Chart(document.getElementById('testStatusStackedChart').getContext('2d'), {
+        type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true } } }
+      });
+      charts.newTestCasesChart = new Chart(document.getElementById('newTestCasesChart').getContext('2d'), {
+        type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true }
+      });
+      charts.executionStatusChart = new Chart(document.getElementById('executionStatusChart').getContext('2d'), {
+        type: 'pie', data: { labels: [], datasets: [] }, options: { responsive: true }
+      });
+      charts.defectStatusChart = new Chart(document.getElementById('defectStatusChart').getContext('2d'), {
+        type: 'pie', data: { labels: [], datasets: [] }, options: { responsive: true }
+      });
+      charts.defectSeverityChart = new Chart(document.getElementById('defectSeverityChart').getContext('2d'), {
+        type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true }
+      });
+      charts.openDefectsTrendChart = new Chart(document.getElementById('openDefectsTrendChart').getContext('2d'), {
+        type: 'line', data: { labels: [], datasets: [] }, options: { responsive: true }
+      });
+      charts.defectDensityChart = new Chart(document.getElementById('defectDensityChart').getContext('2d'), {
+        type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true }
+      });
+    }
+
+    function updatePassRateTrendChart(data) {
+      const grouped = {};
+      data.forEach(d => {
+        const date = new Date(d['Go Live Date']);
+        if (isNaN(date)) return;
+        const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!grouped[month]) grouped[month] = { funcPassed: 0, funcTotal: 0, regPassed: 0, regTotal: 0 };
+        grouped[month].funcPassed += d['Functional Test cases Passed'] || 0;
+        grouped[month].funcTotal += d['Functional Test Cases Total'] || 0;
+        grouped[month].regPassed += d['Regression Test cases Passed'] || 0;
+        grouped[month].regTotal += d['Regression Test Cases Total'] || 0;
+      });
+      const labels = Object.keys(grouped).sort();
+      const funcData = labels.map(m => grouped[m].funcTotal ? (grouped[m].funcPassed / grouped[m].funcTotal * 100).toFixed(1) : 0);
+      const regData = labels.map(m => grouped[m].regTotal ? (grouped[m].regPassed / grouped[m].regTotal * 100).toFixed(1) : 0);
+      charts.passRateTrendChart.data.labels = labels;
+      charts.passRateTrendChart.data.datasets = [
+        { label: 'Functional', data: funcData, borderColor: '#4f46e5', fill: false },
+        { label: 'Regression', data: regData, borderColor: '#10b981', fill: false }
+      ];
+      charts.passRateTrendChart.update();
+    }
+
+    function updateTestStatusStackedChart(data) {
+      const releases = [...new Set(data.map(d => d['Release name']))];
+      const failed = [], blocked = [], na = [];
+      releases.forEach(r => {
+        const d = data.find(d => d['Release name'] === r);
+        failed.push(d['Functional Test Cases Failed'] || 0);
+        blocked.push(d['Functional Test Cases Blocked'] || 0);
+        na.push(d['Functional Test Cases Not applicable'] || 0);
+      });
+      charts.testStatusStackedChart.data.labels = releases;
+      charts.testStatusStackedChart.data.datasets = [
+        { label: 'Failed', data: failed, backgroundColor: '#ef4444' },
+        { label: 'Blocked', data: blocked, backgroundColor: '#f59e0b' },
+        { label: 'Not Applicable', data: na, backgroundColor: '#6b7280' }
+      ];
+      charts.testStatusStackedChart.update();
+    }
+
+    function updateNewTestCasesChart(data) {
+      const grouped = {};
+      data.forEach(d => {
+        const key = `${d['Sub Group']} - ${d['Application name']}`;
+        grouped[key] = (grouped[key] || 0) + (d['Number of New Test Cases Designed'] || 0);
+      });
+      const labels = Object.keys(grouped);
+      const values = labels.map(k => grouped[k]);
+      charts.newTestCasesChart.data.labels = labels;
+      charts.newTestCasesChart.data.datasets = [{ label: 'New Test Cases', data: values, backgroundColor: '#38bdf8' }];
+      charts.newTestCasesChart.update();
+    }
+
+    function updateExecutionStatusChart(data) {
+      let completed = 0, inProgress = 0, notStarted = 0;
+      data.forEach(d => {
+        const total = d['Functional Test Cases Total'] || 0;
+        const executed = (d['Functional Test cases Passed'] || 0) + (d['Functional Test Cases Failed'] || 0) + (d['Functional Test Cases Blocked'] || 0);
+        if (executed === 0) notStarted++;
+        else if (executed === total) completed++;
+        else inProgress++;
+      });
+      charts.executionStatusChart.data.labels = ['Completed', 'In Progress', 'Not Started'];
+      charts.executionStatusChart.data.datasets = [{
+        data: [completed, inProgress, notStarted],
+        backgroundColor: ['#10b981', '#f59e0b', '#6b7280']
+      }];
+      charts.executionStatusChart.update();
+    }
+
+    function updateDefectsByStatusChart(data) {
+      const totals = { Open: 0, Closed: 0, Deferred: 0, Rejected: 0 };
+      data.forEach(d => {
+        for (let key in totals) totals[key] += d[key] || 0;
+      });
+      charts.defectStatusChart.data.labels = Object.keys(totals);
+      charts.defectStatusChart.data.datasets = [{
+        data: Object.values(totals),
+        backgroundColor: ['#f87171', '#10b981', '#f59e0b', '#a855f7']
+      }];
+      charts.defectStatusChart.update();
+    }
+
+    function updateDefectsBySeverityChart(data) {
+      const severities = ['Critical', 'High', 'Medium', 'Low'];
+      const values = [0, 0, 0, 0];
+      data.forEach(d => {
+        severities.forEach((s, i) => values[i] += d[s] || 0);
+      });
+      charts.defectSeverityChart.data.labels = severities;
+      charts.defectSeverityChart.data.datasets = [{
+        label: 'Defects',
+        data: values,
+        backgroundColor: ['#dc2626', '#f97316', '#facc15', '#4ade80']
+      }];
+      charts.defectSeverityChart.update();
+    }
+
+    function updateOpenDefectsTrendChart(data) {
+      const monthly = {};
+      data.forEach(d => {
+        const date = new Date(d['Go Live Date']);
+        if (isNaN(date)) return;
+        const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        monthly[month] = (monthly[month] || 0) + (d['Open'] || 0);
+      });
+      const labels = Object.keys(monthly).sort();
+      const values = labels.map(k => monthly[k]);
+      charts.openDefectsTrendChart.data.labels = labels;
+      charts.openDefectsTrendChart.data.datasets = [{ label: 'Open Defects', data: values, borderColor: '#f87171', fill: false }];
+      charts.openDefectsTrendChart.update();
+    }
+
+    function updateDefectDensityChart(data) {
+      const grouped = {};
+      data.forEach(d => {
+        const key = d['Sub Group'] || d['Release name'];
+        if (!grouped[key]) grouped[key] = { defects: 0, reqs: 0 };
+        grouped[key].defects += d['Defects - Total'] || 0;
+        grouped[key].reqs += d['No.of requirements'] || 0;
+      });
+      const labels = Object.keys(grouped);
+      const values = labels.map(k => grouped[k].reqs ? (grouped[k].defects / grouped[k].reqs).toFixed(2) : 0);
+      charts.defectDensityChart.data.labels = labels;
+      charts.defectDensityChart.data.datasets = [{ label: 'Defect Density', data: values, backgroundColor: '#818cf8' }];
+      charts.defectDensityChart.update();
+    }
+  </script>
+</body>
+</html>
