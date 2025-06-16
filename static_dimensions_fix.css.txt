@@ -1,0 +1,343 @@
+/* SIMPLE STATIC DIMENSIONS FIX - Add to dashboard-styles.css */
+
+/* ============================================
+   STATIC CHART CONTAINER DIMENSIONS
+============================================ */
+
+.chart-container {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+    
+    /* STATIC DIMENSIONS - NO MORE STRETCHING */
+    width: 100%;
+    height: 500px; /* Fixed height */
+    max-height: 500px;
+    min-height: 500px;
+    
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.chart-container.full-width {
+    grid-column: 1 / -1;
+    
+    /* STATIC DIMENSIONS FOR FULL-WIDTH CHARTS */
+    height: 450px; /* Slightly shorter for full-width */
+    max-height: 450px;
+    min-height: 450px;
+}
+
+.chart-header {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+    
+    /* STATIC HEADER HEIGHT */
+    height: 60px;
+    flex-shrink: 0;
+}
+
+.chart-wrapper {
+    position: relative;
+    
+    /* STATIC CHART AREA - CRITICAL FOR PREVENTING STRETCHING */
+    width: 100%;
+    height: 400px; /* Fixed chart area height */
+    max-height: 400px;
+    min-height: 400px;
+    
+    overflow: hidden;
+    flex: none; /* Don't grow or shrink */
+}
+
+/* FORCE ALL CANVASES TO FIXED SIZE */
+.chart-wrapper canvas {
+    width: 100% !important;
+    height: 400px !important;
+    max-width: 100% !important;
+    max-height: 400px !important;
+}
+
+/* ============================================
+   STATIC DIMENSIONS FOR SPECIAL CONTAINERS
+============================================ */
+
+/* Defect Overview Card */
+.defect-overview-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    padding: 20px 0;
+    
+    /* STATIC HEIGHT */
+    height: 300px;
+    max-height: 300px;
+    overflow: hidden;
+}
+
+.defect-status-section,
+.defect-severity-section {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+#defectSeverityMiniChart {
+    width: 100% !important;
+    height: 200px !important;
+    max-height: 200px !important;
+}
+
+/* Matrix Tables */
+#defectDistributionMatrix {
+    width: 100%;
+    height: 400px; /* Fixed height */
+    max-height: 400px;
+    overflow: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+/* Heatmaps */
+#defectDensityHeatmap {
+    width: 100%;
+    height: 400px; /* Fixed height */
+    max-height: 400px;
+    overflow: auto;
+}
+
+/* ============================================
+   AUTOMATION CHARTS STATIC DIMENSIONS
+============================================ */
+
+/* Automation Chart Containers */
+#automationPage .chart-container {
+    width: 100%;
+    height: 480px; /* Fixed height for automation charts */
+    max-height: 480px;
+    min-height: 480px;
+}
+
+#automationPage .chart-wrapper {
+    height: 380px; /* Fixed automation chart area */
+    max-height: 380px;
+    min-height: 380px;
+}
+
+#automationPage .chart-wrapper canvas {
+    width: 100% !important;
+    height: 380px !important;
+    max-height: 380px !important;
+}
+
+/* Specific Automation Charts */
+#coverageByGroupChart,
+#progressToTargetChart,
+#newScriptsDistChart,
+#effortsByGroupChart,
+#coverageGapChart,
+#efficiencyMatrixChart {
+    width: 100% !important;
+    height: 380px !important;
+    max-width: 100% !important;
+    max-height: 380px !important;
+}
+
+/* Efficiency Cards Grid */
+.efficiency-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    
+    /* STATIC HEIGHT WITH SCROLL */
+    height: 400px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 10px 0;
+}
+
+.efficiency-card {
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    
+    /* STATIC CARD DIMENSIONS */
+    height: 200px;
+    max-height: 200px;
+    min-height: 200px;
+    
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ============================================
+   INSIGHTS GRID STATIC DIMENSIONS
+============================================ */
+
+.insights-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+}
+
+.insight-card {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+    
+    /* STATIC INSIGHT CARD DIMENSIONS */
+    height: 500px;
+    max-height: 500px;
+    min-height: 500px;
+    
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.insight-header {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+    
+    /* STATIC HEADER HEIGHT */
+    height: 50px;
+    flex-shrink: 0;
+}
+
+.insight-card .chart-wrapper {
+    height: 400px;
+    max-height: 400px;
+    min-height: 400px;
+}
+
+/* ============================================
+   KPI CARDS STATIC DIMENSIONS
+============================================ */
+
+.kpi-card {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+    
+    /* STATIC KPI CARD DIMENSIONS */
+    height: 120px;
+    max-height: 120px;
+    min-height: 120px;
+    
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+/* ============================================
+   RESPONSIVE STATIC DIMENSIONS
+============================================ */
+
+/* Tablet */
+@media (max-width: 1200px) {
+    .chart-container {
+        height: 450px;
+        max-height: 450px;
+        min-height: 450px;
+    }
+    
+    .chart-wrapper {
+        height: 350px;
+        max-height: 350px;
+        min-height: 350px;
+    }
+    
+    .chart-wrapper canvas {
+        height: 350px !important;
+        max-height: 350px !important;
+    }
+    
+    .insights-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .insight-card {
+        height: 450px;
+        max-height: 450px;
+        min-height: 450px;
+    }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 400px;
+        max-height: 400px;
+        min-height: 400px;
+        padding: 20px;
+    }
+    
+    .chart-wrapper {
+        height: 300px;
+        max-height: 300px;
+        min-height: 300px;
+    }
+    
+    .chart-wrapper canvas {
+        height: 300px !important;
+        max-height: 300px !important;
+    }
+    
+    .defect-overview-card {
+        grid-template-columns: 1fr;
+        height: 400px;
+        max-height: 400px;
+    }
+    
+    .efficiency-cards-grid {
+        grid-template-columns: 1fr;
+        height: 500px;
+        max-height: 500px;
+    }
+    
+    .kpi-card {
+        height: 100px;
+        max-height: 100px;
+        min-height: 100px;
+    }
+}
+
+/* ============================================
+   OVERRIDE ANY EXISTING RESPONSIVE BEHAVIOR
+============================================ */
+
+/* Force static dimensions on all chart canvases */
+canvas {
+    position: relative !important;
+}
+
+/* Disable any existing aspect ratio maintenance */
+.chart-wrapper > * {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Ensure grid items don't stretch */
+.charts-grid > * {
+    align-self: start;
+}
