@@ -1,0 +1,431 @@
+/* COMPLETE CSS FIXES FOR ALL VISUALIZATION TYPES */
+
+/* ============================================
+   GENERAL CHART CONTAINER FIXES
+============================================ */
+.chart-container {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+    min-height: 450px;
+    max-height: 550px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Prevent container overflow */
+}
+
+.chart-container.full-width {
+    grid-column: 1 / -1;
+    min-height: 400px;
+    max-height: 500px;
+}
+
+.chart-header {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+    flex-shrink: 0;
+}
+
+.chart-wrapper {
+    position: relative;
+    flex: 1;
+    min-height: 300px;
+    max-height: 450px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chart-wrapper canvas {
+    max-height: 100% !important;
+    max-width: 100% !important;
+}
+
+/* ============================================
+   CHART.JS SPECIFIC FIXES
+============================================ */
+/* All Chart.js canvases */
+canvas {
+    max-height: 400px !important;
+}
+
+/* Specific chart sizing */
+#releaseStatusChart,
+#uatStatusChart,
+#testCaseDistributionChart,
+#overallTestSummaryChart,
+#newTestCasesProgressChart,
+#topProblemAreasChart {
+    max-height: 350px !important;
+}
+
+/* Doughnut charts - prevent stretching */
+#overallTestSummaryChart,
+#defectSeverityMiniChart,
+#effortsByGroupChart {
+    max-height: 300px !important;
+    width: 100% !important;
+}
+
+/* ============================================
+   AUTOMATION CHARTS FIXES
+============================================ */
+/* Automation chart containers */
+#automationPage .chart-container {
+    min-height: 420px;
+    max-height: 520px;
+}
+
+/* Automation specific charts */
+#coverageByGroupChart,
+#progressToTargetChart,
+#newScriptsDistChart,
+#coverageGapChart,
+#efficiencyMatrixChart {
+    max-height: 380px !important;
+}
+
+/* ============================================
+   DEFECT OVERVIEW CARD FIXES
+============================================ */
+.defect-overview-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    padding: 20px 0;
+    height: 100%;
+    max-height: 350px; /* Fixed height */
+    overflow: hidden;
+}
+
+.defect-status-section,
+.defect-severity-section {
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+}
+
+#defectSeverityMiniChart {
+    height: 200px !important;
+    max-height: 200px !important;
+    flex-shrink: 0;
+}
+
+#defectStatusProgress {
+    max-height: 200px;
+    overflow: hidden;
+}
+
+/* ============================================
+   PROGRESS BAR FIXES
+============================================ */
+.defect-progress-bar {
+    background: #f0f0f0;
+    border-radius: 8px;
+    height: 30px; /* Fixed height */
+    overflow: hidden;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+.defect-progress-segment {
+    float: left;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 12px;
+    transition: all 0.3s ease;
+    min-width: 20px; /* Minimum segment width */
+}
+
+/* ============================================
+   MATRIX TABLE FIXES
+============================================ */
+#defectDistributionMatrix {
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+.matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    min-width: 600px; /* Minimum width for horizontal scroll */
+}
+
+.matrix-table thead {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+}
+
+.matrix-table th:first-child,
+.matrix-table td:first-child {
+    position: sticky;
+    left: 0;
+    background: #f8f9fa;
+    z-index: 11;
+    border-right: 2px solid #e0e0e0;
+    max-width: 150px; /* Limit first column width */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ============================================
+   HEATMAP FIXES
+============================================ */
+#defectDensityHeatmap {
+    overflow: auto;
+    max-height: 400px;
+    max-width: 100%;
+}
+
+.heatmap-container {
+    min-width: 100%;
+    display: inline-block;
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.heatmap-row {
+    display: flex;
+    margin-bottom: 2px;
+}
+
+.heatmap-cell {
+    width: 80px;
+    height: 35px; /* Fixed height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+    border-radius: 4px;
+    margin-right: 2px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.heatmap-label {
+    width: 120px;
+    height: 35px; /* Match cell height */
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #333;
+    padding-right: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ============================================
+   AUTOMATION EFFICIENCY MATRIX FIXES
+============================================ */
+.efficiency-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 10px 0;
+}
+
+.efficiency-card {
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 200px; /* Fixed minimum height */
+    max-height: 250px; /* Fixed maximum height */
+}
+
+/* ============================================
+   INSIGHTS GRID FIXES
+============================================ */
+.insights-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+}
+
+.insight-card {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+    min-height: 450px;
+    max-height: 550px; /* Fixed height */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.insight-header {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+    flex-shrink: 0;
+}
+
+.insight-card .chart-wrapper {
+    flex: 1;
+    max-height: 400px;
+}
+
+/* ============================================
+   AUTOMATION STATUS GRID FIXES
+============================================ */
+.automation-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    padding: 20px 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.status-card {
+    background: #f8f9fa;
+    padding: 15px; /* Reduced padding */
+    border-radius: 8px;
+    text-align: center;
+    transition: all 0.3s ease;
+    min-height: 80px; /* Fixed height */
+    max-height: 100px;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+============================================ */
+@media (max-width: 1200px) {
+    .chart-container {
+        min-height: 400px;
+        max-height: 500px;
+    }
+    
+    .chart-wrapper {
+        max-height: 350px;
+    }
+    
+    .insights-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .insight-card {
+        min-height: 400px;
+        max-height: 500px;
+    }
+}
+
+@media (max-width: 768px) {
+    .chart-container {
+        min-height: 350px;
+        max-height: 450px;
+        padding: 20px;
+    }
+    
+    .chart-wrapper {
+        max-height: 300px;
+    }
+    
+    .defect-overview-card {
+        grid-template-columns: 1fr;
+        max-height: 500px;
+    }
+    
+    .efficiency-cards-grid {
+        grid-template-columns: 1fr;
+        max-height: 600px;
+    }
+    
+    .matrix-table {
+        font-size: 12px;
+    }
+    
+    .heatmap-cell {
+        width: 60px;
+        height: 30px;
+        font-size: 10px;
+    }
+    
+    .heatmap-label {
+        width: 100px;
+        height: 30px;
+        font-size: 10px;
+    }
+}
+
+/* ============================================
+   SCROLLBAR STYLING
+============================================ */
+.chart-container::-webkit-scrollbar,
+#defectDistributionMatrix::-webkit-scrollbar,
+.heatmap-container::-webkit-scrollbar,
+.efficiency-cards-grid::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.chart-container::-webkit-scrollbar-track,
+#defectDistributionMatrix::-webkit-scrollbar-track,
+.heatmap-container::-webkit-scrollbar-track,
+.efficiency-cards-grid::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.chart-container::-webkit-scrollbar-thumb,
+#defectDistributionMatrix::-webkit-scrollbar-thumb,
+.heatmap-container::-webkit-scrollbar-thumb,
+.efficiency-cards-grid::-webkit-scrollbar-thumb {
+    background: #c41e3a;
+    border-radius: 4px;
+}
+
+/* ============================================
+   LOADING AND EMPTY STATES
+============================================ */
+.chart-wrapper.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    max-height: 300px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+    max-height: 300px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
