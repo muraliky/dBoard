@@ -3,868 +3,377 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UAT COE Dashboard</title>
+    <title>UAT Metrics Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #fff;
-            overflow-x: hidden;
-        }
-
-        .dashboard-container {
-            display: flex;
-            min-height: 100vh;
-            position: relative;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 280px;
-            background: rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(20px);
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 2rem 0;
-            transition: all 0.3s ease;
-            position: fixed;
-            height: 100vh;
-            z-index: 1000;
-        }
-
-        .logo {
-            text-align: center;
-            margin-bottom: 3rem;
-            padding: 0 2rem;
-        }
-
-        .logo h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(45deg, #fff, #a78bfa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 0.5rem;
-        }
-
-        .logo p {
-            font-size: 0.9rem;
-            opacity: 0.7;
-        }
-
-        .nav-menu {
-            list-style: none;
-            padding: 0 1rem;
-        }
-
-        .nav-item {
-            margin-bottom: 0.5rem;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            padding: 1rem 1.5rem;
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .nav-link:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            transform: translateX(5px);
-        }
-
-        .nav-link.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: #fff;
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-        }
-
-        .nav-icon {
-            width: 20px;
-            height: 20px;
-            margin-right: 1rem;
-            opacity: 0.8;
-        }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-left: 280px;
-            padding: 2rem;
-            transition: all 0.3s ease;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            padding: 1.5rem 2rem;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .header h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            background: linear-gradient(45deg, #fff, #a78bfa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .upload-btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .upload-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        .last-updated {
-            font-size: 0.9rem;
-            opacity: 0.7;
-        }
-
-        /* Filters */
-        .filters {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-        }
-
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .filter-label {
-            font-size: 0.9rem;
-            font-weight: 600;
-            opacity: 0.9;
-        }
-
-        .filter-select {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            padding: 0.75rem 1rem;
-            color: #fff;
-            font-size: 0.9rem;
-            min-width: 150px;
-            transition: all 0.3s ease;
-        }
-
-        .filter-select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
-        }
-
-        .filter-select option {
-            background: #2d3748;
-            color: #fff;
-        }
-
-        /* KPI Cards */
-        .kpi-section {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 3rem;
-        }
-
-        .kpi-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 2rem;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .kpi-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .kpi-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-        }
-
-        .kpi-card:hover::before {
-            opacity: 1;
-        }
-
-        .kpi-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: #fff;
-            margin-bottom: 0.5rem;
-        }
-
-        .kpi-label {
-            font-size: 1rem;
-            opacity: 0.8;
-            margin-bottom: 1rem;
-        }
-
-        .kpi-trend {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .trend-up {
-            color: #10b981;
-        }
-
-        .trend-down {
-            color: #ef4444;
-        }
-
-        /* Chart Sections */
-        .chart-section {
-            margin-bottom: 3rem;
-        }
-
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .charts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 2rem;
-        }
-
-        .chart-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 2rem;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .chart-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
-        }
-
-        .chart-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            color: #fff;
-        }
-
-        .chart-container {
-            position: relative;
-            height: 300px;
-            width: 100%;
-        }
-
-        .chart-container.large {
-            height: 400px;
-        }
-
-        /* Loading State */
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 200px;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            .charts-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .kpi-section {
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            }
-        }
-
-        /* Animations */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .fade-in {
-            animation: fadeInUp 0.6s ease-out;
-        }
-
-        /* No Data State */
-        .no-data {
-            text-align: center;
-            padding: 3rem;
-            opacity: 0.7;
-        }
-
-        .no-data-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-    </style>
+    <link rel="stylesheet" href="dashboard-styles.css">
 </head>
 <body>
     <div class="dashboard-container">
-        <!-- Sidebar -->
-        <div class="sidebar">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
             <div class="logo">
                 <h1>UAT COE</h1>
-                <p>Quality Dashboard</p>
+                <p>Metrics Dashboard</p>
             </div>
             <ul class="nav-menu">
                 <li class="nav-item">
                     <a href="#" class="nav-link active" data-page="quality">
-                        <span class="nav-icon">📊</span>
+                        <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                            <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 00-2 2v6a2 2 0 002 2h2a1 1 0 100-2H6V7h5a1 1 0 011 1v5h2V8a3 3 0 00-3-3H4z"></path>
+                        </svg>
                         Quality Metrics
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-page="automation">
-                        <span class="nav-icon">🤖</span>
+                        <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"></path>
+                        </svg>
                         Automation Metrics
                     </a>
                 </li>
             </ul>
-        </div>
+        </nav>
 
         <!-- Main Content -->
-        <div class="main-content">
+        <main class="main-content">
+            <!-- Header with Filters -->
             <div class="header">
-                <h2>Quality Metrics Dashboard</h2>
-                <div class="header-actions">
-                    <button class="upload-btn" onclick="document.getElementById('excelFile').click()">
-                        📤 Upload Excel
-                    </button>
-                    <input type="file" id="excelFile" class="file-input" accept=".xlsx,.xls" onchange="handleFileUpload(event)">
-                    <div class="last-updated" id="lastUpdated">
-                        Last updated: Never
+                <h2 id="page-title">Quality Metrics</h2>
+                <div class="filters">
+                    <div class="filter-group">
+                        <label class="filter-label">Group</label>
+                        <select id="groupFilter" class="filter-select">
+                            <option value="">All Groups</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Sub Group</label>
+                        <select id="subGroupFilter" class="filter-select">
+                            <option value="">All Sub Groups</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Month</label>
+                        <select id="monthFilter" class="filter-select">
+                            <option value="">Current Month</option>
+                        </select>
                     </div>
                 </div>
             </div>
 
-            <!-- Filters -->
-            <div class="filters">
-                <div class="filter-group">
-                    <label class="filter-label">Month</label>
-                    <select class="filter-select" id="monthFilter">
-                        <option value="all">All Months</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">LOB</label>
-                    <select class="filter-select" id="lobFilter">
-                        <option value="all">All LOBs</option>
-                        <option value="WIM">WIM</option>
-                        <option value="CSBB">CSBB</option>
-                        <option value="Credit Solutions">Credit Solutions</option>
-                        <option value="Payments">Payments</option>
-                        <option value="Aqua">Aqua</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Sub Group</label>
-                    <select class="filter-select" id="subGroupFilter">
-                        <option value="all">All Sub Groups</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Application</label>
-                    <select class="filter-select" id="applicationFilter">
-                        <option value="all">All Applications</option>
-                    </select>
+            <!-- Quality Metrics Page -->
+            <div id="qualityPage" class="page-content">
+                <!-- Tabs -->
+                <div class="tabs-container">
+                    <div class="tabs">
+                        <button class="tab active" data-tab="overview">Release Overview</button>
+                        <button class="tab" data-tab="execution">Test Execution</button>
+                        <button class="tab" data-tab="defects">Defects</button>
+                    </div>
+
+                    <!-- Tab Contents -->
+                    <div class="tab-content active" id="overview">
+                        <!-- KPI Cards Grid - Now with 6 cards -->
+                        <div class="kpi-grid">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Total Releases</div>
+                                <div class="kpi-value" id="totalReleases">0</div>
+                                <div class="kpi-change positive">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"></path>
+                                    </svg>
+                                    <span>vs last month</span>
+                                </div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-label">% Go Live on Time</div>
+                                <div class="kpi-value" id="goLiveOnTime">0%</div>
+                                <div class="kpi-change positive">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"></path>
+                                    </svg>
+                                    <span>trending up</span>
+                                </div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-label">% UAT Passed</div>
+                                <div class="kpi-value" id="uatPassed">0%</div>
+                                <div class="kpi-change positive">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"></path>
+                                    </svg>
+                                    <span>improvement</span>
+                                </div>
+                            </div>
+                            <!--
+                            <div class="kpi-card">
+                                <div class="kpi-label">Avg. Defect Density</div>
+                                <div class="kpi-value" id="avgDefectDensity">0</div>
+                                <div class="kpi-change negative">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z"></path>
+                                    </svg>
+                                    <span>needs attention</span>
+                                </div>
+                            </div>-->
+                            <!-- New KPI Cards -->
+                            <div class="kpi-card">
+                                <div class="kpi-label">Total Test Cases Executed</div>
+                                <div class="kpi-value" id="totalTestCasesExecuted">0</div>
+                                <div class="kpi-change positive">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"></path>
+                                    </svg>
+                                    <span>test coverage</span>
+                                </div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-label">Total Defects Raised</div>
+                                <div class="kpi-value" id="totalDefectsRaised">0</div>
+                                <div class="kpi-change">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"></path>
+                                    </svg>
+                                    <span>quality indicator</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="charts-grid">
+                            <div class="chart-container">
+                                <h3 class="chart-header">Go Live Status</h3>
+                                <div class="chart-wrapper">
+                                    <canvas id="releaseStatusChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <h3 class="chart-header">UAT Status</h3>
+                                <div class="chart-wrapper">
+                                    <canvas id="uatStatusChart"></canvas>
+                                </div>
+                            </div>
+                           <!-- <div class="chart-container">
+                                <h3 class="chart-header">Defect Density Heatmap</h3>
+                                <div class="chart-wrapper">
+                                    <div id="defectDensityHeatmap"></div>
+                                </div>
+                            </div>-->
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="execution">
+                        <div class="charts-grid">
+                            <div class="chart-container full-width">
+                                <h3 class="chart-header">New Test Cases</h3>
+                                <div class="chart-wrapper">
+                                    <canvas id="newTestCasesProgressChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <h3 class="chart-header">Overall Test Summary</h3>
+                                <div class="chart-wrapper">
+                                    <canvas id="overallTestSummaryChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <h3 class="chart-header">Test Case Distribution</h3>
+                                <div class="chart-wrapper">
+                                    <canvas id="testCaseDistributionChart"></canvas>
+                                </div>
+                            </div>
+                           
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="defects">
+                        <div class="charts-grid">
+                            <div class="chart-container">
+                                <h3 class="chart-header">Defect Overview</h3>
+                                <div class="defect-overview-card">
+                                    <div class="defect-status-section">
+                                        <h4>Status Distribution</h4>
+                                        <div id="defectStatusProgress"></div>
+                                    </div>
+                                    <div class="defect-severity-section">
+                                        <h4>Severity Breakdown</h4>
+                                        <canvas id="defectSeverityMiniChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <h3 class="chart-header">Top 5 Problem Areas</h3>
+                                <div class="chart-wrapper">
+                                    <canvas id="topProblemAreasChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-container full-width">
+                                <h3 class="chart-header">Defect Distribution Matrix</h3>
+                                <div class="chart-wrapper">
+                                    <div id="defectDistributionMatrix"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- KPI Section -->
-            <div class="kpi-section" id="kpiSection">
-                <div class="kpi-card fade-in">
-                    <div class="kpi-value" id="totalReleases">-</div>
-                    <div class="kpi-label">Total Releases</div>
-                    <div class="kpi-trend">
-                        <span class="trend-up">↗️ +5.2%</span>
-                        <span>vs last month</span>
-                    </div>
-                </div>
-                <div class="kpi-card fade-in">
-                    <div class="kpi-value" id="goLiveOnTime">-%</div>
-                    <div class="kpi-label">Go Live On Time</div>
-                    <div class="kpi-trend">
-                        <span class="trend-up">↗️ +2.1%</span>
-                        <span>vs last month</span>
-                    </div>
-                </div>
-                <div class="kpi-card fade-in">
-                    <div class="kpi-value" id="uatPassed">-%</div>
-                    <div class="kpi-label">UAT Passed</div>
-                    <div class="kpi-trend">
-                        <span class="trend-up">↗️ +1.8%</span>
-                        <span>vs last month</span>
-                    </div>
-                </div>
-                <div class="kpi-card fade-in">
-                    <div class="kpi-value" id="avgDefectDensity">-</div>
-                    <div class="kpi-label">Avg. Defect Density</div>
-                    <div class="kpi-trend">
-                        <span class="trend-down">↘️ -0.5%</span>
-                        <span>vs last month</span>
-                    </div>
-                </div>
+            <!-- Automation Metrics Page (Hidden by default) -->
+            <div id="automationPage" class="page-content" style="display: none;">
+                 <div class="tabs-container">
+            <div class="tabs">
+                <button class="tab active" data-tab="automation-overview">Coverage & Progress</button>
+                <button class="tab" data-tab="automation-efficiency">Efficiency</button>
+                <button class="tab" data-tab="automation-insights">Insights & Trends</button>
             </div>
 
-            <!-- Test Execution Section -->
-            <div class="chart-section">
-                <h3 class="section-title">🧪 Test Execution</h3>
+            <!-- Tab Contents -->
+            <!-- Coverage & Progress Tab -->
+            <div class="tab-content active" id="automation-overview">
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon">
+                            <svg width="24" height="24" fill="#c41e3a" viewBox="0 0 20 20">
+                                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                                <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 00-2 2v6a2 2 0 002 2h2a1 1 0 100-2H6V7h5a1 1 0 011 1v5h2V8a3 3 0 00-3-3H4z"></path>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-label">Total Test Cases</div>
+                            <div class="kpi-value" id="totalTestCases">0</div>
+                            <div class="kpi-subtext">Manual regression cases</div>
+                        </div>
+                    </div>
+                    
+                    <div class="kpi-card">
+                        <div class="kpi-icon">
+                            <svg width="24" height="24" fill="#27ae60" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"></path>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-label">Automated Cases</div>
+                            <div class="kpi-value" id="automatedCases">0</div>
+                            <div class="kpi-subtext">Scripts completed</div>
+                        </div>
+                    </div>
+                    
+                    <div class="kpi-card">
+                        <div class="kpi-icon">
+                            <svg width="24" height="24" fill="#3498db" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z"></path>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-label">Coverage Rate</div>
+                            <div class="kpi-value" id="coverageRate">0%</div>
+                            <div class="kpi-subtext">vs 90% target</div>
+                        </div>
+                    </div>
+                    
+                    <div class="kpi-card">
+                        <div class="kpi-icon">
+                            <svg width="24" height="24" fill="#f39c12" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"></path>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-label">New Scripts</div>
+                            <div class="kpi-value" id="newScripts">0</div>
+                            <div class="kpi-subtext">Added this month</div>
+                        </div>
+                    </div>
+                    
+                    <div class="kpi-card">
+                        <div class="kpi-icon">
+                            <svg width="24" height="24" fill="#9b59b6" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"></path>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-label">Hours Saved</div>
+                            <div class="kpi-value" id="hoursSaved">0</div>
+                            <div class="kpi-subtext">Effort reduction</div>
+                        </div>
+                    </div>
+                    
+                </div>
+
+                <!-- Charts -->
                 <div class="charts-grid">
-                    <div class="chart-card">
-                        <h4 class="chart-title">Test Case Pass Rate Trend</h4>
-                        <div class="chart-container">
-                            <canvas id="passRateChart"></canvas>
+                    <div class="chart-container">
+                        <h3 class="chart-header">Automation Coverage</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="coverageByGroupChart"></canvas>
                         </div>
                     </div>
-                    <div class="chart-card">
-                        <h4 class="chart-title">Test Case Status Distribution</h4>
-                        <div class="chart-container">
-                            <canvas id="testStatusChart"></canvas>
+                    
+                    <div class="chart-container">
+                        <h3 class="chart-header">Progress to Target (90%)</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="progressToTargetChart"></canvas>
                         </div>
                     </div>
-                    <div class="chart-card">
-                        <h4 class="chart-title">New Test Cases Designed</h4>
-                        <div class="chart-container">
-                            <canvas id="newTestCasesChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-card">
-                        <h4 class="chart-title">Execution Status</h4>
-                        <div class="chart-container">
-                            <canvas id="executionStatusChart"></canvas>
+                 
+                    <!-- New Scripts Distribution -->
+                    <div class="chart-container">
+                        <h3 class="chart-header">New Scripts Automated</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="newScriptsDistChart"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Defects Section -->
-            <div class="chart-section">
-                <h3 class="section-title">🐞 Defects</h3>
+            <!-- Efficiency & ROI Tab -->
+            <div class="tab-content" id="automation-efficiency">
                 <div class="charts-grid">
-                    <div class="chart-card">
-                        <h4 class="chart-title">Defects by Status</h4>
-                        <div class="chart-container">
-                            <canvas id="defectStatusChart"></canvas>
+                    <div class="chart-container">
+                        <h3 class="chart-header">Efforts Saved</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="effortsByGroupChart"></canvas>
                         </div>
                     </div>
-                    <div class="chart-card">
-                        <h4 class="chart-title">Defects by Severity</h4>
-                        <div class="chart-container">
-                            <canvas id="defectSeverityChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-card">
-                        <h4 class="chart-title">Open Defects Trend</h4>
-                        <div class="chart-container">
-                            <canvas id="openDefectsTrendChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-card">
-                        <h4 class="chart-title">Defect Density by Release</h4>
-                        <div class="chart-container">
-                            <canvas id="defectDensityChart"></canvas>
+                    
+                  
+                    
+                    <div class="chart-container">
+                        <h3 class="chart-header">Automation Efficiency Analysis</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="efficiencyMatrixChart"></canvas>
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Insights & Trends Tab -->
+           <div class="tab-content" id="automation-insights">
+    <div class="insights-grid">  <!-- NOT charts-grid -->
+        <div class="insight-card">  <!-- NO full-width class -->
+            <h3 class="insight-header">Coverage Gap Analysis</h3>
+            <div class="chart-wrapper">
+                <canvas id="coverageGapChart"></canvas>
+            </div>
+        </div>
+        <div class="insight-card">  <!-- NO full-width class -->
+            <h3 class="insight-header">Automation Opportunity Areas</h3>
+            <div class="chart-wrapper">
+                <canvas id="coverageGapChart1"></canvas>
             </div>
         </div>
     </div>
+</div>
+        </div>
+            </div>
+        </main>
+    </div>
 
-    <script>
-        // Global variables
-        let dashboardData = [];
-        let charts = {};
-        let currentFilters = {
-            month: 'all',
-            lob: 'all',
-            subGroup: 'all',
-            application: 'all'
-        };
-
-        // Sample data for demo
-        const sampleData = [
-            {
-                'Group': 'WIM',
-                'Sub Group': 'Wealth Management',
-                'Application name': 'Portfolio Tracker',
-                'Release name': 'Release 1.0',
-                'Go Live Date': '2024-01-15',
-                'Go Live Status': 'On Time',
-                'Execution start': '2024-01-01',
-                'Execution end': '2024-01-10',
-                'UAT Status': 'Passed',
-                'No.of requirements': 25,
-                'Functional Test Cases Total': 150,
-                'Functional Test cases Passed': 140,
-                'Functional Test Cases Failed': 8,
-                'Functional Test Cases Blocked': 2,
-                'Functional Test Cases Not applicable': 0,
-                'Regression Test Cases Total': 100,
-                'Regression Test cases Passed': 95,
-                'Regression Test Cases Failed': 3,
-                'Regression Test Cases Blocked': 2,
-                'Regression Test Cases Not applicable': 0,
-                'Defects - Total': 15,
-                'Open': 2,
-                'Closed': 12,
-                'Deferred': 1,
-                'Rejected': 0,
-                'Critical': 1,
-                'High': 4,
-                'Medium': 8,
-                'Low': 2,
-                'Number of New Test Cases Designed': 25
-            },
-            {
-                'Group': 'CSBB',
-                'Sub Group': 'Corporate Banking',
-                'Application name': 'Loan Management',
-                'Release name': 'Release 2.1',
-                'Go Live Date': '2024-02-20',
-                'Go Live Status': 'Delayed',
-                'Execution start': '2024-02-01',
-                'Execution end': '2024-02-15',
-                'UAT Status': 'Failed',
-                'No.of requirements': 30,
-                'Functional Test Cases Total': 200,
-                'Functional Test cases Passed': 180,
-                'Functional Test Cases Failed': 15,
-                'Functional Test Cases Blocked': 5,
-                'Functional Test Cases Not applicable': 0,
-                'Regression Test Cases Total': 120,
-                'Regression Test cases Passed': 110,
-                'Regression Test Cases Failed': 8,
-                'Regression Test Cases Blocked': 2,
-                'Regression Test Cases Not applicable': 0,
-                'Defects - Total': 25,
-                'Open': 8,
-                'Closed': 15,
-                'Deferred': 2,
-                'Rejected': 0,
-                'Critical': 2,
-                'High': 6,
-                'Medium': 12,
-                'Low': 5,
-                'Number of New Test Cases Designed': 35
-            }
-        ];
-
-        // Initialize dashboard
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeDashboard();
-            loadSampleData();
-            setupEventListeners();
-        });
-
-        function initializeDashboard() {
-            // Initialize charts with empty data
-            initializeCharts();
-            
-            // Set initial state
-            updateLastUpdated();
-        }
-
-        function loadSampleData() {
-            dashboardData = sampleData;
-            updateDashboard();
-            document.getElementById('lastUpdated').textContent = 'Last updated: Sample Data Loaded';
-        }
-
-        function setupEventListeners() {
-            // Filter change listeners
-            document.getElementById('monthFilter').addEventListener('change', handleFilterChange);
-            document.getElementById('lobFilter').addEventListener('change', handleFilterChange);
-            document.getElementById('subGroupFilter').addEventListener('change', handleFilterChange);
-            document.getElementById('applicationFilter').addEventListener('change', handleFilterChange);
-
-            // Navigation
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const page = this.getAttribute('data-page');
-                    switchPage(page);
-                });
-            });
-        }
-
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                
-                dashboardData = jsonData;
-                updateDashboard();
-                updateLastUpdated();
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function handleFilterChange(event) {
-            const filterId = event.target.id;
-            const filterValue = event.target.value;
-            
-            // Update current filters
-            switch(filterId) {
-                case 'monthFilter':
-                    currentFilters.month = filterValue;
-                    break;
-                case 'lobFilter':
-                    currentFilters.lob = filterValue;
-                    updateSubGroupFilter();
-                    break;
-                case 'subGroupFilter':
-                    currentFilters.subGroup = filterValue;
-                    updateApplicationFilter();
-                    break;
-                case 'applicationFilter':
-                    currentFilters.application = filterValue;
-                    break;
-            }
-            
-            updateDashboard();
-        }
-
-        function updateSubGroupFilter() {
-            const subGroupFilter = document.getElementById('subGroupFilter');
-            const filteredData = getFilteredData(['lob']);
-            
-            const subGroups = [...new Set(filteredData.map(item => item['Sub Group']))].filter(Boolean);
-            
-            subGroupFilter.innerHTML = '<option value="all">All Sub Groups</option>';
-            subGroups.forEach(subGroup => {
-                const option = document.createElement('option');
-                option.value = subGroup;
-                option.textContent = subGroup;
-                subGroupFilter.appendChild(option);
-            });
-            
-            currentFilters.subGroup = 'all';
-        }
-
-        function updateApplicationFilter() {
-            const applicationFilter = document.getElementById('applicationFilter');
-            const filteredData = getFilteredData(['lob', 'subGroup']);
-            
-            const applications = [...new Set(filteredData.map(item => item['Application name']))].filter(Boolean);
-            
-            applicationFilter.innerHTML = '<option value="all">All Applications</option>';
-            applications.forEach(app => {
-                const option = document.createElement('option');
-                option.value = app;
-                option.textContent = app;
-                applicationFilter.appendChild(option);
-            });
-            
-            currentFilters.application = 'all';
-        }
-
-        function getFilteredData(excludeFilters = []) {
-            return dashboardData.filter(item => {
-                if (!excludeFilters.includes('month') && currentFilters.month !== 'all') {
-                    // Add month filtering logic based on your date format
-                }
-                if (!excludeFilters.includes('lob') && currentFilters.lob !== 'all' && item['Group'] !== currentFilters.lob) {
-                    return false;
-                }
-                if (!excludeFilters.includes('subGroup') && currentFilters.subGroup !== 'all' && item['Sub Group'] !== currentFilters.subGroup) {
-                    return false;
-                }
-                if (!excludeFilters.includes('application') && currentFilters.application !== 'all' && item['Application name'] !== currentFilters.application) {
-                    return false;
-                }
-                return true;
-            });
-        }
-
-        function updateDashboard() {
-            const filteredData = getFilteredData();
-            updateKPIs(filteredData);
-            updateCharts(filteredData);
-        }
-
-        function updateKPIs(data) {
-            // Total Releases
-            document.getElementById('totalReleases').textContent = data.length;
-            
-            // Go Live On Time %
-            const onTimeReleases = data.filter(item => item['Go Live Status'] === 'On Time').length;
-            const onTimePercentage = data.length > 0 ? Math.round((onTimeReleases / data.length) * 100) : 0;
-            document.getElementById('goLiveOnTime').textContent = `${onTimePercentage}%`;
-            
-            // UAT Passed %
-            const passedUAT = data.filter(item => item['UAT Status'] === 'Passed').length;
-            const passedPercentage = data.length > 0 ? Math.round((passedUAT / data.length) * 100) : 0;
-            document.getElementById('uatPassed').textContent = `${passedPercentage}%`;
-            
-            // Avg Defect Density
-            const totalDefects = data.reduce((sum, item) => sum + (item['Defects - Total'] || 0), 0);
-            const totalRequirements = data.reduce((sum, item) => sum + (item['No.of requirements'] || 0), 0);
-            const avgDefectDensity = totalRequirements > 0 ? (totalDefects / totalRequirements).toFixed(2) : 0;
-            document.getElementById('avgDefectDensity').textContent = avgDefectDensity;
-        }
-
-        function initializeCharts() {
-            Chart.defaults.color = '#fff';
-            Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
-            Chart.defaults.plugins.legend.labels.color = '#fff';
-            
-            // Initialize all charts with default configuration
-            const chartConfigs = {
-                passRateChart: {
-                    type: 'line',
-                    data: { labels: [], datasets: [] },
-                    options: getLineChartOptions()
-                },
-                testStatusChart: {
-                    type: 'doughnut',
-                    data: { labels: [], datasets: [] },
-                    options: getDoughnutChartOptions()
-                },
-                newTestCasesChart: {
-                    type: 'bar',
-                    data: { labels: [], datasets: [] },
-                    options: getBarChartOptions()
-                },
-                executionStatusChart: {
-                    type: 'pie',
-                    data: { labels: [], datasets: [] },
-                    options: getPieChartOptions()
-                },
-                defectStatusChart: {
-                    type: 'doughnut',
-                    data: { labels: [], datasets: [] },
-                    options: getDoughnutChartOptions()
-                },
-                defectSeverityChart: {
-                    type: 'bar',
-                    data: { labels: [], datasets: [] },
-                    options: getBarChartOptions()
-                },
-                openDefectsTrendChart: {
-                    type: 'line',
-                    data: { labels: [], datasets: [] },
-                    options: getLineChartOptions()
-                },
-                defectDensityChart: {
-                    type: 'bar',
-                    data: { labels: [], datasets: [] },
-                    options: getBarChartOptions()
-                }
-            };
-
-            Object.keys(chartConfigs).forEach(chartId => {
-                const ctx = document.getElementById(chartId).getContext('2d');
-                charts[chartId] = new Chart(ctx, chartConfigs[chartId]);
-            });
-        }
-
-        function updateCharts(data) {
-            updatePassRateChart(data);
-            updateTestStatusChart(data);
-            updateNewTestCasesChart(data);
-            updateExecutionStatusChart(data);
-        }
+    <!-- External JavaScript -->
+    <script src="dashboard-charts.js"></script>
+    <script src="dashboard-main.js"></script>
+    <script src="automation-metrics-new.js"></script>
+</body>
+</html>
