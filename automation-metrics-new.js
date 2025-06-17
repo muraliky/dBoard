@@ -1,7 +1,87 @@
-
-// Automation Metrics JavaScript - Fixed for Chart Display
+// Automation Metrics JavaScript - Fixed for Chart Display and Responsiveness
 let automationData = [];
 let automationCharts = {};
+
+// Chart.js defaults for automation charts
+Chart.defaults.responsive = true;
+Chart.defaults.maintainAspectRatio = false;
+
+// Base chart options for automation charts
+const automationBaseOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: {
+        padding: {
+            top: 10,
+            bottom: 10,
+            left: 10,
+            right: 10
+        }
+    },
+    plugins: {
+        legend: {
+            labels: {
+                usePointStyle: true,
+                padding: 15,
+                font: {
+                    size: 12
+                }
+            }
+        },
+        tooltip: {
+            titleFont: {
+                size: 14
+            },
+            bodyFont: {
+                size: 12
+            },
+            padding: 12,
+            cornerRadius: 8
+        }
+    },
+    scales: {
+        x: {
+            ticks: {
+                maxRotation: 45,
+                font: {
+                    size: 11
+                }
+            },
+            grid: {
+                display: false
+            }
+        },
+        y: {
+            beginAtZero: true,
+            ticks: {
+                font: {
+                    size: 11
+                }
+            }
+        }
+    }
+};
+
+// Utility function for responsive font sizes
+function getAutomationResponsiveFontSize() {
+    const width = window.innerWidth;
+    if (width < 480) return 10;
+    if (width < 768) return 11;
+    if (width < 1200) return 12;
+    return 12;
+}
+
+// Utility function to safely destroy automation charts
+function safeDestroyAutomationChart(chartKey) {
+    if (automationCharts[chartKey]) {
+        try {
+            automationCharts[chartKey].destroy();
+        } catch (error) {
+            console.warn(`Error destroying automation chart ${chartKey}:`, error);
+        }
+        delete automationCharts[chartKey];
+    }
+}
 
 // Initialize Automation Page - Called when switching to automation page
 function initializeAutomationPage() {
@@ -85,10 +165,7 @@ function renderChartsForTab(tabName) {
     
     // Destroy all existing automation charts first
     Object.keys(automationCharts).forEach(key => {
-        if (automationCharts[key]) {
-            automationCharts[key].destroy();
-            delete automationCharts[key];
-        }
+        safeDestroyAutomationChart(key);
     });
     
     if (tabName === 'automation-overview') {
@@ -133,65 +210,32 @@ function setupAutomationFilterListeners() {
         });
     }
 }
+
+// Load automation data
 async function loadAutomationData() {
     console.log('Loading automation data...');
     
     try {
-            const res = await fetch('data/Automation.json');
-            const jsonData = await res.json();
+        const res = await fetch('data/Automation.json');
+        const jsonData = await res.json();
 
-            // Optional: flatten if jsonData is an object with sheets
-            const flatData = Array.isArray(jsonData)
-            ? jsonData
-            : Object.values(jsonData).flat();
+        // Optional: flatten if jsonData is an object with sheets
+        const flatData = Array.isArray(jsonData)
+        ? jsonData
+        : Object.values(jsonData).flat();
 
-                automationData = flatData.map(row => ({
-                group: row.Group || '',
-                subGroup: row['Sub Group'] || '',
-                application: (row[' Application name'] || '').trim(),
-                month: row.Month || '',
-                totalManualCases: parseInt(row['Total Manual Regression Cases']) || 0,
-                totalAutomated: parseInt(row['Toatl Automated']) || 0,
-                newScriptsAutomated: parseInt(row['New scripts Automated']) || 0,
-                targetAutomation: parseInt(row['Target % Automation 2025']) || 90,
-                actualAutomation: parseInt(row['Actual % of cases automated']) || 0,
-                effortsSaved: parseInt(row['Efforts Saved (.hrs)']) || 0
-            }));
-        } 
-        catch (error) {
-        console.log('Error loading data, using sample:', error);
-        automationData = generateAutomationSampleData();
-    }
-    
-    console.log('Automation data loaded:', automationData.length, 'records');
-    updateAutomationMetrics();
-}
-// Load automation data
-/*async function loadAutomationData() {
-    console.log('Loading automation data...');
-    
-    try {
-        if (typeof window !== 'undefined' && window.fs && window.fs.readFile) {
-            const response = await window.fs.readFile('data/Automation.xlsx');
-            const workbook = XLSX.read(response);
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(sheet);
-            
-            automationData = jsonData.map(row => ({
-                group: row.Group || '',
-                subGroup: row['Sub Group'] || '',
-                application: (row[' Application name'] || '').trim(),
-                month: row.Month || '',
-                totalManualCases: parseInt(row['Total Manual Regression Cases']) || 0,
-                totalAutomated: parseInt(row['Toatl Automated']) || 0,
-                newScriptsAutomated: parseInt(row['New scripts Automated']) || 0,
-                targetAutomation: parseInt(row['Target % Automation 2025']) || 90,
-                actualAutomation: parseInt(row['Actual % of cases automated']) || 0,
-                effortsSaved: parseInt(row['Efforts Saved (.hrs)']) || 0
-            }));
-        } else {
-            automationData = generateAutomationSampleData();
-        }
+        automationData = flatData.map(row => ({
+            group: row.Group || '',
+            subGroup: row['Sub Group'] || '',
+            application: (row[' Application name'] || '').trim(),
+            month: row.Month || '',
+            totalManualCases: parseInt(row['Total Manual Regression Cases']) || 0,
+            totalAutomated: parseInt(row['Toatl Automated']) || 0,
+            newScriptsAutomated: parseInt(row['New scripts Automated']) || 0,
+            targetAutomation: parseInt(row['Target % Automation 2025']) || 90,
+            actualAutomation: parseInt(row['Actual % of cases automated']) || 0,
+            effortsSaved: parseInt(row['Efforts Saved (.hrs)']) || 0
+        }));
     } catch (error) {
         console.log('Error loading data, using sample:', error);
         automationData = generateAutomationSampleData();
@@ -199,7 +243,7 @@ async function loadAutomationData() {
     
     console.log('Automation data loaded:', automationData.length, 'records');
     updateAutomationMetrics();
-}*/
+}
 
 // Generate sample data
 function generateAutomationSampleData() {
@@ -220,7 +264,7 @@ function generateAutomationSampleData() {
             subGroups[group].forEach(subGroup => {
                 months.forEach(month => {
                     const totalManual = Math.floor(Math.random() * 200) + 150;
-                    const totalAutomated = Math.floor(Math.random() * totalManual * 0.4);
+                    const totalAutomated = Math.floor(Math.random() * totalManual * 0.7);
                     data.push({
                         group: group,
                         subGroup: subGroup,
@@ -281,15 +325,13 @@ function updateAutomationKPIs(data) {
     const totalEffortsSaved = data.reduce((sum, d) => sum + d.effortsSaved, 0);
     const totalNewScripts = data.reduce((sum, d) => sum + d.newScriptsAutomated, 0);
     const coverageRate = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-    //const costSaved = totalEffortsSaved * 50;
     
     const elements = {
         'totalTestCases': totalManual.toLocaleString(),
         'automatedCases': totalAutomated.toLocaleString(),
         'coverageRate': coverageRate + '%',
         'newScripts': totalNewScripts,
-        'hoursSaved': totalEffortsSaved.toLocaleString(),
-        //'costSaved': '$' + costSaved.toLocaleString()
+        'hoursSaved': totalEffortsSaved.toLocaleString()
     };
     
     Object.entries(elements).forEach(([id, value]) => {
@@ -307,7 +349,6 @@ function renderAutomationOverviewCharts() {
     // Add delay between charts to ensure proper rendering
     setTimeout(() => renderCoverageByGroupChart(), 100);
     setTimeout(() => renderProgressToTargetChart(), 200);
-    //setTimeout(() => renderAutomationStatusGrid(), 300);
     setTimeout(() => renderNewScriptsDistChart(), 300);
 }
 
@@ -324,10 +365,7 @@ function renderCoverageByGroupChart() {
         return;
     }
     
-    // Destroy existing chart
-    if (automationCharts.coverageByGroup) {
-        automationCharts.coverageByGroup.destroy();
-    }
+    safeDestroyAutomationChart('coverageByGroup');
     
     const data = getFilteredAutomationData();
     
@@ -340,6 +378,12 @@ function renderCoverageByGroupChart() {
         labels = [...new Set(data.map(d => d.group))];
     }
     
+    // Truncate labels for mobile
+    const truncateLength = window.innerWidth < 768 ? 8 : 15;
+    const displayLabels = labels.map(label => 
+        label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
+    );
+    
     const coverageData = labels.map(label => {
         const labelData = data.filter(d => {
             if (typeof filters !== 'undefined' && filters.subGroup) return d.application === label;
@@ -351,11 +395,13 @@ function renderCoverageByGroupChart() {
         return totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
     });
     
+    const fontSize = getAutomationResponsiveFontSize();
+    
     try {
         automationCharts.coverageByGroup = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: labels,
+                labels: displayLabels,
                 datasets: [{
                     label: 'Coverage %',
                     data: coverageData,
@@ -369,20 +415,34 @@ function renderCoverageByGroupChart() {
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...automationBaseOptions,
                 plugins: {
+                    ...automationBaseOptions.plugins,
                     legend: {
                         display: false
                     }
                 },
                 scales: {
+                    ...automationBaseOptions.scales,
+                    x: {
+                        ...automationBaseOptions.scales.x,
+                        ticks: {
+                            ...automationBaseOptions.scales.x.ticks,
+                            maxRotation: window.innerWidth < 768 ? 45 : 30,
+                            font: {
+                                size: fontSize
+                            }
+                        }
+                    },
                     y: {
-                        beginAtZero: true,
+                        ...automationBaseOptions.scales.y,
                         max: 100,
                         ticks: {
                             callback: function(value) {
                                 return value + '%';
+                            },
+                            font: {
+                                size: fontSize
                             }
                         }
                     }
@@ -408,9 +468,7 @@ function renderProgressToTargetChart() {
         return;
     }
     
-    if (automationCharts.progressToTarget) {
-        automationCharts.progressToTarget.destroy();
-    }
+    safeDestroyAutomationChart('progressToTarget');
     
     const data = getFilteredAutomationData();
     
@@ -444,11 +502,19 @@ function renderProgressToTargetChart() {
         });
     }
     
+    // Truncate labels for mobile
+    const truncateLength = window.innerWidth < 768 ? 8 : 15;
+    const displayLabels = labels.map(label => 
+        label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
+    );
+    
+    const fontSize = getAutomationResponsiveFontSize();
+    
     try {
         automationCharts.progressToTarget = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: labels,
+                labels: displayLabels,
                 datasets: [{
                     label: 'Actual Coverage',
                     data: actualCoverage,
@@ -474,13 +540,21 @@ function renderProgressToTargetChart() {
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...automationBaseOptions,
                 plugins: {
+                    ...automationBaseOptions.plugins,
                     legend: {
-                        position: 'top'
+                        ...automationBaseOptions.plugins.legend,
+                        position: window.innerWidth < 768 ? 'bottom' : 'top',
+                        labels: {
+                            ...automationBaseOptions.plugins.legend.labels,
+                            font: {
+                                size: fontSize
+                            }
+                        }
                     },
                     tooltip: {
+                        ...automationBaseOptions.plugins.tooltip,
                         callbacks: {
                             label: function(context) {
                                 if (context.datasetIndex === 0) {
@@ -496,18 +570,27 @@ function renderProgressToTargetChart() {
                     }
                 },
                 scales: {
+                    ...automationBaseOptions.scales,
+                    x: {
+                        ...automationBaseOptions.scales.x,
+                        ticks: {
+                            ...automationBaseOptions.scales.x.ticks,
+                            maxRotation: window.innerWidth < 768 ? 45 : 30,
+                            font: {
+                                size: fontSize
+                            }
+                        }
+                    },
                     y: {
-                        beginAtZero: true,
+                        ...automationBaseOptions.scales.y,
                         max: 100,
                         ticks: {
                             callback: function(value) {
                                 return value + '%';
+                            },
+                            font: {
+                                size: fontSize
                             }
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            maxRotation: 45
                         }
                     }
                 }
@@ -519,49 +602,123 @@ function renderProgressToTargetChart() {
     }
 }
 
-function renderAutomationStatusGrid() {
-    const container = document.getElementById('automationStatusGrid');
-    if (!container) {
-      console.error('Status grid container not found');
-      return;
+function renderNewScriptsDistChart() {
+    const canvas = document.getElementById('newScriptsDistChart');
+    if (!canvas) {
+        console.error('New scripts chart canvas not found');
+        return;
     }
-  
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    safeDestroyAutomationChart('newScriptsDist');
+    
     const data = getFilteredAutomationData();
-    let html = '';
-  
-    data.forEach(app => {
-      const coverage = app.actualAutomation || 0;
-      const totalCases = app.totalManualCases || 0;
-      let progressClass = '';
-  
-      if (coverage >= 80) progressClass = 'target';
-      else if (coverage >= 60) progressClass = 'high';
-      else if (coverage >= 40) progressClass = 'medium';
-      else progressClass = 'low';
-  
-      html += `
-        <div class="status-card">
-          <div class="status-app">${app.application}</div>
-          <div class="status-progress">
-            <div class="status-progress-bar ${progressClass}" style="width: ${coverage}%"></div>
-          </div>
-          <div class="status-text">
-            <span class="status-percent">${coverage}%</span> of ${totalCases} cases
-          </div>
-        </div>
-      `;
-    });
-  
-    container.innerHTML = html;
-  }
+    
+    let labels, newScriptsData;
+    if (typeof filters !== 'undefined' && filters.subGroup) {
+        // Show applications when subgroup is selected
+        labels = [...new Set(data.map(d => d.application))];
+        newScriptsData = labels.map(app => {
+            return data.filter(d => d.application === app)
+                .reduce((sum, d) => sum + d.newScriptsAutomated, 0);
+        });
+    } else if (typeof filters !== 'undefined' && filters.group) {
+        // Show subgroups when group is selected
+        labels = [...new Set(data.map(d => d.subGroup))];
+        newScriptsData = labels.map(subGroup => {
+            return data.filter(d => d.subGroup === subGroup)
+                .reduce((sum, d) => sum + d.newScriptsAutomated, 0);
+        });
+    } else {
+        // Show groups by default
+        labels = [...new Set(data.map(d => d.group))];
+        newScriptsData = labels.map(group => {
+            return data.filter(d => d.group === group)
+                .reduce((sum, d) => sum + d.newScriptsAutomated, 0);
+        });
+    }
+    
+    // Truncate labels for mobile
+    const truncateLength = window.innerWidth < 768 ? 8 : 15;
+    const displayLabels = labels.map(label => 
+        label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
+    );
+    
+    const fontSize = getAutomationResponsiveFontSize();
+    
+    try {
+        automationCharts.newScriptsDist = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: displayLabels,
+                datasets: [{
+                    label: 'New Scripts Automated',
+                    data: newScriptsData,
+                    backgroundColor: '#3498db',
+                    borderColor: '#2980b9',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                ...automationBaseOptions,
+                plugins: {
+                    ...automationBaseOptions.plugins,
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        ...automationBaseOptions.plugins.tooltip,
+                        callbacks: {
+                            label: function(context) {
+                                const scripts = context.parsed.y;
+                                const estimatedHours = scripts * 40; // Assume 40 hours per script
+                                return [
+                                    'Scripts: ' + scripts,
+                                    'Est. Effort: ' + estimatedHours + ' hours'
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    ...automationBaseOptions.scales,
+                    x: {
+                        ...automationBaseOptions.scales.x,
+                        ticks: {
+                            ...automationBaseOptions.scales.x.ticks,
+                            maxRotation: window.innerWidth < 768 ? 45 : 30,
+                            font: {
+                                size: fontSize
+                            }
+                        }
+                    },
+                    y: {
+                        ...automationBaseOptions.scales.y,
+                        ticks: {
+                            stepSize: 1,
+                            font: {
+                                size: fontSize
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        console.log('New script distribution chart created successfully');
+    } catch (error) {
+        console.error('Error creating new scripts chart:', error);
+    }
+}
 
 // Efficiency Charts
 function renderAutomationEfficiencyCharts() {
     console.log('Rendering efficiency charts...');
     
     setTimeout(() => renderEffortsByGroupChart(), 100);
-    //setTimeout(() => renderROIChart(), 200);
-    setTimeout(() => renderEfficiencyMatrix(), 300);
+    setTimeout(() => renderEfficiencyMatrix(), 200);
 }
 
 function renderEffortsByGroupChart() {
@@ -574,9 +731,7 @@ function renderEffortsByGroupChart() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    if (automationCharts.effortsByGroup) {
-        automationCharts.effortsByGroup.destroy();
-    }
+    safeDestroyAutomationChart('effortsByGroup');
     
     const data = getFilteredAutomationData();
     const groups = [...new Set(data.map(d => d.group))];
@@ -584,6 +739,8 @@ function renderEffortsByGroupChart() {
         return data.filter(d => d.group === group)
             .reduce((sum, d) => sum + d.effortsSaved, 0);
     });
+    
+    const fontSize = getAutomationResponsiveFontSize();
     
     try {
         automationCharts.effortsByGroup = new Chart(ctx, {
@@ -599,17 +756,27 @@ function renderEffortsByGroupChart() {
                         '#f39c12',
                         '#9b59b6'
                     ],
-                    borderWidth: 0
+                    borderWidth: 0,
+                    cutout: window.innerWidth < 768 ? '40%' : '50%'
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
+                    ...automationBaseOptions.plugins,
                     legend: {
-                        position: 'right'
+                        ...automationBaseOptions.plugins.legend,
+                        position: window.innerWidth < 768 ? 'bottom' : 'right',
+                        labels: {
+                            ...automationBaseOptions.plugins.legend.labels,
+                            font: {
+                                size: fontSize
+                            }
+                        }
                     },
                     tooltip: {
+                        ...automationBaseOptions.plugins.tooltip,
                         callbacks: {
                             label: function(context) {
                                 const hours = context.parsed;
@@ -627,81 +794,6 @@ function renderEffortsByGroupChart() {
         console.log('Efforts chart created successfully');
     } catch (error) {
         console.error('Error creating efforts chart:', error);
-    }
-}
-
-function renderROIChart() {
-    const canvas = document.getElementById('roiChart');
-    if (!canvas) {
-        console.error('ROI chart canvas not found');
-        return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    if (automationCharts.roi) {
-        automationCharts.roi.destroy();
-    }
-    
-    const data = getFilteredAutomationData();
-    const currentSavings = data.reduce((sum, d) => sum + d.effortsSaved, 0) * 50;
-    const currentCost = data.reduce((sum, d) => sum + d.newScriptsAutomated, 0) * 2000;
-    
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    const cumulativeSavings = months.map((_, idx) => Math.round((currentSavings / 6) * (idx + 1)));
-    const automationCost = months.map((_, idx) => Math.round((currentCost / 6) * (idx + 1)));
-    const netBenefit = cumulativeSavings.map((saving, idx) => saving - automationCost[idx]);
-    
-    try {
-        automationCharts.roi = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: months,
-                datasets: [{
-                    label: 'Cumulative Savings',
-                    data: cumulativeSavings,
-                    borderColor: '#27ae60',
-                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
-                    tension: 0.4
-                }, {
-                    label: 'Automation Cost',
-                    data: automationCost,
-                    borderColor: '#e74c3c',
-                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                    tension: 0.4
-                }, {
-                    label: 'Net Benefit',
-                    data: netBenefit,
-                    borderColor: '#3498db',
-                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                    borderWidth: 3,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top'
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return '$' + (value / 1000).toFixed(0) + 'k';
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        console.log('ROI chart created successfully');
-    } catch (error) {
-        console.error('Error creating ROI chart:', error);
     }
 }
 
@@ -739,11 +831,7 @@ function renderEfficiencyMatrix() {
     }
     
     // Destroy existing chart if it exists
-    if (automationCharts && automationCharts.efficiencyMatrix) {
-        console.log('Destroying existing efficiency matrix chart');
-        automationCharts.efficiencyMatrix.destroy();
-        delete automationCharts.efficiencyMatrix;
-    }
+    safeDestroyAutomationChart('efficiencyMatrix');
     
     // Get filtered data
     const data = getFilteredAutomationData();
@@ -830,22 +918,25 @@ function renderEfficiencyMatrix() {
         const coverageData = items.map(item => item.coverage);
         const efficiencyData = items.map(item => item.efficiency);
         
+        // Truncate labels for mobile
+        const truncateLength = window.innerWidth < 768 ? 8 : 15;
+        const displayLabels = labels.map(label => 
+            label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
+        );
+        
         console.log('Chart data prepared:', {
-            labels,
+            labels: displayLabels,
             coverageData,
             efficiencyData
         });
         
-        // Ensure automationCharts object exists
-        if (typeof automationCharts === 'undefined') {
-            window.automationCharts = {};
-        }
+        const fontSize = getAutomationResponsiveFontSize();
         
         // Create the chart
         automationCharts.efficiencyMatrix = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: labels,
+                labels: displayLabels,
                 datasets: [{
                     label: 'Coverage %',
                     data: coverageData,
@@ -863,13 +954,21 @@ function renderEfficiencyMatrix() {
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...automationBaseOptions,
                 plugins: {
+                    ...automationBaseOptions.plugins,
                     legend: {
-                        position: 'top'
+                        ...automationBaseOptions.plugins.legend,
+                        position: window.innerWidth < 768 ? 'bottom' : 'top',
+                        labels: {
+                            ...automationBaseOptions.plugins.legend.labels,
+                            font: {
+                                size: fontSize
+                            }
+                        }
                     },
                     tooltip: {
+                        ...automationBaseOptions.plugins.tooltip,
                         callbacks: {
                             label: function(context) {
                                 const item = items[context.dataIndex];
@@ -883,7 +982,7 @@ function renderEfficiencyMatrix() {
                                     return [
                                         'Efficiency: ' + context.parsed.y + ' hrs/case',
                                         'Total Hours Saved: ' + item.totalHours,
-                                        'Cost Saved: $' + (item.totalHours * 50).toLocaleString()
+                                        'Cost Saved: '  + (item.totalHours * 50).toLocaleString()
                                     ];
                                 }
                             }
@@ -891,6 +990,14 @@ function renderEfficiencyMatrix() {
                     }
                 },
                 scales: {
+                    x: {
+                        ticks: {
+                            maxRotation: window.innerWidth < 768 ? 45 : 30,
+                            font: {
+                                size: fontSize
+                            }
+                        }
+                    },
                     y: {
                         type: 'linear',
                         display: true,
@@ -900,11 +1007,17 @@ function renderEfficiencyMatrix() {
                         ticks: {
                             callback: function(value) {
                                 return value + '%';
+                            },
+                            font: {
+                                size: fontSize
                             }
                         },
                         title: {
                             display: true,
-                            text: 'Coverage %'
+                            text: 'Coverage %',
+                            font: {
+                                size: fontSize
+                            }
                         }
                     },
                     y1: {
@@ -918,18 +1031,16 @@ function renderEfficiencyMatrix() {
                         ticks: {
                             callback: function(value) {
                                 return value + ' hrs';
+                            },
+                            font: {
+                                size: fontSize
                             }
                         },
                         title: {
                             display: true,
-                            text: 'Efficiency (hrs/case)'
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            maxRotation: 45,
+                            text: 'Efficiency (hrs/case)',
                             font: {
-                                size: 10
+                                size: fontSize
                             }
                         }
                     }
@@ -944,14 +1055,13 @@ function renderEfficiencyMatrix() {
         console.error('Error stack:', error.stack);
     }
 }
+
 // Insights Charts
 function renderAutomationInsightsCharts() {
     console.log('Rendering insights charts...');
     
     setTimeout(() => renderCoverageGapChart(), 100);
     setTimeout(() => renderAutomationMatrix(), 200);
-    
-    //setTimeout(() => renderVelocityMetrics(), 400);
 }
 
 function renderCoverageGapChart() {
@@ -964,9 +1074,7 @@ function renderCoverageGapChart() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    if (automationCharts.coverageGap) {
-        automationCharts.coverageGap.destroy();
-    }
+    safeDestroyAutomationChart('coverageGap');
     
     const data = getFilteredAutomationData();
     
@@ -1021,11 +1129,19 @@ function renderCoverageGapChart() {
         });
     }
     
+    // Truncate labels for mobile
+    const truncateLength = window.innerWidth < 768 ? 8 : 15;
+    const displayLabels = labels.map(label => 
+        label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
+    );
+    
+    const fontSize = getAutomationResponsiveFontSize();
+    
     try {
         automationCharts.coverageGap = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: labels,
+                labels: displayLabels,
                 datasets: [{
                     label: 'Current Coverage',
                     data: actualCoverage,
@@ -1058,22 +1174,30 @@ function renderCoverageGapChart() {
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...automationBaseOptions,
                 plugins: {
+                    ...automationBaseOptions.plugins,
                     legend: {
-                        position: 'top'
+                        ...automationBaseOptions.plugins.legend,
+                        position: window.innerWidth < 768 ? 'bottom' : 'top',
+                        labels: {
+                            ...automationBaseOptions.plugins.legend.labels,
+                            font: {
+                                size: fontSize
+                            }
+                        }
                     },
                     tooltip: {
+                        ...automationBaseOptions.plugins.tooltip,
                         callbacks: {
                             label: function(context) {
                                 if (context.datasetIndex === 0) {
                                     return 'Current Coverage: ' + context.parsed.y + '%';
                                 } else {
                                     const totalCases = data.filter(d => {
-                                        if (typeof filters !== 'undefined' && filters.subGroup) return d.application === context.label;
-                                        if (typeof filters !== 'undefined' && filters.group) return d.subGroup === context.label;
-                                        return d.group === context.label;
+                                        if (typeof filters !== 'undefined' && filters.subGroup) return d.application === labels[context.dataIndex];
+                                        if (typeof filters !== 'undefined' && filters.group) return d.subGroup === labels[context.dataIndex];
+                                        return d.group === labels[context.dataIndex];
                                     }).reduce((sum, d) => sum + d.totalManualCases, 0);
                                     const potentialCases = Math.round(totalCases * (context.parsed.y / 100));
                                     return [
@@ -1087,18 +1211,27 @@ function renderCoverageGapChart() {
                     }
                 },
                 scales: {
+                    ...automationBaseOptions.scales,
+                    x: {
+                        ...automationBaseOptions.scales.x,
+                        ticks: {
+                            ...automationBaseOptions.scales.x.ticks,
+                            maxRotation: window.innerWidth < 768 ? 45 : 30,
+                            font: {
+                                size: fontSize
+                            }
+                        }
+                    },
                     y: {
-                        beginAtZero: true,
+                        ...automationBaseOptions.scales.y,
                         max: 100,
                         ticks: {
                             callback: function(value) {
                                 return value + '%';
+                            },
+                            font: {
+                                size: fontSize
                             }
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            maxRotation: 45
                         }
                     }
                 }
@@ -1122,8 +1255,9 @@ function renderCoverageGapChart() {
     
     const summaryElement = document.getElementById('coverageGapSummary');
     if (summaryElement) {
+        const isMobile = window.innerWidth < 768;
         summaryElement.innerHTML = `
-            <div class="gap-summary-grid">
+            <div class="gap-summary-grid" style="${isMobile ? 'grid-template-columns: 1fr 1fr;' : ''}">
                 <div class="gap-summary-item">
                     <div class="gap-summary-label">Average Gap</div>
                     <div class="gap-summary-value">${avgGap.toFixed(1)}%</div>
@@ -1138,173 +1272,18 @@ function renderCoverageGapChart() {
                 </div>
                 <div class="gap-summary-item">
                     <div class="gap-summary-label">Potential Savings</div>
-                    <div class="gap-summary-value">$${potentialSavings.toLocaleString()}</div>
+                    <div class="gap-summary-value">${potentialSavings.toLocaleString()}</div>
                 </div>
             </div>
         `;
     }
 }
 
-function renderPriorityAreas() {
-    const container = document.getElementById('priorityAreasList');
-    if (!container) {
-        console.error('Priority areas container not found');
-        return;
-    }
-    
-    const data = getFilteredAutomationData();
-    
-    const priorityData = data.map(app => {
-        const gap = 90 - app.actualAutomation;
-        const potentialCases = Math.round(app.totalManualCases * (gap / 100));
-        const potentialHours = potentialCases * 5.5;
-        const priorityScore = (potentialCases * 0.4) + (gap * 0.3) + (potentialHours * 0.3);
-        
-        return {
-            ...app,
-            gap,
-            potentialCases,
-            potentialHours,
-            priorityScore: Math.round(priorityScore)
-        };
-    });
-    
-    priorityData.sort((a, b) => b.priorityScore - a.priorityScore);
-    const top5 = priorityData.slice(0, 5);
-    
-    let html = '';
-    top5.forEach(app => {
-        html += `
-            <div class="priority-item">
-                <div class="priority-info">
-                    <div class="priority-name">${app.application}</div>
-                    <div class="priority-details">
-                        Gap: ${app.gap}% | Potential: ${app.potentialCases} cases | 
-                        Est. Savings: ${app.potentialHours.toFixed(0)} hrs
-                    </div>
-                </div>
-                <div class="priority-score">${app.priorityScore}</div>
-            </div>
-        `;
-    });
-    
-    container.innerHTML = html;
-    console.log('Priority areas rendered');
-}
-
-function renderNewScriptsDistChart() {
-    const canvas = document.getElementById('newScriptsDistChart');
-    if (!canvas) {
-        console.error('New scripts chart canvas not found');
-        return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    if (automationCharts.newScriptsDist) {
-        automationCharts.newScriptsDist.destroy();
-    }
-    
-    const data = getFilteredAutomationData();
-    
-    let labels, newScriptsData;
-    if (typeof filters !== 'undefined' && filters.subGroup) {
-        // Show applications when subgroup is selected
-        labels = [...new Set(data.map(d => d.application))];
-        newScriptsData = labels.map(app => {
-            return data.filter(d => d.application === app)
-                .reduce((sum, d) => sum + d.newScriptsAutomated, 0);
-        });
-    } else if (typeof filters !== 'undefined' && filters.group) {
-        // Show subgroups when group is selected
-        labels = [...new Set(data.map(d => d.subGroup))];
-        newScriptsData = labels.map(subGroup => {
-            return data.filter(d => d.subGroup === subGroup)
-                .reduce((sum, d) => sum + d.newScriptsAutomated, 0);
-        });
-    } else {
-        // Show groups by default
-        labels = [...new Set(data.map(d => d.group))];
-        newScriptsData = labels.map(group => {
-            return data.filter(d => d.group === group)
-                .reduce((sum, d) => sum + d.newScriptsAutomated, 0);
-        });
-    }
-    
-    try {
-        automationCharts.newScriptsDist = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'New Scripts Automated',
-                    data: newScriptsData,
-                    backgroundColor: '#3498db',
-                    borderColor: '#2980b9',
-                    borderWidth: 1,
-                    borderRadius: 5
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const scripts = context.parsed.y;
-                                const estimatedHours = scripts * 40; // Assume 40 hours per script
-                                return [
-                                    'Scripts: ' + scripts,
-                                    'Est. Effort: ' + estimatedHours + ' hours'
-                                ];
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            maxRotation: 45
-                        }
-                    }
-                }
-            }
-        });
-        console.log('New script distribution chart created successfully');
-    } catch (error) {
-        console.error('Error creating new scripts chart:', error);
-    }
-
-    
-}
 function renderAutomationMatrix() {
     console.log('Rendering automation opportunity areas...');
     
-    /*// Create canvas in existing container
-    const container = document.getElementById('coverageGapChart1');
-    if (!container) {
-        console.error('Container not found');
-        return;
-    }
-    
-    container.innerHTML = `
-        <h4 style="color: #c41e3a; margin-bottom: 15px;">Automation Opportunity Areas (Coverage < 50%)</h4>
-        <canvas id="opportunityChart" style="width: 100%; height: 400px;"></canvas>
-    `;*/
-    
     const canvas = document.getElementById('coverageGapChart1');
-     if (!canvas) {
+    if (!canvas) {
         console.error('Automation opportunity areas canvas not found');
         return;
     }
@@ -1312,9 +1291,7 @@ function renderAutomationMatrix() {
     const ctx = canvas.getContext('2d');
     
     // Destroy existing chart
-    if (automationCharts && automationCharts.opportunity) {
-        automationCharts.opportunity.destroy();
-    }
+    safeDestroyAutomationChart('opportunity');
     
     const data = getFilteredAutomationData();
     
@@ -1327,6 +1304,7 @@ function renderAutomationMatrix() {
     console.log(`Found ${lowCoverageData.length} opportunity areas`);
     
     if (lowCoverageData.length === 0) {
+        const container = canvas.parentElement;
         container.innerHTML = `
             <div style="text-align: center; padding: 40px; color: #27ae60;">
                 <h3>Excellent Coverage!</h3>
@@ -1396,6 +1374,7 @@ function renderAutomationMatrix() {
     items.sort((a, b) => a.coverage - b.coverage);
     
     if (items.length === 0) {
+        const container = canvas.parentElement;
         container.innerHTML = `
             <div style="text-align: center; padding: 40px; color: #27ae60;">
                 <h3>Great Coverage!</h3>
@@ -1409,16 +1388,19 @@ function renderAutomationMatrix() {
     const coverageData = items.map(item => item.coverage);
     const potentialData = items.map(item => item.potentialCases);
     
-    // Ensure automationCharts exists
-    if (typeof automationCharts === 'undefined') {
-        window.automationCharts = {};
-    }
+    // Truncate labels for mobile
+    const truncateLength = window.innerWidth < 768 ? 8 : 15;
+    const displayLabels = labels.map(label => 
+        label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
+    );
+    
+    const fontSize = getAutomationResponsiveFontSize();
     
     try {
         automationCharts.opportunity = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: labels,
+                labels: displayLabels,
                 datasets: [{
                     label: 'Current Coverage %',
                     data: coverageData,
@@ -1431,16 +1413,17 @@ function renderAutomationMatrix() {
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...automationBaseOptions,
                 plugins: {
+                    ...automationBaseOptions.plugins,
                     legend: {
                         display: false
                     },
                     tooltip: {
+                        ...automationBaseOptions.plugins.tooltip,
                         callbacks: {
                             title: function(context) {
-                                return context[0].label + ' - Opportunity Area';
+                                return labels[context[0].dataIndex] + ' - Opportunity Area';
                             },
                             label: function(context) {
                                 const item = items[context.dataIndex];
@@ -1455,22 +1438,34 @@ function renderAutomationMatrix() {
                     }
                 },
                 scales: {
+                    ...automationBaseOptions.scales,
+                    x: {
+                        ...automationBaseOptions.scales.x,
+                        ticks: {
+                            ...automationBaseOptions.scales.x.ticks,
+                            maxRotation: window.innerWidth < 768 ? 45 : 30,
+                            font: {
+                                size: fontSize
+                            }
+                        }
+                    },
                     y: {
-                        beginAtZero: true,
+                        ...automationBaseOptions.scales.y,
                         max: 50,
                         ticks: {
                             callback: function(value) {
                                 return value + '%';
+                            },
+                            font: {
+                                size: fontSize
                             }
                         },
                         title: {
                             display: true,
-                            text: 'Current Automation Coverage %'
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            maxRotation: 45
+                            text: 'Current Automation Coverage %',
+                            font: {
+                                size: fontSize
+                            }
                         }
                     }
                 }
@@ -1481,15 +1476,24 @@ function renderAutomationMatrix() {
         const totalPotential = items.reduce((sum, item) => sum + item.potentialCases, 0);
         const totalSavings = totalPotential * 5.5 * 50;
         
-        container.innerHTML += `
+        const container = canvas.parentElement;
+        const existingSummary = container.querySelector('.opportunity-summary');
+        if (existingSummary) {
+            existingSummary.remove();
+        }
+        
+        const summaryDiv = document.createElement('div');
+        summaryDiv.className = 'opportunity-summary';
+        summaryDiv.innerHTML = `
             <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; text-align: center;">
                 <strong style="color: #c41e3a;">${items.length} Opportunity Areas Found</strong><br>
                 <span style="color: #666; font-size: 14px;">
                     ${totalPotential.toLocaleString()} potential cases • 
-                    $${totalSavings.toLocaleString()} potential savings
+                    ${totalSavings.toLocaleString()} potential savings
                 </span>
             </div>
         `;
+        container.appendChild(summaryDiv);
         
         console.log('Opportunity areas chart created successfully');
         
@@ -1497,3 +1501,76 @@ function renderAutomationMatrix() {
         console.error('Error creating opportunity chart:', error);
     }
 }
+
+// Resize handler for automation charts
+function handleAutomationChartResize() {
+    // Update font sizes based on current window size
+    const fontSize = getAutomationResponsiveFontSize();
+    
+    // Get current active tab
+    const activeTab = document.querySelector('#automationPage .tab.active');
+    if (activeTab) {
+        const tabName = activeTab.getAttribute('data-tab');
+        
+        // Add a small delay to ensure DOM has updated
+        setTimeout(() => {
+            renderChartsForTab(tabName);
+        }, 100);
+    }
+}
+
+// Add resize listener for automation charts
+if (typeof window !== 'undefined') {
+    window.addEventListener('resize', debounce(handleAutomationChartResize, 300));
+}
+
+// Function to update all visible automation charts
+function updateVisibleAutomationCharts() {
+    Object.keys(automationCharts).forEach(key => {
+        const canvas = document.getElementById(key + 'Chart') || document.getElementById(key);
+        if (canvas && isElementVisible(canvas) && automationCharts[key]) {
+            try {
+                automationCharts[key].update('none'); // Update without animation for performance
+            } catch (error) {
+                console.warn(`Error updating automation chart ${key}:`, error);
+            }
+        }
+    });
+}
+
+// Function to check if element is visible (reuse from main charts)
+function isElementVisible(element) {
+    if (!element) return false;
+    const rect = element.getBoundingClientRect();
+    return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+}
+
+// Debounce function for resize events (reuse from main charts)
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Export functions for external use
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        initializeAutomationPage,
+        updateAutomationMetrics,
+        renderChartsForTab,
+        handleAutomationChartResize,
+        updateVisibleAutomationCharts,
+        automationCharts
+    };
+} 
