@@ -1,0 +1,226 @@
+/* Large Screen Chart Fixes - CSS */
+
+/* Base chart containers */
+.chart-container {
+    width: 100%;
+    height: 100%;
+    min-height: 400px;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.chart-wrapper {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    min-height: 400px;
+}
+
+/* Overall Test Summary Chart */
+.overall-test-summary {
+    width: 100%;
+    min-height: 450px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+}
+
+#overallTestSummaryChart {
+    width: 100% !important;
+    height: 400px !important;
+    min-height: 400px !important;
+}
+
+/* Test Case Distribution Chart */
+.test-case-distribution {
+    width: 100%;
+    min-height: 450px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+}
+
+#testCaseDistributionChart {
+    width: 100% !important;
+    height: 400px !important;
+    min-height: 400px !important;
+}
+
+/* Defect Overview Card */
+.defect-overview-card {
+    width: 100%;
+    min-height: 450px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+}
+
+/* Top 5 Problem Areas */
+.top-problem-areas {
+    width: 100%;
+    min-height: 450px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+}
+
+#topProblemAreasChart {
+    width: 100% !important;
+    height: 400px !important;
+    min-height: 400px !important;
+}
+
+/* Large screen specific adjustments (1400px+) */
+@media (min-width: 1400px) {
+    .chart-container {
+        min-height: 500px;
+    }
+    
+    .chart-wrapper {
+        min-height: 500px;
+    }
+    
+    /* Overall Test Summary - Larger screens */
+    .overall-test-summary {
+        min-height: 550px;
+        padding: 25px;
+    }
+    
+    #overallTestSummaryChart {
+        height: 480px !important;
+        min-height: 480px !important;
+        max-width: 100% !important;
+    }
+    
+    /* Test Case Distribution - Larger screens */
+    .test-case-distribution {
+        min-height: 550px;
+        padding: 25px;
+    }
+    
+    #testCaseDistributionChart {
+        height: 480px !important;
+        min-height: 480px !important;
+        max-width: 100% !important;
+    }
+    
+    /* Defect Overview - Larger screens */
+    .defect-overview-card {
+        min-height: 550px;
+        padding: 25px;
+    }
+    
+    /* Top Problem Areas - Larger screens */
+    .top-problem-areas {
+        min-height: 550px;
+        padding: 25px;
+    }
+    
+    #topProblemAreasChart {
+        height: 480px !important;
+        min-height: 480px !important;
+        max-width: 100% !important;
+    }
+}
+
+/* Extra large screens (1600px+) */
+@media (min-width: 1600px) {
+    .chart-container {
+        min-height: 550px;
+    }
+    
+    .overall-test-summary,
+    .test-case-distribution,
+    .defect-overview-card,
+    .top-problem-areas {
+        min-height: 600px;
+        padding: 30px;
+    }
+    
+    #overallTestSummaryChart,
+    #testCaseDistributionChart,
+    #topProblemAreasChart {
+        height: 520px !important;
+        min-height: 520px !important;
+    }
+}
+
+/* Ultra-wide screens (1920px+) */
+@media (min-width: 1920px) {
+    .chart-container {
+        min-height: 600px;
+    }
+    
+    .overall-test-summary,
+    .test-case-distribution,
+    .defect-overview-card,
+    .top-problem-areas {
+        min-height: 650px;
+        padding: 35px;
+    }
+    
+    #overallTestSummaryChart,
+    #testCaseDistributionChart,
+    #topProblemAreasChart {
+        height: 560px !important;
+        min-height: 560px !important;
+    }
+}
+
+/* Grid layout fixes for large screens */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+    gap: 20px;
+    width: 100%;
+}
+
+@media (min-width: 1400px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(auto-fit, minmax(650px, 1fr));
+        gap: 25px;
+    }
+}
+
+@media (min-width: 1600px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(auto-fit, minmax(700px, 1fr));
+        gap: 30px;
+    }
+}
+
+@media (min-width: 1920px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(auto-fit, minmax(800px, 1fr));
+        gap: 35px;
+    }
+}
+
+/* Force canvas to take full container width */
+canvas {
+    max-width: 100% !important;
+    height: auto !important;
+}
+
+/* Ensure parent containers don't constrain the charts */
+.chart-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-section h3 {
+    margin-bottom: 20px;
+    font-size: 18px;
+    color: #2c3e50;
+    flex-shrink: 0;
+}
+
+.chart-section .chart-container {
+    flex: 1;
+    width: 100%;
+}
