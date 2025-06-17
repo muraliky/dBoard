@@ -1272,6 +1272,33 @@ function renderDefectSeverityMiniChart(data) {
     // Destroy existing chart
     safeDestroyChart('defectSeverityMini');
     
+    // Screen size detection
+    const width = window.innerWidth;
+    const isMobile = width < 768;
+    const isLaptop = width >= 769 && width <= 1400;
+    const isDesktop = width > 1400;
+    
+    // Set canvas dimensions based on screen size
+    if (isLaptop) {
+        canvas.style.height = '320px';
+        canvas.style.width = '100%';
+        // Ensure parent container has enough height
+        const parentSection = canvas.closest('.defect-severity-section');
+        if (parentSection) {
+            parentSection.style.minHeight = '350px';
+        }
+        const parentCard = canvas.closest('.defect-overview-card');
+        if (parentCard) {
+            parentCard.style.minHeight = '480px';
+        }
+    } else if (isMobile) {
+        canvas.style.height = '200px';
+        canvas.style.width = '100%';
+    } else if (isDesktop) {
+        canvas.style.height = '280px';
+        canvas.style.width = '100%';
+    }
+    
     // Calculate severity totals
     const severityTotals = data.reduce((acc, d) => {
         acc.critical += d.defectsCritical || 0;
@@ -1293,9 +1320,21 @@ function renderDefectSeverityMiniChart(data) {
         return;
     }
     
-    // Responsive font size
-    const fontSize = getResponsiveFontSize();
-    const isMobile = window.innerWidth < 768;
+    // Responsive font sizes
+    let fontSize, padding, stepSize;
+    if (isMobile) {
+        fontSize = 10;
+        padding = 5;
+        stepSize = Math.max(1, Math.ceil(Math.max(...Object.values(severityTotals)) / 3));
+    } else if (isLaptop) {
+        fontSize = 11;
+        padding = 10;
+        stepSize = Math.max(1, Math.ceil(Math.max(...Object.values(severityTotals)) / 5));
+    } else {
+        fontSize = 12;
+        padding = 15;
+        stepSize = Math.max(1, Math.ceil(Math.max(...Object.values(severityTotals)) / 5));
+    }
     
     // Chart configuration
     const chartConfig = {
@@ -1326,10 +1365,10 @@ function renderDefectSeverityMiniChart(data) {
             maintainAspectRatio: false,
             layout: {
                 padding: {
-                    top: 5,
-                    bottom: 5,
-                    left: 5,
-                    right: 5
+                    top: padding,
+                    bottom: padding,
+                    left: padding / 2,
+                    right: padding / 2
                 }
             },
             plugins: {
@@ -1338,12 +1377,12 @@ function renderDefectSeverityMiniChart(data) {
                 },
                 tooltip: {
                     titleFont: {
-                        size: fontSize
+                        size: fontSize + 1
                     },
                     bodyFont: {
-                        size: fontSize - 1
+                        size: fontSize
                     },
-                    padding: 8,
+                    padding: isLaptop ? 10 : 8,
                     cornerRadius: 6,
                     callbacks: {
                         label: function(context) {
@@ -1364,9 +1403,10 @@ function renderDefectSeverityMiniChart(data) {
                     },
                     ticks: {
                         font: {
-                            size: fontSize - 2
+                            size: fontSize
                         },
-                        maxRotation: isMobile ? 45 : 0
+                        maxRotation: 0,
+                        padding: padding / 2
                     }
                 },
                 y: {
@@ -1376,10 +1416,11 @@ function renderDefectSeverityMiniChart(data) {
                         lineWidth: 1
                     },
                     ticks: {
-                        stepSize: Math.max(1, Math.ceil(Math.max(...Object.values(severityTotals)) / 5)),
+                        stepSize: stepSize,
                         font: {
-                            size: fontSize - 2
+                            size: fontSize
                         },
+                        padding: padding / 2,
                         callback: function(value) {
                             return Number.isInteger(value) ? value : '';
                         }
@@ -1387,7 +1428,7 @@ function renderDefectSeverityMiniChart(data) {
                 }
             },
             animation: {
-                duration: 1000,
+                duration: 800,
                 easing: 'easeOutQuart'
             }
         }
@@ -1396,6 +1437,16 @@ function renderDefectSeverityMiniChart(data) {
     try {
         charts.defectSeverityMini = new Chart(ctx, chartConfig);
         console.log('Defect severity mini chart created successfully with totals:', severityTotals);
+        
+        // Force resize for laptop screens after creation
+        if (isLaptop) {
+            setTimeout(() => {
+                if (charts.defectSeverityMini) {
+                    charts.defectSeverityMini.resize();
+                    console.log('Chart resized for laptop screen');
+                }
+            }, 150);
+        }
         
         // Add summary text below chart
         addSeveritySummary(severityTotals, total);
@@ -1419,7 +1470,28 @@ function renderDefectSeverityMiniChart(data) {
     }
 }
 
-// Add severity summary below the chart
+// Enhanced resize handler specifically for defect severity chart
+function handleDefectSeverityResize() {
+    const width = window.innerWidth;
+    const isLaptop = width >= 769 && width <= 1400;
+    
+    // Only re-render if we're on laptop and chart exists
+    if (isLaptop && charts.defectSeverityMini) {
+        console.log('Re-rendering defect severity chart for laptop resize');
+        setTimeout(() => {
+            // Get current data and re-render
+            const filteredData = typeof getFilteredData === 'function' ? getFilteredData() : [];
+            renderDefectSeverityMiniChart(filteredData);
+        }, 200);
+    }
+}
+
+// Add this resize listener specifically for defect severity issues
+if (typeof window !== 'undefined') {
+    window.addEventListener('resize', debounce(handleDefectSeverityResize, 300));
+}
+
+// Helper function for severity summary (if not already exists)
 function addSeveritySummary(severityTotals, total) {
     const canvas = document.getElementById('defectSeverityMiniChart');
     if (!canvas) return;
@@ -1437,19 +1509,22 @@ function addSeveritySummary(severityTotals, total) {
     const priorityDefects = severityTotals.critical + severityTotals.high;
     const priorityPercentage = total > 0 ? ((priorityDefects / total) * 100).toFixed(1) : 0;
     
-    const isMobile = window.innerWidth < 768;
+    const width = window.innerWidth;
+    const isLaptop = width >= 769 && width <= 1400;
+    const isMobile = width < 768;
     
     const summaryDiv = document.createElement('div');
     summaryDiv.className = 'severity-summary';
     summaryDiv.style.cssText = `
-        margin-top: 10px;
-        padding: 8px;
+        margin-top: ${isLaptop ? '15px' : '10px'};
+        padding: ${isLaptop ? '10px' : '8px'};
         background: ${priorityDefects > total * 0.3 ? '#fff5f5' : '#f0f9ff'};
         border-radius: 4px;
         border-left: 3px solid ${priorityDefects > total * 0.3 ? '#e74c3c' : '#3498db'};
-        font-size: ${isMobile ? '11px' : '12px'};
+        font-size: ${isMobile ? '11px' : isLaptop ? '12px' : '12px'};
         color: #666;
         text-align: center;
+        flex-shrink: 0;
     `;
     
     summaryDiv.innerHTML = `
