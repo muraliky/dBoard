@@ -1256,6 +1256,7 @@ function renderDefectStatusProgressBar(data) {
 }
 
 // Render severity mini chart with responsive design
+// Updated renderDefectSeverityMiniChart function for laptop screen fix
 function renderDefectSeverityMiniChart(data) {
     const canvas = document.getElementById('defectSeverityMiniChart');
     if (!canvas) {
@@ -1406,7 +1407,21 @@ function renderDefectSeverityMiniChart(data) {
                             size: fontSize
                         },
                         maxRotation: 0,
-                        padding: padding / 2
+                        padding: isLaptop ? 2 : padding / 2,
+                        maxTicksLimit: 4, // Force all 4 labels to show
+                        autoSkip: false, // Don't skip any labels
+                        minRotation: 0,
+                        includeBounds: true
+                    },
+                    // Force display of all labels
+                    afterBuildTicks: function(axis) {
+                        if (isLaptop) {
+                            // Ensure all ticks are visible on laptop
+                            axis.ticks = axis.ticks.map((tick, index) => ({
+                                ...tick,
+                                label: ['Critical', 'High', 'Medium', 'Low'][index]
+                            }));
+                        }
                     }
                 },
                 y: {
