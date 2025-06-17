@@ -486,12 +486,14 @@ body {
     padding: 20px 0;
     min-height: 400px;
 }
+
+/* Defect severity section improvements */
 .defect-severity-section {
     display: flex;
     flex-direction: column;
     min-height: 280px;
 }
-.defect-status-section h4,
+
 .defect-severity-section h4 {
     font-size: 14px;
     font-weight: 600;
@@ -502,12 +504,14 @@ body {
     flex-shrink: 0;
 }
 
+/* Canvas sizing for all screens */
 #defectSeverityMiniChart {
     flex: 1;
     min-height: 200px !important;
     max-height: 250px !important;
     width: 100% !important;
 }
+
 /* Laptop-specific fixes (769px - 1400px) */
 @media (min-width: 769px) and (max-width: 1400px) {
     .defect-overview-card {
@@ -520,6 +524,7 @@ body {
         min-height: 350px; /* More space for chart */
         display: flex;
         flex-direction: column;
+        width: 100%; /* Ensure full width */
     }
     
     #defectSeverityMiniChart {
@@ -527,6 +532,7 @@ body {
         min-height: 280px !important;
         max-height: 320px !important;
         width: 100% !important;
+        min-width: 300px; /* Ensure minimum width for all labels */
     }
     
     /* Ensure chart wrapper has proper dimensions */
@@ -535,11 +541,18 @@ body {
         min-height: 280px;
         max-height: 320px;
         position: relative;
+        width: 100%;
+        min-width: 300px; /* Minimum width to show all labels */
     }
     
     /* Container adjustments */
     .chart-container .defect-overview-card {
         min-height: 500px;
+    }
+    
+    /* Force proper spacing for labels */
+    .defect-severity-section canvas {
+        min-width: 300px !important;
     }
 }
 
