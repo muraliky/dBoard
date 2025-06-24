@@ -8,11 +8,11 @@ Chart.defaults.maintainAspectRatio = false;
 
 // Base chart options for automation charts
 const automationBaseOptions = {
-    responsive: true,
+   responsive: true,
     maintainAspectRatio: false,
     layout: {
         padding: {
-            top: 10,
+            top: 25, // Increased for data labels
             bottom: 10,
             left: 10,
             right: 10
@@ -37,6 +37,9 @@ const automationBaseOptions = {
             },
             padding: 12,
             cornerRadius: 8
+        },
+        customDataLabels: {
+            enabled: true
         }
     },
     scales: {
@@ -52,11 +55,13 @@ const automationBaseOptions = {
             }
         },
         y: {
+            display: false, // Hide Y-axis
             beginAtZero: true,
             ticks: {
-                font: {
-                    size: 11
-                }
+                display: false
+            },
+            grid: {
+                display: false
             }
         }
     }
@@ -731,7 +736,14 @@ function renderEffortsByGroupChart() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    safeDestroyAutomationChart('effortsByGroup');
+    // Completely destroy existing chart
+    if (automationCharts.effortsByGroup) {
+        automationCharts.effortsByGroup.destroy();
+        delete automationCharts.effortsByGroup;
+    }
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     
     const data = getFilteredAutomationData();
     const groups = [...new Set(data.map(d => d.group))];
@@ -740,62 +752,97 @@ function renderEffortsByGroupChart() {
             .reduce((sum, d) => sum + d.effortsSaved, 0);
     });
     
+    const totalHours = effortsData.reduce((sum, hours) => sum + hours, 0);
     const fontSize = getAutomationResponsiveFontSize();
     
     try {
         automationCharts.effortsByGroup = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: groups,
+                labels: groups.map((group, index) => {
+                    const hours = effortsData[index];
+                    const displayHours = hours >= 1000 ? (hours/1000).toFixed(1) + 'K' : hours.toLocaleString();
+                    return `${group} (${displayHours}h)`;
+                }),
                 datasets: [{
                     data: effortsData,
-                    backgroundColor: [
-                        '#c41e3a',
-                        '#3498db',
-                        '#2ecc71',
-                        '#f39c12',
-                        '#9b59b6'
-                    ],
+                    backgroundColor: ['#c41e3a', '#3498db', '#2ecc71', '#f39c12', '#9b59b6'],
                     borderWidth: 0,
-                    cutout: window.innerWidth < 768 ? '40%' : '50%'
+                    cutout: '75%'
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false, // Disable animations
                 plugins: {
-                    ...automationBaseOptions.plugins,
                     legend: {
-                        ...automationBaseOptions.plugins.legend,
                         position: window.innerWidth < 768 ? 'bottom' : 'right',
                         labels: {
-                            ...automationBaseOptions.plugins.legend.labels,
-                            font: {
-                                size: fontSize
-                            }
+                            usePointStyle: true,
+                            padding: 15,
+                            font: { size: fontSize }
                         }
                     },
                     tooltip: {
-                        ...automationBaseOptions.plugins.tooltip,
                         callbacks: {
                             label: function(context) {
                                 const hours = context.parsed;
                                 const cost = hours * 50;
+                                const percentage = ((hours / totalHours) * 100).toFixed(1);
                                 return [
-                                    context.label + ': ' + hours + ' hours',
+                                    context.label + ' (' + percentage + '%)',
                                     'Cost Saved: $' + cost.toLocaleString()
                                 ];
                             }
                         }
-                    }
+                    },
+                    // DISABLE ALL CENTER TEXT PLUGINS
+                    datalabels: false,
+                    centerText: false,
+                    chartCenterText: false,
+                    pieceLabel: false,
+                    customDataLabels: false,
+                    enhancedDataLabels: false
+                },
+                layout: { padding: 20 }
+            },
+            plugins: [{
+                id: 'preventCenterText',
+                beforeDraw: function(chart) {
+                    const ctx = chart.ctx;
+                    const centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
+                    const centerY = (chart.chartArea.top + chart.chartArea.bottom) / 2;
+                    const radius = chart.innerRadius;
+                    
+                    ctx.save();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.restore();
+                },
+                afterDraw: function(chart) {
+                    const ctx = chart.ctx;
+                    const centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
+                    const centerY = (chart.chartArea.top + chart.chartArea.bottom) / 2;
+                    const radius = chart.innerRadius * 0.95;
+                    
+                    ctx.save();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.restore();
                 }
-            }
+            }]
         });
         console.log('Efforts chart created successfully');
     } catch (error) {
         console.error('Error creating efforts chart:', error);
     }
 }
+
 
 function renderEfficiencyMatrix() {
     console.log('Starting renderEfficiencyMatrix...');

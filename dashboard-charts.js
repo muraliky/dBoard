@@ -7,13 +7,141 @@ Chart.defaults.color = '#333';
 Chart.defaults.responsive = true;
 Chart.defaults.maintainAspectRatio = false;
 
+const customDataLabelsPlugin = {
+    id: 'customDataLabels',
+    afterDatasetsDraw(chart, args, options) {
+        // SKIP DOUGHNUT AND PIE CHARTS - This prevents center text
+        if (chart.config.type === 'doughnut' || chart.config.type === 'pie') {
+            return; // Don't draw any labels on pie/doughnut charts
+        }
+        
+        const { ctx, data } = chart;
+        
+        ctx.save();
+        
+        data.datasets.forEach((dataset, datasetIndex) => {
+            const meta = chart.getDatasetMeta(datasetIndex);
+            
+            if (!meta.visible) return;
+            
+            meta.data.forEach((datapoint, index) => {
+                const value = dataset.data[index];
+                
+                // Skip if value is 0 or null
+                if (!value || value === 0) return;
+                
+                // Responsive font size
+                const fontSize = window.innerWidth < 768 ? 10 : 11;
+                ctx.font = `bold ${fontSize}px Arial`;
+                
+                let displayValue = value;
+                let textX, textY;
+                
+                // Format value based on context
+                if (dataset.label && dataset.label.toLowerCase().includes('coverage')) {
+                    displayValue = value + '%';
+                } else if (dataset.label && dataset.label.toLowerCase().includes('hour')) {
+                    displayValue = value >= 1000 ? (value/1000).toFixed(1) + 'K' : value;
+                } else if (value >= 1000) {
+                    displayValue = (value/1000).toFixed(1) + 'K';
+                }
+                
+                // Handle different chart orientations
+                if (chart.config.options.indexAxis === 'y') {
+                    // HORIZONTAL BAR CHART (Top Problem Areas)
+                    console.log('Horizontal bar detected for value:', value);
+                    console.log('Datapoint properties:', {
+                        x: datapoint.x,
+                        y: datapoint.y,
+                        base: datapoint.base,
+                        width: datapoint.width,
+                        height: datapoint.height
+                    });
+                    
+                    ctx.fillStyle = '#fff'; // White text on colored bars
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    // Calculate the middle of the bar
+                    // For horizontal bars: base is the starting point, x is the end point
+                    const barStart = datapoint.base || 0;
+                    const barEnd = datapoint.x;
+                    const barMiddle = (barStart + barEnd) / 2;
+                    
+                    textX = barMiddle;
+                    textY = datapoint.y;
+                    
+                    console.log('Calculated positions:', {
+                        barStart,
+                        barEnd,
+                        barMiddle,
+                        textX,
+                        textY
+                    });
+                    
+                    // Check if there's enough space for the text
+                    const textWidth = ctx.measureText(displayValue).width;
+                    const barWidth = Math.abs(barEnd - barStart);
+                    
+                    console.log('Text measurement:', {
+                        textWidth,
+                        barWidth,
+                        hasSpace: barWidth >= textWidth + 10
+                    });
+                    
+                    if (barWidth < textWidth + 10) {
+                        // If bar is too narrow, position text to the right of the bar
+                        textX = barEnd + 5;
+                        ctx.textAlign = 'left';
+                        ctx.fillStyle = '#333'; // Dark text outside bar
+                        console.log('Text positioned outside bar at:', textX);
+                    } else {
+                        console.log('Text positioned inside bar at middle:', textX);
+                    }
+                    
+                } else if (chart.config.options.scales && chart.config.options.scales.x && chart.config.options.scales.x.stacked) {
+                    // STACKED VERTICAL BAR CHART
+                    const width = datapoint.width || 0;
+                    const height = datapoint.height || 0;
+                    
+                    if (width < 25) return; // Skip narrow segments
+                    
+                    ctx.fillStyle = '#fff'; // White text for better contrast on colored bars
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    textY = datapoint.y + (height / 2);
+                    textX = datapoint.x;
+                    
+                } else {
+                    // REGULAR VERTICAL BAR CHART
+                    ctx.fillStyle = '#333'; // Dark text above bars
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    
+                    // Position above the bar
+                    textY = datapoint.y - 5;
+                    textX = datapoint.x;
+                }
+                
+                // Draw the text
+                ctx.fillText(displayValue, textX, textY);
+            });
+        });
+        
+        ctx.restore();
+    }
+};
+
+// Register the plugin
+Chart.register(customDataLabelsPlugin);
 // Base chart options for consistent responsive behavior
 const baseChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     layout: {
         padding: {
-            top: 10,
+            top: 15, // Reduced since labels are on bars, not above
             bottom: 10,
             left: 10,
             right: 10
@@ -38,10 +166,14 @@ const baseChartOptions = {
             },
             padding: 12,
             cornerRadius: 8
+        },
+        customDataLabelsPlugin: {
+            enabled: true
         }
     },
     scales: {
         x: {
+            stacked: true,
             ticks: {
                 maxRotation: 45,
                 font: {
@@ -53,11 +185,14 @@ const baseChartOptions = {
             }
         },
         y: {
+            display: false, // Hide Y-axis
+            stacked: true,
             beginAtZero: true,
             ticks: {
-                font: {
-                    size: 11
-                }
+                display: false
+            },
+            grid: {
+                display: false
             }
         }
     }
@@ -179,24 +314,32 @@ function renderReleaseStatusChart(data) {
             plugins: {
                 ...baseChartOptions.plugins,
                 legend: {
-                    ...baseChartOptions.plugins.legend,
+                    //...baseChartOptions.plugins.legend,
                     position: window.innerWidth < 768 ? 'bottom' : 'top',
                     labels: {
-                        ...baseChartOptions.plugins.legend.labels,
+                        //...baseChartOptions.plugins.legend.labels,
+                        usePointStyle: true,
+                        padding: 15,
                         font: {
                             size: fontSize
                         }
                     }
                 },
                 tooltip: {
-                    ...baseChartOptions.plugins.tooltip,
+                     titleFont: {
+                        size: 14
+                    },
+                    bodyFont: {
+                        size: 12
+                    },
+                    padding: 12,
+                    cornerRadius: 8,
                     callbacks: {
                         afterLabel: function(context) {
                             const datasetIndex = context.datasetIndex;
                             const index = context.dataIndex;
                             const label = labels[index];
                             
-                            // Calculate totals for this label
                             const totalReleases = data.filter(d => {
                                 if (filters.subGroup) return d.application === label;
                                 if (filters.group) return d.subGroup === label;
@@ -207,35 +350,6 @@ function renderReleaseStatusChart(data) {
                                 ((context.parsed.y / totalReleases) * 100).toFixed(1) : 0;
                             
                             return `${percentage}% of ${totalReleases} releases`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                ...baseChartOptions.scales,
-                x: {
-                    ...baseChartOptions.scales.x,
-                    ticks: {
-                        ...baseChartOptions.scales.x.ticks,
-                        maxRotation: window.innerWidth < 768 ? 45 : 30,
-                        font: {
-                            size: fontSize
-                        }
-                    }
-                },
-                y: {
-                    ...baseChartOptions.scales.y,
-                    title: {
-                        display: true,
-                        text: 'Number of Releases',
-                        font: {
-                            size: fontSize
-                        }
-                    },
-                    ticks: {
-                        stepSize: 1,
-                        font: {
-                            size: fontSize
                         }
                     }
                 }
@@ -511,46 +625,94 @@ function renderOverallTestSummaryChart(data) {
     const total = totals.passed + totals.failed + totals.blocked + totals.na;
     const fontSize = getResponsiveFontSize();
     
+    // Create labels with values
+    const labelsWithValues = [
+        `Passed (${totals.passed.toLocaleString()})`,
+        `Failed (${totals.failed.toLocaleString()})`,
+        `Blocked (${totals.blocked.toLocaleString()})`,
+        `Not Applicable (${totals.na.toLocaleString()})`
+    ];
+    
     charts.overallTestSummary = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Passed', 'Failed', 'Blocked', 'Not Applicable'],
+            labels: labelsWithValues,
             datasets: [{
                 data: [totals.passed, totals.failed, totals.blocked, totals.na],
                 backgroundColor: ['#27ae60', '#e74c3c', '#f39c12', '#95a5a6'],
-                borderWidth: 0,
-                cutout: window.innerWidth < 768 ? '40%' : '50%'
+                borderWidth: 2,
+                borderColor: '#fff',
+                cutout: window.innerWidth < 768 ? '50%' : '60%'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                ...baseChartOptions.plugins,
                 legend: {
-                    ...baseChartOptions.plugins.legend,
                     position: window.innerWidth < 768 ? 'bottom' : 'right',
                     labels: {
-                        ...baseChartOptions.plugins.legend.labels,
+                        usePointStyle: true,
+                        padding: 15,
                         font: {
                             size: fontSize
+                        },
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            if (data.labels.length && data.datasets.length) {
+                                return data.labels.map((label, i) => {
+                                    const dataset = data.datasets[0];
+                                    const value = dataset.data[i];
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                    
+                                    return {
+                                        text: `${label} (${percentage}%)`,
+                                        fillStyle: dataset.backgroundColor[i],
+                                        strokeStyle: dataset.borderColor,
+                                        lineWidth: dataset.borderWidth,
+                                        pointStyle: 'circle',
+                                        hidden: false,
+                                        index: i
+                                    };
+                                });
+                            }
+                            return [];
                         }
                     }
                 },
                 tooltip: {
-                    ...baseChartOptions.plugins.tooltip,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 12 },
+                    padding: 12,
+                    cornerRadius: 8,
                     callbacks: {
                         label: function(context) {
-                            const percentage = ((context.parsed / total) * 100).toFixed(1);
-                            return context.label + ': ' + context.parsed.toLocaleString() + ' (' + percentage + '%)';
+                            const value = context.parsed;
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            const label = context.label.split(' (')[0];
+                            return `${label}: ${value.toLocaleString()} (${percentage}%)`;
                         }
                     }
+                },
+                // EXPLICITLY DISABLE THE PROBLEMATIC PLUGIN FOR THIS CHART
+                customDataLabels: {
+                    enabled: false
                 }
-                
+            },
+            layout: {
+                padding: {
+                    top: 10,
+                    bottom: 10,
+                    left: 10,
+                    right: 10
+                }
             }
         }
     });
+    
+    console.log('Overall test summary chart created successfully');
 }
+
 
 // Test Case Distribution Chart
 function renderTestCaseDistributionChart(data) {
@@ -767,7 +929,6 @@ function renderTopProblemAreasChart(data) {
     let areaDefects = [];
     
     if (filters.subGroup) {
-        // Show by application
         data.forEach(d => {
             areaDefects.push({
                 area: d.application,
@@ -775,7 +936,6 @@ function renderTopProblemAreasChart(data) {
             });
         });
     } else if (filters.group) {
-        // Show by subgroup
         const subGroups = [...new Set(data.map(d => d.subGroup))];
         subGroups.forEach(sg => {
             const count = data.filter(d => d.subGroup === sg)
@@ -783,7 +943,6 @@ function renderTopProblemAreasChart(data) {
             areaDefects.push({ area: sg, count });
         });
     } else {
-        // Show by group
         const groups = [...new Set(data.map(d => d.group))];
         groups.forEach(g => {
             const count = data.filter(d => d.group === g)
@@ -796,7 +955,6 @@ function renderTopProblemAreasChart(data) {
     areaDefects.sort((a, b) => b.count - a.count);
     const top5 = areaDefects.slice(0, 5);
     
-    // Truncate labels for mobile
     const truncateLength = window.innerWidth < 768 ? 8 : 15;
     const displayLabels = top5.map(d => 
         d.area.length > truncateLength ? d.area.substring(0, truncateLength) + '...' : d.area
@@ -812,43 +970,80 @@ function renderTopProblemAreasChart(data) {
                 label: 'Total Defects',
                 data: top5.map(d => d.count),
                 backgroundColor: '#c41e3a',
-                borderRadius: 5
+                borderColor: '#8b0000',
+                borderWidth: 1,
+                borderRadius: 4
             }]
         },
         options: {
-            ...baseChartOptions,
-            indexAxis: window.innerWidth < 768 ? 'x' : 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y', // Horizontal bars
+            layout: {
+                padding: {
+                    top: 10,
+                    bottom: 10,
+                    left: 10,
+                    right: 60 // Extra space for external labels if needed
+                }
+            },
             plugins: {
-                ...baseChartOptions.plugins,
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            const index = context[0].dataIndex;
+                            return top5[index].area;
+                        },
+                        label: function(context) {
+                            return `Total Defects: ${context.parsed.x}`;
+                        }
+                    }
+                },
+                customDataLabels: {
+                    enabled: true
                 }
             },
             scales: {
                 x: {
                     beginAtZero: true,
                     grid: {
-                        display: window.innerWidth >= 768
+                        display: true,
+                        color: 'rgba(0,0,0,0.1)'
                     },
                     ticks: {
-                        font: {
-                            size: fontSize
-                        }
+                        font: { size: fontSize }
                     }
                 },
                 y: {
                     grid: {
-                        display: window.innerWidth < 768
+                        display: false
                     },
                     ticks: {
-                        font: {
-                            size: fontSize
-                        }
+                        font: { size: fontSize }
                     }
+                }
+            },
+            // Animation complete callback to add labels if plugin fails
+            animation: {
+                onComplete: function(animation) {
+                    // Fallback: Add labels manually after animation
+                    setTimeout(() => {
+                        addHorizontalBarLabels('topProblemAreas', this);
+                    }, 100);
                 }
             }
         }
     });
+    
+    console.log('Top problem areas chart created');
+    
+    // Also try adding labels immediately after chart creation
+    setTimeout(() => {
+        addHorizontalBarLabels('topProblemAreas');
+    }, 200);
 }
 
 // Defect Distribution Matrix
@@ -1648,4 +1843,59 @@ if (typeof module !== 'undefined' && module.exports) {
         renderDefectSeverityMiniChart,
         renderEnhancedDefectOverview
     };
+}
+function debugCenterTextIssue() {
+    console.log('=== DEBUGGING CENTER TEXT ISSUE ===');
+    
+    // Check Chart.js version and availability
+    if (typeof Chart === 'undefined') {
+        console.log('ERROR: Chart.js is not loaded');
+        return;
+    }
+    
+    console.log('Chart.js version:', Chart.version || 'Unknown');
+    
+    // Check different ways plugins might be registered
+    if (Chart.registry && Chart.registry.plugins) {
+        console.log('Chart.registry.plugins exists');
+        try {
+            if (Chart.registry.plugins._items) {
+                console.log('Registered plugins:', Object.keys(Chart.registry.plugins._items));
+            }
+        } catch (e) {
+            console.log('Could not access registry plugins:', e.message);
+        }
+    } else {
+        console.log('Chart.registry.plugins not available');
+    }
+    
+    // Check global plugins (older Chart.js versions)
+    if (Chart.plugins && Chart.plugins.getAll) {
+        console.log('Global plugins:', Chart.plugins.getAll());
+    }
+    
+    // Check defaults
+    if (Chart.defaults && Chart.defaults.plugins) {
+        console.log('Default plugins config:', Chart.defaults.plugins);
+    }
+    
+    // Check specific chart instance
+    const chart = charts && charts.overallTestSummary;
+    if (chart) {
+        console.log('Current chart exists');
+        console.log('Chart type:', chart.config.type);
+        console.log('Chart plugins:', chart.config.plugins || 'None');
+        console.log('Chart options plugins:', chart.options.plugins || 'None');
+    } else {
+        console.log('No chart instance found');
+    }
+    
+    // Check DOM for the canvas
+    const canvas = document.getElementById('overallTestSummaryChart');
+    if (canvas) {
+        console.log('Canvas found:', canvas);
+        console.log('Canvas context:', canvas.getContext('2d'));
+    } else {
+        console.log('Canvas not found');
+    }
 }
