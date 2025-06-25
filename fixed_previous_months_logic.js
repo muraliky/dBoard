@@ -1,138 +1,157 @@
-// FIXED PREVIOUS MONTHS LOGIC - Replace in dashboard-charts.js
-// This function now gets the PAST 3 months from the selected month (not including current)
-
-function getPreviousMonths(currentMonth, count = 3) {
+function getPreviousMonthsForTrends(selectedMonth, count = 3) {
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ];
     
-    if (!currentMonth) {
-        // If no month selected, use current month
-        const now = new Date();
-        currentMonth = months[now.getMonth()];
-    }
-    
-    const currentIndex = months.indexOf(currentMonth);
-    if (currentIndex === -1) {
-        console.warn('Invalid month:', currentMonth);
-        return [currentMonth]; // Return current month if invalid
-    }
-    
-    console.log(`Getting ${count} months BEFORE ${currentMonth} (index ${currentIndex})`);
-    
-    const result = [];
-    
-    // Get the PREVIOUS months (not including current month)
-    for (let i = count; i >= 1; i--) {
-        let monthIndex = (currentIndex - i + 12) % 12;
-        result.push(months[monthIndex]);
-    }
-    
-    console.log(`Previous months result:`, result);
-    return result;
-}
-
-// ENHANCED version with better logic and validation
-function getPreviousMonthsEnhanced(selectedMonth, count = 3) {
-    const months = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    
-    // Handle case where no month is selected
     if (!selectedMonth || selectedMonth === '') {
-        console.log('No month selected, using current month');
         const now = new Date();
         selectedMonth = months[now.getMonth()];
     }
     
     const selectedIndex = months.indexOf(selectedMonth);
     if (selectedIndex === -1) {
-        console.error('Invalid month:', selectedMonth);
+        console.warn('Invalid month:', selectedMonth);
         return [];
     }
     
-    console.log(`=== GETTING PREVIOUS MONTHS ===`);
-    console.log(`Selected month: ${selectedMonth} (index: ${selectedIndex})`);
-    console.log(`Requesting ${count} months BEFORE the selected month`);
-    
-    const previousMonths = [];
-    
-    // Get the months BEFORE the selected month
+    const result = [];
     for (let i = count; i >= 1; i--) {
-        // Calculate the index for the month that is 'i' months before
         let previousIndex = selectedIndex - i;
-        
-        // Handle year boundary (wrap around)
         if (previousIndex < 0) {
             previousIndex += 12;
         }
-        
-        const previousMonth = months[previousIndex];
-        previousMonths.push(previousMonth);
-        
-        console.log(`  ${count - i + 1}. ${i} months before: ${previousMonth} (index: ${previousIndex})`);
+        result.push(months[previousIndex]);
     }
     
-    console.log(`Final result: [${previousMonths.join(', ')}] -> ${selectedMonth}`);
-    return previousMonths;
+    return result;
 }
 
-// UPDATED renderTestCasesTrendsChart with better month logic
+// Function to find months that actually have test case data
+function findMonthsWithTestData(data, maxMonths = 6) {
+    const monthsWithData = [];
+    
+    data.forEach(record => {
+        const month = getMonthFromDate(record.goLiveDate);
+        const functionalTotal = parseInt(record.functionalTestTotal) || 0;
+        const regressionTotal = parseInt(record.regressionTestTotal) || 0;
+        const hasTestCases = functionalTotal > 0 || regressionTotal > 0;
+        
+        if (month && hasTestCases && !monthsWithData.includes(month)) {
+            monthsWithData.push(month);
+        }
+    });
+    
+    // Sort months chronologically
+    const allMonths = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    monthsWithData.sort((a, b) => allMonths.indexOf(a) - allMonths.indexOf(b));
+    
+    // Return up to maxMonths
+    return monthsWithData.slice(-Math.min(maxMonths, monthsWithData.length));
+}
+
+// =====================================================
+// MAIN TRENDS CHART FUNCTION
+// =====================================================
+
 function renderTestCasesTrendsChart(data) {
+    console.log('=== RENDERING TEST CASES TRENDS CHART ===');
+    
     const ctx = document.getElementById('testCasesTrendsChart');
     if (!ctx) {
         console.error('Test cases trends chart canvas not found');
         return;
     }
     
+    // Destroy existing chart
     safeDestroyChart('testCasesTrends');
     
-    // Get the PREVIOUS 3 months from the currently selected month
-    const selectedMonth = filters.month;
-    const previousMonths = getPreviousMonthsEnhanced(selectedMonth, 3);
+    // Use qualityData as source
+    const sourceData = data || qualityData || [];
+    console.log('Source data length:', sourceData.length);
     
-    console.log('=== TRENDS CHART CONFIGURATION ===');
-    console.log('Selected month in filter:', selectedMonth);
-    console.log('Showing trends for PREVIOUS months:', previousMonths);
-    console.log('Current filters:', filters);
-    
-    if (previousMonths.length === 0) {
-        console.error('No valid previous months found');
+    if (sourceData.length === 0) {
+        showEmptyTrendsChart('No data available');
         return;
     }
     
-    // Determine what entities to compare based on current filters
+    // Determine which months to show
+    let monthsToShow = [];
+    let chartTitle = '';
+    
+    // Try to get previous 3 months from selected month
+    if (filters.month) {
+        const previousMonths = getPreviousMonthsForTrends(filters.month, 3);
+        console.log(`Trying previous months from ${filters.month}:`, previousMonths);
+        
+        // Check if these months have test data
+        const hasDataInPreviousMonths = previousMonths.some(month => {
+            return sourceData.some(record => {
+                const recordMonth = getMonthFromDate(record.goLiveDate);
+                const functionalTotal = parseInt(record.functionalTestTotal) || 0;
+                const regressionTotal = parseInt(record.regressionTestTotal) || 0;
+                return recordMonth === month && (functionalTotal > 0 || regressionTotal > 0);
+            });
+        });
+        
+        if (hasDataInPreviousMonths) {
+            monthsToShow = previousMonths;
+            chartTitle = `Test Cases Trends (3 months before ${filters.month})`;
+        }
+    }
+    
+    // Fallback: Find any months with test data
+    if (monthsToShow.length === 0) {
+        monthsToShow = findMonthsWithTestData(sourceData, 3);
+        chartTitle = 'Test Cases Trends (Available months)';
+        console.log('Using available months with data:', monthsToShow);
+    }
+    
+    if (monthsToShow.length === 0) {
+        showEmptyTrendsChart('No months with test case data found');
+        return;
+    }
+    
+    console.log('Final months to show:', monthsToShow);
+    
+    // Determine entities to compare based on filters
     let entitiesToCompare = [];
     let entityType = '';
     
     if (filters.group && filters.subGroup) {
+        // Show applications within the selected subgroup
         entityType = 'Applications';
-        entitiesToCompare = [...new Set(data
+        entitiesToCompare = [...new Set(sourceData
             .filter(d => d.group === filters.group && d.subGroup === filters.subGroup)
-            .map(d => d.application))];
+            .map(d => d.application)
+            .filter(app => app && app.trim())
+        )];
     } else if (filters.group) {
+        // Show subgroups within the selected group
         entityType = 'Sub Groups';
-        entitiesToCompare = [...new Set(data
+        entitiesToCompare = [...new Set(sourceData
             .filter(d => d.group === filters.group)
-            .map(d => d.subGroup))];
+            .map(d => d.subGroup)
+            .filter(sg => sg && sg.trim())
+        )];
     } else {
+        // Show all groups
         entityType = 'Groups';
-        entitiesToCompare = [...new Set(data.map(d => d.group))];
+        entitiesToCompare = [...new Set(sourceData
+            .map(d => d.group)
+            .filter(g => g && g.trim())
+        )];
     }
     
-    console.log(`Comparing ${entityType}:`, entitiesToCompare);
+    console.log(`Entity type: ${entityType}`);
+    console.log(`Entities to compare: [${entitiesToCompare.join(', ')}]`);
     
     if (entitiesToCompare.length === 0) {
-        console.warn('No entities found to compare');
-        // Show empty state
-        const ctx = document.getElementById('testCasesTrendsChart').getContext('2d');
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        ctx.fillStyle = '#666';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('No data available for comparison', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        showEmptyTrendsChart(`No ${entityType.toLowerCase()} found for current filters`);
         return;
     }
     
@@ -143,39 +162,51 @@ function renderTestCasesTrendsChart(data) {
         '#e67e22', '#34495e', '#95a5a6', '#d35400', '#7f8c8d'
     ];
     
-    // Calculate data for each entity across the previous months
+    // Calculate data for each entity across all months
     const datasets = entitiesToCompare.map((entity, index) => {
-        const entityData = previousMonths.map(month => {
-            console.log(`Processing ${entity} for month ${month}`);
+        console.log(`\nProcessing entity: ${entity}`);
+        
+        const entityData = monthsToShow.map(month => {
+            console.log(`  Processing ${entity} for ${month}`);
             
             // Filter data for this specific entity and month
-            const monthEntityData = data.filter(d => {
+            const monthEntityData = sourceData.filter(d => {
                 const recordMonth = getMonthFromDate(d.goLiveDate);
                 const matchMonth = recordMonth === month;
                 
-                let matchEntity = false;
+                if (!matchMonth) return false;
+                
+                // Apply entity filtering based on current filter level
                 if (filters.group && filters.subGroup) {
                     // Application level
-                    matchEntity = d.group === filters.group && 
-                                 d.subGroup === filters.subGroup && 
-                                 d.application === entity;
+                    return d.group === filters.group && 
+                           d.subGroup === filters.subGroup && 
+                           d.application === entity;
                 } else if (filters.group) {
                     // SubGroup level
-                    matchEntity = d.group === filters.group && d.subGroup === entity;
+                    return d.group === filters.group && d.subGroup === entity;
                 } else {
                     // Group level
-                    matchEntity = d.group === entity;
+                    return d.group === entity;
                 }
-                
-                return matchMonth && matchEntity;
             });
             
+            console.log(`    Found ${monthEntityData.length} records for ${entity} in ${month}`);
+            
             // Calculate total test cases for this entity in this month
-            const functionalTotal = monthEntityData.reduce((sum, d) => sum + (d.functionalTestTotal || 0), 0);
-            const regressionTotal = monthEntityData.reduce((sum, d) => sum + (d.regressionTestTotal || 0), 0);
+            const functionalTotal = monthEntityData.reduce((sum, d) => {
+                const value = parseInt(d.functionalTestTotal) || 0;
+                return sum + value;
+            }, 0);
+            
+            const regressionTotal = monthEntityData.reduce((sum, d) => {
+                const value = parseInt(d.regressionTestTotal) || 0;
+                return sum + value;
+            }, 0);
+            
             const totalTestCases = functionalTotal + regressionTotal;
             
-            console.log(`  ${entity} in ${month}: ${totalTestCases} test cases (${monthEntityData.length} records)`);
+            console.log(`    ${entity} in ${month}: Functional=${functionalTotal}, Regression=${regressionTotal}, Total=${totalTestCases}`);
             
             return {
                 month,
@@ -187,10 +218,10 @@ function renderTestCasesTrendsChart(data) {
             };
         });
         
-        // Truncate entity name for legend if too long
+        // Prepare dataset
         const displayName = entity.length > 15 ? entity.substring(0, 15) + '...' : entity;
-        
         const totalAcrossMonths = entityData.reduce((sum, d) => sum + d.totalTestCases, 0);
+        
         console.log(`${entity} total across all months: ${totalAcrossMonths}`);
         
         return {
@@ -206,19 +237,31 @@ function renderTestCasesTrendsChart(data) {
             pointBorderWidth: 2,
             pointRadius: 6,
             pointHoverRadius: 8,
+            // Store additional data for tooltips
             fullName: entity,
             monthlyData: entityData
         };
     });
     
-    console.log('Datasets created:', datasets.length);
+    // Check if we have any data
+    const totalDataPoints = datasets.reduce((sum, dataset) => 
+        sum + dataset.data.reduce((dataSum, val) => dataSum + val, 0), 0);
     
+    if (totalDataPoints === 0) {
+        console.warn('All datasets have zero data');
+        showEmptyTrendsChart(`No test case data found for ${entityType.toLowerCase()}`);
+        return;
+    }
+    
+    console.log(`Creating chart with ${datasets.length} datasets and ${totalDataPoints} total data points`);
+    
+    // Create the chart
     const fontSize = getResponsiveFontSize();
     
     charts.testCasesTrends = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: previousMonths,
+            labels: monthsToShow,
             datasets: datasets
         },
         options: {
@@ -275,7 +318,7 @@ function renderTestCasesTrendsChart(data) {
                     }
                 },
                 customDataLabels: {
-                    enabled: false
+                    enabled: false // Disable for line charts
                 }
             },
             scales: {
@@ -290,7 +333,7 @@ function renderTestCasesTrendsChart(data) {
                     },
                     title: {
                         display: true,
-                        text: `Months (Before ${selectedMonth || 'Current'})`,
+                        text: 'Month',
                         font: {
                             size: fontSize,
                             weight: 'bold'
@@ -323,14 +366,33 @@ function renderTestCasesTrendsChart(data) {
         }
     });
     
-    // Add summary information
-    addTrendsSummaryEnhanced(entitiesToCompare, entityType, previousMonths, selectedMonth, datasets);
+    // Add summary information below the chart
+    addTrendsSummary(entitiesToCompare, entityType, monthsToShow, datasets, chartTitle);
     
-    console.log('Multi-group test cases trends chart created successfully');
+    console.log('Test cases trends chart created successfully');
 }
 
-// Enhanced summary with better context
-function addTrendsSummaryEnhanced(entities, entityType, previousMonths, selectedMonth, datasets) {
+// =====================================================
+// HELPER FUNCTIONS
+// =====================================================
+
+// Function to show empty state
+function showEmptyTrendsChart(message) {
+    const canvas = document.getElementById('testCasesTrendsChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#666';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+    
+    console.log('Empty state shown:', message);
+}
+
+// Function to add summary information below the chart
+function addTrendsSummary(entities, entityType, months, datasets, chartTitle) {
     const container = document.getElementById('testCasesTrendsChart').closest('.chart-container');
     if (!container) return;
     
@@ -351,7 +413,7 @@ function addTrendsSummaryEnhanced(entities, entityType, previousMonths, selected
     }, { name: '', total: 0 });
     
     // Latest month data (last month in the trend)
-    const latestMonth = previousMonths[previousMonths.length - 1];
+    const latestMonth = months[months.length - 1];
     const latestMonthData = datasets.map(dataset => ({
         name: dataset.fullName,
         value: dataset.data[dataset.data.length - 1]
@@ -373,11 +435,11 @@ function addTrendsSummaryEnhanced(entities, entityType, previousMonths, selected
     
     summaryDiv.innerHTML = `
         <div style="font-weight: 600; color: #333; margin-bottom: 10px; font-size: 14px;">
-            📈 ${entityType} Trends - 3 Months Before ${selectedMonth || 'Current Month'}
+            📈 ${chartTitle || `${entityType} Trends Summary`}
         </div>
         <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : '1fr 1fr'}; gap: 12px;">
             <div>
-                <strong style="color: #c41e3a;">Period:</strong> ${previousMonths.join(' → ')}<br>
+                <strong style="color: #c41e3a;">Period:</strong> ${months.join(' → ')}<br>
                 <strong style="color: #3498db;">Total Test Cases:</strong> ${totalAcrossAll.toLocaleString()}<br>
                 <strong style="color: #27ae60;">Average per ${entityType.slice(0, -1)}:</strong> ${avgPerEntity.toLocaleString()}<br>
                 <strong style="color: #f39c12;">Top Performer:</strong> ${maxEntity.name} (${maxEntity.total.toLocaleString()})
@@ -395,20 +457,122 @@ function addTrendsSummaryEnhanced(entities, entityType, previousMonths, selected
     container.appendChild(summaryDiv);
 }
 
-// TEST FUNCTION - Run this to verify the month logic
-function testMonthLogic() {
-    console.log('=== TESTING MONTH LOGIC ===');
+// =====================================================
+// MAIN UPDATE FUNCTION
+// =====================================================
+
+function updateTestCasesTrends() {
+    console.log('\n=== UPDATING TEST CASES TRENDS ===');
+    console.log('Current filters:', filters);
     
-    const testMonths = ['January', 'March', 'June', 'December'];
+    // Use qualityData as the source
+    const sourceData = typeof qualityData !== 'undefined' ? qualityData : [];
     
-    testMonths.forEach(month => {
-        console.log(`\nTesting with selected month: ${month}`);
-        const previous = getPreviousMonthsEnhanced(month, 3);
-        console.log(`Previous 3 months: [${previous.join(', ')}]`);
-    });
+    if (sourceData.length === 0) {
+        console.error('No qualityData available');
+        showEmptyTrendsChart('No data available');
+        return;
+    }
     
-    // Test with current filter
-    console.log(`\nCurrent filter month: ${filters.month}`);
-    const currentPrevious = getPreviousMonthsEnhanced(filters.month, 3);
-    console.log(`Previous months for current filter: [${currentPrevious.join(', ')}]`);
+    console.log('Using qualityData with', sourceData.length, 'records');
+    
+    // Render the trends chart
+    renderTestCasesTrendsChart(sourceData);
 }
+
+// =====================================================
+// INTEGRATION FUNCTIONS
+// =====================================================
+
+// Function to add trends chart to a tab (if not already added)
+function ensureTrendsChartExists() {
+    // Check if chart canvas already exists
+    if (document.getElementById('testCasesTrendsChart')) {
+        return true;
+    }
+    
+    // Try to add to execution tab
+    const executionTab = document.getElementById('execution');
+    if (executionTab) {
+        const chartHTML = `
+            <div class="chart-container">
+                <div class="chart-header">Test Cases Execution Trends</div>
+                <div class="chart-wrapper">
+                    <canvas id="testCasesTrendsChart"></canvas>
+                </div>
+            </div>
+        `;
+        executionTab.insertAdjacentHTML('beforeend', chartHTML);
+        console.log('Trends chart canvas added to execution tab');
+        return true;
+    }
+    
+    console.error('Could not find execution tab to add trends chart');
+    return false;
+}
+
+// =====================================================
+// DEBUGGING FUNCTIONS
+// =====================================================
+
+function debugTrendsChartQuick() {
+    console.log('=== QUICK TRENDS DEBUG ===');
+    
+    // Check basic setup
+    console.log('qualityData available:', typeof qualityData !== 'undefined');
+    console.log('qualityData length:', qualityData ? qualityData.length : 0);
+    console.log('Current filters:', filters);
+    
+    // Check canvas
+    const canvas = document.getElementById('testCasesTrendsChart');
+    console.log('Canvas exists:', !!canvas);
+    
+    // Check sample data
+    if (qualityData && qualityData.length > 0) {
+        const sample = qualityData[0];
+        console.log('Sample record:', {
+            group: sample.group,
+            subGroup: sample.subGroup,
+            application: sample.application,
+            goLiveDate: sample.goLiveDate,
+            functionalTestTotal: sample.functionalTestTotal,
+            regressionTestTotal: sample.regressionTestTotal
+        });
+        
+        // Check months in data
+        const months = qualityData.map(d => getMonthFromDate(d.goLiveDate)).filter(m => m);
+        const uniqueMonths = [...new Set(months)];
+        console.log('Unique months in data:', uniqueMonths);
+        
+        // Check test case totals
+        const withTestCases = qualityData.filter(d => 
+            (parseInt(d.functionalTestTotal) || 0) > 0 || 
+            (parseInt(d.regressionTestTotal) || 0) > 0
+        );
+        console.log('Records with test cases:', withTestCases.length);
+    }
+}
+
+// =====================================================
+// CALL THIS TO SET EVERYTHING UP
+// =====================================================
+
+function initializeTrendsChart() {
+    console.log('Initializing trends chart...');
+    
+    // Ensure canvas exists
+    if (!ensureTrendsChartExists()) {
+        console.error('Failed to create trends chart canvas');
+        return false;
+    }
+    
+    // Initial render
+    setTimeout(() => {
+        updateTestCasesTrends();
+    }, 500);
+    
+    return true;
+}
+
+// Run this after your page loads:
+// initializeTrendsChart();
