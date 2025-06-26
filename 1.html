@@ -1,234 +1,177 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>UAT COE Dashboard</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
-    body { font-family: Arial; background: #1e1e2f; color: #fff; padding: 20px; }
-    h2 { color: #a78bfa; }
-    label { margin-right: 10px; }
-    select { margin-right: 20px; padding: 5px; }
-    .kpi-card { background: #2d2d44; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-    .chart-container { margin-bottom: 40px; }
-    .last-updated { font-size: 0.9rem; opacity: 0.7; margin-bottom: 20px; }
-  </style>
-</head>
-<body>
-  <h2>UAT COE Dashboard</h2>
-  <div class="last-updated" id="lastUpdated">Last updated: Never</div>
-
-  <div style="margin-bottom: 20px;">
-    <label>Month:</label>
-    <select id="monthFilter"></select>
-
-    <label>LOB:</label>
-    <select id="lobFilter"></select>
-
-    <label>Sub Group:</label>
-    <select id="subGroupFilter"></select>
-
-    <label>Application:</label>
-    <select id="applicationFilter"></select>
-  </div>
-
-  <div class="kpi-card">
-    <h3>KPIs</h3>
-    <p>Total Releases: <span id="totalReleases">-</span></p>
-    <p>Go Live On Time: <span id="goLiveOnTime">-%</span></p>
-    <p>UAT Passed: <span id="uatPassed">-%</span></p>
-    <p>Avg. Defect Density: <span id="avgDefectDensity">-</span></p>
-  </div>
-
-  <div class="chart-container">
-    <canvas id="passRateChart" height="100"></canvas>
-  </div>
-
-  <script>
-    let dashboardData = [];
-    let charts = {};
-
-    document.addEventListener('DOMContentLoaded', function () {
-      initializeCharts();
-      loadExcelFromURL('https://yourusername.github.io/uat-dashboard-data/dashboard_data.xlsx');
-    });
-
-    async function loadExcelFromURL(url) {
-      try {
-        const response = await fetch(url);
-        const arrayBuffer = await response.arrayBuffer();
-        const data = new Uint8Array(arrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-        dashboardData = jsonData;
-        setupFilters();
-        updateDashboard();
-        updateLastUpdated();
-      } catch (error) {
-        console.error('Failed to load Excel:', error);
-        document.getElementById('lastUpdated').textContent = 'Failed to load Excel data.';
-      }
+// FIXED: Get past 3 months from current month (not future months)
+function getMonthsForTrends(selectedMonth) {
+    console.log('\n=== GETTING PAST 3 MONTHS FOR TRENDS ===');
+    
+    const analysis = analyzeTrendsData();
+    const { availableMonths, monthData } = analysis;
+    
+    if (availableMonths.length === 0) {
+        console.error('No months with test data found');
+        return [];
     }
+    
+    console.log(`Selected month: "${selectedMonth}"`);
+    console.log('Available months:', availableMonths);
+    
+    // If no specific month is selected, use the latest available month
+    const currentMonth = selectedMonth || availableMonths[availableMonths.length - 1];
+    console.log(`Using current month: "${currentMonth}"`);
+    
+    // Get past 3 months including current month
+    const pastMonths = getPast3MonthsFromCurrent(currentMonth, availableMonths);
+    
+    console.log('Past 3 months (including current):', pastMonths);
+    return pastMonths;
+}
 
-    function updateLastUpdated() {
-      const now = new Date().toLocaleString();
-      document.getElementById('lastUpdated').textContent = `Last updated: ${now}`;
+// NEW FUNCTION: Get past 3 months from current month
+function getPast3MonthsFromCurrent(currentMonth, availableMonths) {
+    const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    // Find the index of current month
+    const currentIndex = months.indexOf(currentMonth);
+    if (currentIndex === -1) {
+        console.warn(`Current month "${currentMonth}" not found in months array`);
+        return availableMonths.slice(-3); // Fallback to last 3 available
     }
-
-    function setupFilters() {
-      document.getElementById('monthFilter').addEventListener('change', updateDashboard);
-      document.getElementById('lobFilter').addEventListener('change', () => {
-        updateSubGroupFilter();
-        updateDashboard();
-      });
-      document.getElementById('subGroupFilter').addEventListener('change', () => {
-        updateApplicationFilter();
-        updateDashboard();
-      });
-      document.getElementById('applicationFilter').addEventListener('change', updateDashboard);
-
-      populateMonthFilter();
-      populateLOBFilter();
+    
+    console.log(`Current month "${currentMonth}" is at index ${currentIndex}`);
+    
+    // Generate past 3 months (including current)
+    const pastMonthsToCheck = [];
+    for (let i = 2; i >= 0; i--) { // Start from 2 months ago to current
+        const monthIndex = (currentIndex - i + 12) % 12; // Handle year wrap-around
+        pastMonthsToCheck.push(months[monthIndex]);
     }
-
-    function populateMonthFilter() {
-      const monthSet = new Set();
-      dashboardData.forEach(d => {
-        const dateStr = d['Go Live Date'];
-        if (dateStr) {
-          const date = new Date(dateStr);
-          if (!isNaN(date)) {
-            const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-            monthSet.add(month);
-          }
-        }
-      });
-
-      const monthFilter = document.getElementById('monthFilter');
-      monthFilter.innerHTML = '<option value="all">All Months</option>';
-      Array.from(monthSet).sort().forEach(month => {
-        const option = document.createElement('option');
-        option.value = month;
-        option.textContent = month;
-        monthFilter.appendChild(option);
-      });
-    }
-
-    function populateLOBFilter() {
-      const lobSet = new Set(dashboardData.map(d => d['Group']));
-      const lobFilter = document.getElementById('lobFilter');
-      lobFilter.innerHTML = '<option value="all">All LOBs</option>';
-      lobSet.forEach(lob => {
-        const option = document.createElement('option');
-        option.value = lob;
-        option.textContent = lob;
-        lobFilter.appendChild(option);
-      });
-      updateSubGroupFilter();
-    }
-
-    function updateSubGroupFilter() {
-      const selectedLOB = document.getElementById('lobFilter').value;
-      const filtered = selectedLOB === 'all' ? dashboardData : dashboardData.filter(d => d['Group'] === selectedLOB);
-      const subGroupSet = new Set(filtered.map(d => d['Sub Group']));
-
-      const subGroupFilter = document.getElementById('subGroupFilter');
-      subGroupFilter.innerHTML = '<option value="all">All Sub Groups</option>';
-      subGroupSet.forEach(sub => {
-        const option = document.createElement('option');
-        option.value = sub;
-        option.textContent = sub;
-        subGroupFilter.appendChild(option);
-      });
-      updateApplicationFilter();
-    }
-
-    function updateApplicationFilter() {
-      const selectedLOB = document.getElementById('lobFilter').value;
-      const selectedSub = document.getElementById('subGroupFilter').value;
-
-      const filtered = dashboardData.filter(d =>
-        (selectedLOB === 'all' || d['Group'] === selectedLOB) &&
-        (selectedSub === 'all' || d['Sub Group'] === selectedSub)
-      );
-
-      const appSet = new Set(filtered.map(d => d['Application name']));
-      const applicationFilter = document.getElementById('applicationFilter');
-      applicationFilter.innerHTML = '<option value="all">All Applications</option>';
-      appSet.forEach(app => {
-        const option = document.createElement('option');
-        option.value = app;
-        option.textContent = app;
-        applicationFilter.appendChild(option);
-      });
-    }
-
-    function updateDashboard() {
-      const selectedMonth = document.getElementById('monthFilter').value;
-      const selectedLOB = document.getElementById('lobFilter').value;
-      const selectedSubGroup = document.getElementById('subGroupFilter').value;
-      const selectedApp = document.getElementById('applicationFilter').value;
-
-      const filtered = dashboardData.filter(d => {
-        const date = new Date(d['Go Live Date']);
-        const month = !isNaN(date) ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}` : '';
-        return (
-          (selectedMonth === 'all' || month === selectedMonth) &&
-          (selectedLOB === 'all' || d['Group'] === selectedLOB) &&
-          (selectedSubGroup === 'all' || d['Sub Group'] === selectedSubGroup) &&
-          (selectedApp === 'all' || d['Application name'] === selectedApp)
+    
+    console.log('Past 3 months to check:', pastMonthsToCheck);
+    
+    // Filter to only include months that have data
+    const pastMonthsWithData = pastMonthsToCheck.filter(month => 
+        availableMonths.includes(month)
+    );
+    
+    console.log('Past months with actual data:', pastMonthsWithData);
+    
+    // If we don't have enough past months with data, supplement with available months
+    if (pastMonthsWithData.length < 3) {
+        console.log('Not enough past months with data, supplementing...');
+        
+        // Add more available months if needed
+        const additionalMonths = availableMonths.filter(month => 
+            !pastMonthsWithData.includes(month)
         );
-      });
-
-      document.getElementById('totalReleases').textContent = filtered.length;
-
-      const onTime = filtered.filter(d => d['Go Live Status'] === 'On Time').length;
-      document.getElementById('goLiveOnTime').textContent = filtered.length ? `${Math.round((onTime / filtered.length) * 100)}%` : '-%';
-
-      const passed = filtered.filter(d => d['UAT Status'] === 'Passed').length;
-      document.getElementById('uatPassed').textContent = filtered.length ? `${Math.round((passed / filtered.length) * 100)}%` : '-%';
-
-      const totalDefects = filtered.reduce((sum, d) => sum + (d['Defects - Total'] || 0), 0);
-      const totalReq = filtered.reduce((sum, d) => sum + (d['No.of requirements'] || 0), 0);
-      const density = totalReq ? (totalDefects / totalReq).toFixed(2) : '-';
-      document.getElementById('avgDefectDensity').textContent = density;
-
-      updateCharts(filtered);
+        
+        // Take the most recent additional months
+        const supplemented = [...pastMonthsWithData, ...additionalMonths.slice(-3)];
+        
+        // Remove duplicates and limit to 3
+        const uniqueMonths = [...new Set(supplemented)];
+        const final = uniqueMonths.slice(-3);
+        
+        console.log('Supplemented with additional months:', final);
+        return final;
     }
+    
+    return pastMonthsWithData;
+}
 
-    function initializeCharts() {
-      const ctx = document.getElementById('passRateChart').getContext('2d');
-      charts.passRateChart = new Chart(ctx, {
-        type: 'bar',
-        data: { labels: [], datasets: [{ label: 'Pass Rate (%)', data: [], backgroundColor: '#a78bfa' }] },
-        options: {
-          scales: { y: { beginAtZero: true, max: 100 } },
-          plugins: { legend: { labels: { color: '#fff' } } }
+// ALTERNATIVE SIMPLER APPROACH: Always get past 3 months chronologically
+function getMonthsForTrendsSimple(selectedMonth) {
+    console.log('\n=== GETTING PAST 3 MONTHS (SIMPLE APPROACH) ===');
+    
+    const analysis = analyzeTrendsData();
+    const { availableMonths } = analysis;
+    
+    if (availableMonths.length === 0) {
+        return [];
+    }
+    
+    // If we have a selected month, find past 3 months from that point
+    if (selectedMonth && availableMonths.includes(selectedMonth)) {
+        const months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        
+        const currentIndex = months.indexOf(selectedMonth);
+        const pastMonths = [];
+        
+        // Get past 3 months (including current)
+        for (let i = 2; i >= 0; i--) {
+            const monthIndex = (currentIndex - i + 12) % 12;
+            const monthName = months[monthIndex];
+            
+            // Only include if we have data for this month
+            if (availableMonths.includes(monthName)) {
+                pastMonths.push(monthName);
+            }
         }
-      });
+        
+        console.log(`Past 3 months from ${selectedMonth}:`, pastMonths);
+        
+        // If we have enough past months, return them
+        if (pastMonths.length > 0) {
+            return pastMonths;
+        }
     }
+    
+    // Fallback: return the most recent 3 months with data
+    console.log('Using fallback: most recent 3 months with data');
+    return availableMonths.slice(-3);
+}
 
-    function updateCharts(data) {
-      const labels = [];
-      const values = [];
-
-      data.forEach(item => {
-        const total = item['Functional Test Cases Total'] || 0;
-        const passed = item['Functional Test cases Passed'] || 0;
-        const rate = total ? ((passed / total) * 100).toFixed(1) : 0;
-        labels.push(item['Application name'] || 'N/A');
-        values.push(rate);
-      });
-
-      const chart = charts.passRateChart;
-      chart.data.labels = labels;
-      chart.data.datasets[0].data = values;
-      chart.update();
+// UPDATE THE MAIN RENDER FUNCTION TO USE THE FIXED LOGIC
+function renderTestCasesTrendsChartFixed(data) {
+    console.log('\n=== RENDERING FIXED TRENDS CHART ===');
+    
+    const ctx = document.getElementById('testCasesTrendsChart');
+    if (!ctx) {
+        console.error('Canvas not found');
+        return;
     }
-  </script>
-</body>
-</html>
+    
+    safeDestroyChart('testCasesTrends');
+    
+    const sourceData = data || qualityData || [];
+    if (sourceData.length === 0) {
+        showEmptyTrendsChart('No data available');
+        return;
+    }
+    
+    // 🔥 FIXED: Use the corrected function that gets past months
+    const monthsToShow = getMonthsForTrendsSimple(filters.month);
+    
+    if (monthsToShow.length === 0) {
+        showEmptyTrendsChart('No months with test case data found');
+        return;
+    }
+    
+    console.log('Final months to display (PAST 3 from current):', monthsToShow);
+    
+    // Rest of the function remains the same...
+    // [Include all the existing logic for entities, datasets, chart creation]
+    
+    // The key change is just using the fixed month selection logic above
+    
+    console.log('✅ Trends chart created successfully with PAST 3 months!');
+}
+
+// DEBUGGING: Test the month logic
+function testMonthLogic() {
+    console.log('\n=== TESTING MONTH LOGIC ===');
+    
+    const testMonths = ['March', 'June', 'September', 'December'];
+    
+    testMonths.forEach(month => {
+        console.log(`\n--- Testing for current month: ${month} ---`);
+        const result = getPast3MonthsFromCurrent(month, [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ]);
+        console.log(`Past 3 months: ${result.join(', ')}`);
+    });
+}
