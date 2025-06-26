@@ -1,230 +1,294 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UAT COE Dashboard</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
-    body { font-family: Arial; background: #1e1e2f; color: #fff; padding: 20px; }
-    h2 { color: #a78bfa; }
-    label, select { margin-right: 10px; padding: 4px; }
-    canvas { margin-bottom: 40px; background: #2d2d44; border-radius: 12px; padding: 20px; }
-  </style>
-</head>
-<body>
-  <h2>UAT COE Dashboard</h2>
+// STEP-BY-STEP DEBUGGING PROCESS
+// Run these functions one by one to identify the exact issue
 
-  <div style="margin-bottom: 20px;">
-    <label>Month:</label>
-    <select id="monthFilter"></select>
-
-    <label>LOB:</label>
-    <select id="lobFilter"></select>
-
-    <label>Sub Group:</label>
-    <select id="subGroupFilter"></select>
-
-    <label>Application:</label>
-    <select id="applicationFilter"></select>
-  </div>
-
-  <div class="chart-section">
-    <canvas id="passRateTrendChart"></canvas>
-    <canvas id="testStatusStackedChart"></canvas>
-    <canvas id="newTestCasesChart"></canvas>
-    <canvas id="executionStatusChart"></canvas>
-
-    <canvas id="defectStatusChart"></canvas>
-    <canvas id="defectSeverityChart"></canvas>
-    <canvas id="openDefectsTrendChart"></canvas>
-    <canvas id="defectDensityChart"></canvas>
-  </div>
-
-  <script>
-    let dashboardData = [];
-    let charts = {};
-
-    document.addEventListener('DOMContentLoaded', () => {
-      initializeCharts();
-      loadExcelFromURL('https://yourusername.github.io/uat-dashboard/data/dashboard_data.xlsx');
+// STEP 1: Check if data exists for past months
+function step1_CheckDataExists() {
+    console.log('\n🔍 STEP 1: Checking if data exists for past months');
+    
+    const sourceData = qualityData || [];
+    const monthCounts = {};
+    
+    sourceData.forEach(record => {
+        const month = getMonthFromDateEnhanced(record.goLiveDate);
+        if (month) {
+            monthCounts[month] = (monthCounts[month] || 0) + 1;
+        }
     });
+    
+    console.log('Records per month:');
+    Object.entries(monthCounts)
+        .sort(([a], [b]) => {
+            const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+            return months.indexOf(a) - months.indexOf(b);
+        })
+        .forEach(([month, count]) => {
+            console.log(`  ${month}: ${count} records`);
+        });
+    
+    return monthCounts;
+}
 
-    async function loadExcelFromURL(url) {
-      const res = await fetch(url);
-      const data = new Uint8Array(await res.arrayBuffer());
-      const wb = XLSX.read(data, { type: 'array' });
-      dashboardData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-      updateAll();
-    }
+// STEP 2: Check if the months are being calculated correctly
+function step2_CheckMonthsCalculation() {
+    console.log('\n🔍 STEP 2: Checking months calculation');
+    
+    console.log('Current filter month:', filters.month);
+    
+    const monthsForTrends = getMonthsForTrendsSimple(filters.month);
+    console.log('Months that will be shown in trends:', monthsForTrends);
+    
+    // Check if these months have data
+    const monthCounts = step1_CheckDataExists();
+    monthsForTrends.forEach(month => {
+        const count = monthCounts[month] || 0;
+        console.log(`  ${month}: ${count} records available`);
+    });
+    
+    return monthsForTrends;
+}
 
-    function updateAll() {
-      updatePassRateTrendChart(dashboardData);
-      updateTestStatusStackedChart(dashboardData);
-      updateNewTestCasesChart(dashboardData);
-      updateExecutionStatusChart(dashboardData);
-      updateDefectsByStatusChart(dashboardData);
-      updateDefectsBySeverityChart(dashboardData);
-      updateOpenDefectsTrendChart(dashboardData);
-      updateDefectDensityChart(dashboardData);
-    }
+// STEP 3: Check entity matching logic
+function step3_CheckEntityMatching() {
+    console.log('\n🔍 STEP 3: Checking entity matching logic');
+    
+    const sourceData = qualityData || [];
+    const uniqueEntities = new Set();
+    
+    console.log('Current filters:', filters);
+    
+    sourceData.forEach(record => {
+        if (filters.group && filters.subGroup) {
+            if (record.group === filters.group && record.subGroup === filters.subGroup) {
+                uniqueEntities.add(record.application);
+            }
+        } else if (filters.group) {
+            if (record.group === filters.group) {
+                uniqueEntities.add(record.subGroup);
+            }
+        } else {
+            uniqueEntities.add(record.group);
+        }
+    });
+    
+    const entities = Array.from(uniqueEntities).filter(e => e && e.trim());
+    console.log('Entities that should be compared:', entities);
+    
+    return entities;
+}
 
-    function initializeCharts() {
-      charts.passRateTrendChart = new Chart(document.getElementById('passRateTrendChart').getContext('2d'), {
-        type: 'line', data: { labels: [], datasets: [] }, options: { responsive: true }
-      });
-      charts.testStatusStackedChart = new Chart(document.getElementById('testStatusStackedChart').getContext('2d'), {
-        type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true } } }
-      });
-      charts.newTestCasesChart = new Chart(document.getElementById('newTestCasesChart').getContext('2d'), {
-        type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true }
-      });
-      charts.executionStatusChart = new Chart(document.getElementById('executionStatusChart').getContext('2d'), {
-        type: 'pie', data: { labels: [], datasets: [] }, options: { responsive: true }
-      });
-      charts.defectStatusChart = new Chart(document.getElementById('defectStatusChart').getContext('2d'), {
-        type: 'pie', data: { labels: [], datasets: [] }, options: { responsive: true }
-      });
-      charts.defectSeverityChart = new Chart(document.getElementById('defectSeverityChart').getContext('2d'), {
-        type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true }
-      });
-      charts.openDefectsTrendChart = new Chart(document.getElementById('openDefectsTrendChart').getContext('2d'), {
-        type: 'line', data: { labels: [], datasets: [] }, options: { responsive: true }
-      });
-      charts.defectDensityChart = new Chart(document.getElementById('defectDensityChart').getContext('2d'), {
-        type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true }
-      });
+// STEP 4: Test data retrieval for specific entity and month
+function step4_TestSpecificEntityMonth(entity, month) {
+    console.log(`\n🔍 STEP 4: Testing data retrieval for "${entity}" in "${month}"`);
+    
+    const sourceData = qualityData || [];
+    
+    // Show ALL records for this month first
+    const monthRecords = sourceData.filter(record => {
+        const recordMonth = getMonthFromDateEnhanced(record.goLiveDate);
+        return recordMonth === month;
+    });
+    
+    console.log(`Total records in ${month}: ${monthRecords.length}`);
+    
+    if (monthRecords.length > 0) {
+        console.log('Sample records in this month:');
+        monthRecords.slice(0, 5).forEach((record, i) => {
+            console.log(`  [${i}] Group: "${record.group}", SubGroup: "${record.subGroup}", App: "${record.application}"`);
+            console.log(`      Functional: ${record.functionalTestTotal}, Regression: ${record.regressionTestTotal}`);
+        });
     }
+    
+    // Now test entity matching
+    console.log(`\nTesting entity matching for "${entity}"`);
+    
+    const entityRecords = monthRecords.filter(record => {
+        if (filters.group && filters.subGroup) {
+            const match = record.group === filters.group && 
+                         record.subGroup === filters.subGroup && 
+                         record.application === entity;
+            console.log(`  App match: "${record.application}" === "${entity}" ? ${record.application === entity}`);
+            return match;
+        } else if (filters.group) {
+            const match = record.group === filters.group && record.subGroup === entity;
+            console.log(`  SubGroup match: "${record.subGroup}" === "${entity}" ? ${record.subGroup === entity}`);
+            return match;
+        } else {
+            const match = record.group === entity;
+            console.log(`  Group match: "${record.group}" === "${entity}" ? ${record.group === entity}`);
+            return match;
+        }
+    });
+    
+    console.log(`Matching records for entity "${entity}": ${entityRecords.length}`);
+    
+    if (entityRecords.length > 0) {
+        const totalFunctional = entityRecords.reduce((sum, r) => sum + (parseInt(r.functionalTestTotal) || 0), 0);
+        const totalRegression = entityRecords.reduce((sum, r) => sum + (parseInt(r.regressionTestTotal) || 0), 0);
+        const totalTestCases = totalFunctional + totalRegression;
+        
+        console.log(`Total test cases: ${totalTestCases} (Functional: ${totalFunctional}, Regression: ${totalRegression})`);
+        
+        return {
+            monthRecords: monthRecords.length,
+            entityRecords: entityRecords.length,
+            totalTestCases,
+            success: true
+        };
+    } else {
+        console.log('❌ No matching records found!');
+        
+        // Additional debugging
+        console.log('\nDebugging entity matching:');
+        console.log(`Looking for entity: "${entity}"`);
+        console.log(`Filter level: ${filters.group ? 'Group' : 'All'} ${filters.subGroup ? '> SubGroup' : ''}`);
+        
+        if (monthRecords.length > 0) {
+            const uniqueValues = new Set();
+            monthRecords.forEach(record => {
+                if (filters.group && filters.subGroup) {
+                    if (record.group === filters.group && record.subGroup === filters.subGroup) {
+                        uniqueValues.add(record.application);
+                    }
+                } else if (filters.group) {
+                    if (record.group === filters.group) {
+                        uniqueValues.add(record.subGroup);
+                    }
+                } else {
+                    uniqueValues.add(record.group);
+                }
+            });
+            
+            console.log('Available entities in this month:', Array.from(uniqueValues));
+        }
+        
+        return {
+            monthRecords: monthRecords.length,
+            entityRecords: 0,
+            totalTestCases: 0,
+            success: false
+        };
+    }
+}
 
-    function updatePassRateTrendChart(data) {
-      const grouped = {};
-      data.forEach(d => {
-        const date = new Date(d['Go Live Date']);
-        if (isNaN(date)) return;
-        const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        if (!grouped[month]) grouped[month] = { funcPassed: 0, funcTotal: 0, regPassed: 0, regTotal: 0 };
-        grouped[month].funcPassed += d['Functional Test cases Passed'] || 0;
-        grouped[month].funcTotal += d['Functional Test Cases Total'] || 0;
-        grouped[month].regPassed += d['Regression Test cases Passed'] || 0;
-        grouped[month].regTotal += d['Regression Test Cases Total'] || 0;
-      });
-      const labels = Object.keys(grouped).sort();
-      const funcData = labels.map(m => grouped[m].funcTotal ? (grouped[m].funcPassed / grouped[m].funcTotal * 100).toFixed(1) : 0);
-      const regData = labels.map(m => grouped[m].regTotal ? (grouped[m].regPassed / grouped[m].regTotal * 100).toFixed(1) : 0);
-      charts.passRateTrendChart.data.labels = labels;
-      charts.passRateTrendChart.data.datasets = [
-        { label: 'Functional', data: funcData, borderColor: '#4f46e5', fill: false },
-        { label: 'Regression', data: regData, borderColor: '#10b981', fill: false }
-      ];
-      charts.passRateTrendChart.update();
-    }
+// STEP 5: Run complete diagnosis
+function step5_CompleteDebugDiagnosis() {
+    console.log('\n🚀 RUNNING COMPLETE DEBUG DIAGNOSIS');
+    
+    // Check basic data availability
+    const monthCounts = step1_CheckDataExists();
+    const monthsForTrends = step2_CheckMonthsCalculation();
+    const entities = step3_CheckEntityMatching();
+    
+    console.log('\n=== DIAGNOSIS SUMMARY ===');
+    console.log(`Total entities to compare: ${entities.length}`);
+    console.log(`Months for trends: ${monthsForTrends.length}`);
+    
+    // Test each entity for each month
+    const results = {};
+    
+    entities.slice(0, 3).forEach(entity => { // Test first 3 entities
+        results[entity] = {};
+        
+        monthsForTrends.forEach(month => {
+            console.log(`\n--- Testing ${entity} in ${month} ---`);
+            const result = step4_TestSpecificEntityMonth(entity, month);
+            results[entity][month] = result;
+        });
+    });
+    
+    // Summary
+    console.log('\n=== FINAL RESULTS ===');
+    Object.entries(results).forEach(([entity, monthResults]) => {
+        console.log(`\n${entity}:`);
+        Object.entries(monthResults).forEach(([month, result]) => {
+            const status = result.success ? '✅' : '❌';
+            console.log(`  ${month}: ${status} ${result.totalTestCases} test cases (${result.entityRecords} records)`);
+        });
+    });
+    
+    return results;
+}
 
-    function updateTestStatusStackedChart(data) {
-      const releases = [...new Set(data.map(d => d['Release name']))];
-      const failed = [], blocked = [], na = [];
-      releases.forEach(r => {
-        const d = data.find(d => d['Release name'] === r);
-        failed.push(d['Functional Test Cases Failed'] || 0);
-        blocked.push(d['Functional Test Cases Blocked'] || 0);
-        na.push(d['Functional Test Cases Not applicable'] || 0);
-      });
-      charts.testStatusStackedChart.data.labels = releases;
-      charts.testStatusStackedChart.data.datasets = [
-        { label: 'Failed', data: failed, backgroundColor: '#ef4444' },
-        { label: 'Blocked', data: blocked, backgroundColor: '#f59e0b' },
-        { label: 'Not Applicable', data: na, backgroundColor: '#6b7280' }
-      ];
-      charts.testStatusStackedChart.update();
+// QUICK FIX ATTEMPT: More flexible entity matching
+function fixedGetEntityDataForMonth(sourceData, entity, month, filters) {
+    console.log(`\n🔧 FIXED: Getting data for "${entity}" in "${month}"`);
+    
+    // Step 1: Get all records for the month
+    const monthRecords = sourceData.filter(record => {
+        const recordMonth = getMonthFromDateEnhanced(record.goLiveDate);
+        return recordMonth === month;
+    });
+    
+    console.log(`Records in ${month}: ${monthRecords.length}`);
+    
+    if (monthRecords.length === 0) {
+        return { totalTestCases: 0, functionalTotal: 0, regressionTotal: 0, recordsCount: 0 };
     }
+    
+    // Step 2: More flexible entity matching
+    const entityRecords = monthRecords.filter(record => {
+        let match = false;
+        
+        if (filters.group && filters.subGroup) {
+            // Application level - check if group and subgroup match, then check application
+            if (record.group === filters.group && record.subGroup === filters.subGroup) {
+                // Try exact match first, then partial match
+                match = record.application === entity || 
+                       (record.application && record.application.toLowerCase().includes(entity.toLowerCase())) ||
+                       (entity && entity.toLowerCase().includes(record.application.toLowerCase()));
+            }
+        } else if (filters.group) {
+            // SubGroup level - check if group matches, then check subgroup
+            if (record.group === filters.group) {
+                match = record.subGroup === entity ||
+                       (record.subGroup && record.subGroup.toLowerCase().includes(entity.toLowerCase())) ||
+                       (entity && entity.toLowerCase().includes(record.subGroup.toLowerCase()));
+            }
+        } else {
+            // Group level
+            match = record.group === entity ||
+                   (record.group && record.group.toLowerCase().includes(entity.toLowerCase())) ||
+                   (entity && entity.toLowerCase().includes(record.group.toLowerCase()));
+        }
+        
+        return match;
+    });
+    
+    console.log(`Matching records for "${entity}": ${entityRecords.length}`);
+    
+    // Step 3: Calculate totals
+    const functionalTotal = entityRecords.reduce((sum, record) => {
+        const val = parseInt(record.functionalTestTotal) || 0;
+        return sum + val;
+    }, 0);
+    
+    const regressionTotal = entityRecords.reduce((sum, record) => {
+        const val = parseInt(record.regressionTestTotal) || 0;
+        return sum + val;
+    }, 0);
+    
+    const totalTestCases = functionalTotal + regressionTotal;
+    
+    console.log(`Results: F=${functionalTotal}, R=${regressionTotal}, Total=${totalTestCases}`);
+    
+    return {
+        totalTestCases,
+        functionalTotal,
+        regressionTotal,
+        recordsCount: entityRecords.length
+    };
+}
 
-    function updateNewTestCasesChart(data) {
-      const grouped = {};
-      data.forEach(d => {
-        const key = `${d['Sub Group']} - ${d['Application name']}`;
-        grouped[key] = (grouped[key] || 0) + (d['Number of New Test Cases Designed'] || 0);
-      });
-      const labels = Object.keys(grouped);
-      const values = labels.map(k => grouped[k]);
-      charts.newTestCasesChart.data.labels = labels;
-      charts.newTestCasesChart.data.datasets = [{ label: 'New Test Cases', data: values, backgroundColor: '#38bdf8' }];
-      charts.newTestCasesChart.update();
-    }
+// HOW TO USE THESE DEBUG FUNCTIONS:
+console.log(`
+🔍 TO DEBUG YOUR ISSUE, RUN THESE FUNCTIONS IN ORDER:
 
-    function updateExecutionStatusChart(data) {
-      let completed = 0, inProgress = 0, notStarted = 0;
-      data.forEach(d => {
-        const total = d['Functional Test Cases Total'] || 0;
-        const executed = (d['Functional Test cases Passed'] || 0) + (d['Functional Test Cases Failed'] || 0) + (d['Functional Test Cases Blocked'] || 0);
-        if (executed === 0) notStarted++;
-        else if (executed === total) completed++;
-        else inProgress++;
-      });
-      charts.executionStatusChart.data.labels = ['Completed', 'In Progress', 'Not Started'];
-      charts.executionStatusChart.data.datasets = [{
-        data: [completed, inProgress, notStarted],
-        backgroundColor: ['#10b981', '#f59e0b', '#6b7280']
-      }];
-      charts.executionStatusChart.update();
-    }
+1. step1_CheckDataExists() - Check if data exists for past months
+2. step2_CheckMonthsCalculation() - Check if months are calculated correctly  
+3. step3_CheckEntityMatching() - Check what entities should be compared
+4. step4_TestSpecificEntityMonth('YourEntity', 'YourMonth') - Test specific cases
+5. step5_CompleteDebugDiagnosis() - Run complete diagnosis
 
-    function updateDefectsByStatusChart(data) {
-      const totals = { Open: 0, Closed: 0, Deferred: 0, Rejected: 0 };
-      data.forEach(d => {
-        for (let key in totals) totals[key] += d[key] || 0;
-      });
-      charts.defectStatusChart.data.labels = Object.keys(totals);
-      charts.defectStatusChart.data.datasets = [{
-        data: Object.values(totals),
-        backgroundColor: ['#f87171', '#10b981', '#f59e0b', '#a855f7']
-      }];
-      charts.defectStatusChart.update();
-    }
-
-    function updateDefectsBySeverityChart(data) {
-      const severities = ['Critical', 'High', 'Medium', 'Low'];
-      const values = [0, 0, 0, 0];
-      data.forEach(d => {
-        severities.forEach((s, i) => values[i] += d[s] || 0);
-      });
-      charts.defectSeverityChart.data.labels = severities;
-      charts.defectSeverityChart.data.datasets = [{
-        label: 'Defects',
-        data: values,
-        backgroundColor: ['#dc2626', '#f97316', '#facc15', '#4ade80']
-      }];
-      charts.defectSeverityChart.update();
-    }
-
-    function updateOpenDefectsTrendChart(data) {
-      const monthly = {};
-      data.forEach(d => {
-        const date = new Date(d['Go Live Date']);
-        if (isNaN(date)) return;
-        const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        monthly[month] = (monthly[month] || 0) + (d['Open'] || 0);
-      });
-      const labels = Object.keys(monthly).sort();
-      const values = labels.map(k => monthly[k]);
-      charts.openDefectsTrendChart.data.labels = labels;
-      charts.openDefectsTrendChart.data.datasets = [{ label: 'Open Defects', data: values, borderColor: '#f87171', fill: false }];
-      charts.openDefectsTrendChart.update();
-    }
-
-    function updateDefectDensityChart(data) {
-      const grouped = {};
-      data.forEach(d => {
-        const key = d['Sub Group'] || d['Release name'];
-        if (!grouped[key]) grouped[key] = { defects: 0, reqs: 0 };
-        grouped[key].defects += d['Defects - Total'] || 0;
-        grouped[key].reqs += d['No.of requirements'] || 0;
-      });
-      const labels = Object.keys(grouped);
-      const values = labels.map(k => grouped[k].reqs ? (grouped[k].defects / grouped[k].reqs).toFixed(2) : 0);
-      charts.defectDensityChart.data.labels = labels;
-      charts.defectDensityChart.data.datasets = [{ label: 'Defect Density', data: values, backgroundColor: '#818cf8' }];
-      charts.defectDensityChart.update();
-    }
-  </script>
-</body>
-</html>
+OR run step5_CompleteDebugDiagnosis() directly for a full analysis.
+`);
