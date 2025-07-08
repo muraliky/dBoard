@@ -221,8 +221,9 @@ function getResponsiveFontSize() {
 
 // Overview Charts
 function renderOverviewCharts() {
+    const allData = qualityData;
+    renderTestCasesTimelineChart(qualityData);
     const filteredData = getFilteredData();
-    renderTestCasesTimelineChart(filteredData);
     renderReleaseStatusChart(filteredData);
     renderUATStatusChart(filteredData);
 }
@@ -258,15 +259,15 @@ function renderTestCasesTimelineChart(data) {
     console.log('Current filters:', filters);
     console.log('Sample data:', data.slice(0, 3));
     
-    // Get all months from data
-    const allMonthsRaw = data.map(d => getMonthFromDate(d.goLiveDate)).filter(m => m !== null);
+    // Get all months from ALL data (not just filtered data)
+    const allMonthsRaw = qualityData.map(d => getMonthFromDate(d.goLiveDate)).filter(m => m !== null);
     const uniqueMonths = [...new Set(allMonthsRaw)];
     const sortedMonths = sortMonthsChronologically(uniqueMonths);
     
     console.log('All months found:', uniqueMonths);
     console.log('Sorted months:', sortedMonths);
     
-    // Filter months based on month filter
+    // Filter months based on month filter - show ALL months up to selected month
     let displayMonths = sortedMonths;
     if (filters.month) {
         const selectedIndex = sortedMonths.indexOf(filters.month);
@@ -275,7 +276,7 @@ function renderTestCasesTimelineChart(data) {
         }
     }
     
-    console.log('Display months:', displayMonths);
+    console.log('Display months (up to selected):', displayMonths);
     
     if (displayMonths.length === 0) {
         console.warn('No months to display');
@@ -294,7 +295,7 @@ function renderTestCasesTimelineChart(data) {
     
     if (filters.subGroup) {
         // Show applications within selected sub group
-        const applications = [...new Set(data
+        const applications = [...new Set(qualityData
             .filter(d => d.subGroup === filters.subGroup)
             .map(d => d.application))];
         
@@ -303,7 +304,7 @@ function renderTestCasesTimelineChart(data) {
         
     } else if (filters.group) {
         // Show sub groups within selected group
-        const subGroups = [...new Set(data
+        const subGroups = [...new Set(qualityData
             .filter(d => d.group === filters.group)
             .map(d => d.subGroup))];
         
@@ -312,28 +313,33 @@ function renderTestCasesTimelineChart(data) {
         
     } else {
         // Show all groups
-        const groups = [...new Set(data.map(d => d.group))];
+        const groups = [...new Set(qualityData.map(d => d.group))];
         seriesLabels = groups;
         console.log('Showing groups:', groups);
     }
     
-    // Calculate data for each series
+    // Calculate data for each series - UPDATED TO INCLUDE ALL DATA UP TO SELECTED MONTH
     seriesData = seriesLabels.map(label => {
         const monthlyData = displayMonths.map(month => {
             let monthData;
             
             if (filters.subGroup) {
-                monthData = data.filter(d => 
+                // Get data for this application in this month (from ALL data, not filtered)
+                monthData = qualityData.filter(d => 
                     d.application === label && 
-                    getMonthFromDate(d.goLiveDate) === month
+                    getMonthFromDate(d.goLiveDate) === month &&
+                    d.subGroup === filters.subGroup  // Still respect the subGroup filter
                 );
             } else if (filters.group) {
-                monthData = data.filter(d => 
+                // Get data for this subGroup in this month (from ALL data, not filtered)
+                monthData = qualityData.filter(d => 
                     d.subGroup === label && 
-                    getMonthFromDate(d.goLiveDate) === month
+                    getMonthFromDate(d.goLiveDate) === month &&
+                    d.group === filters.group  // Still respect the group filter
                 );
             } else {
-                monthData = data.filter(d => 
+                // Get data for this group in this month (from ALL data)
+                monthData = qualityData.filter(d => 
                     d.group === label && 
                     getMonthFromDate(d.goLiveDate) === month
                 );
@@ -427,6 +433,14 @@ function renderTestCasesTimelineChart(data) {
                             const value = context.parsed.y;
                             const label = context.dataset.label;
                             return `${label}: ${value.toLocaleString()}`;
+                        },
+                        afterBody: function(context) {
+                            // Show total for this month across all series
+                            const monthIndex = context[0].dataIndex;
+                            const monthTotal = datasets.reduce((sum, dataset) => 
+                                sum + (dataset.data[monthIndex] || 0), 0
+                            );
+                            return [`Total for ${context[0].label}: ${monthTotal.toLocaleString()}`];
                         }
                     }
                 },
@@ -440,7 +454,7 @@ function renderTestCasesTimelineChart(data) {
                     display: true,
                     title: {
                         display: true,
-                        text: 'Month',
+                        text: filters.month ? `Months up to ${filters.month}` : 'All Months',
                         font: {
                             size: fontSize,
                             weight: 'bold'
