@@ -1047,3 +1047,29 @@ body {
         margin-bottom: 15px;
     }
 }
+.timeline-summary {
+    margin-top: 20px;
+    padding: 15px;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: 8px;
+    border-left: 4px solid #c41e3a;
+    font-size: 13px;
+}
+
+.timeline-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    color: #666;
+}
+
+@media (max-width: 768px) {
+    .timeline-summary {
+        font-size: 12px;
+    }
+    
+    .timeline-summary-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+}

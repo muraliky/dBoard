@@ -222,8 +222,277 @@ function getResponsiveFontSize() {
 // Overview Charts
 function renderOverviewCharts() {
     const filteredData = getFilteredData();
+    renderTestCasesTimelineChart(filteredData);
     renderReleaseStatusChart(filteredData);
     renderUATStatusChart(filteredData);
+}
+function sortMonthsChronologically(months) {
+    const monthOrder = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    return months.sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
+}
+
+// Test Cases Timeline Chart
+function renderTestCasesTimelineChart(data) {
+    console.log('Starting renderTestCasesTimelineChart with', data.length, 'records');
+    
+    const canvas = document.getElementById('testCasesTimelineChart');
+    if (!canvas) {
+        console.error('Canvas testCasesTimelineChart not found');
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        console.error('Could not get 2D context');
+        return;
+    }
+    
+    // Destroy existing chart
+    safeDestroyChart('testCasesTimeline');
+    
+    // Debug: Check data and filters
+    console.log('Current filters:', filters);
+    console.log('Sample data:', data.slice(0, 3));
+    
+    // Get all months from data
+    const allMonthsRaw = data.map(d => getMonthFromDate(d.goLiveDate)).filter(m => m !== null);
+    const uniqueMonths = [...new Set(allMonthsRaw)];
+    const sortedMonths = sortMonthsChronologically(uniqueMonths);
+    
+    console.log('All months found:', uniqueMonths);
+    console.log('Sorted months:', sortedMonths);
+    
+    // Filter months based on month filter
+    let displayMonths = sortedMonths;
+    if (filters.month) {
+        const selectedIndex = sortedMonths.indexOf(filters.month);
+        if (selectedIndex !== -1) {
+            displayMonths = sortedMonths.slice(0, selectedIndex + 1);
+        }
+    }
+    
+    console.log('Display months:', displayMonths);
+    
+    if (displayMonths.length === 0) {
+        console.warn('No months to display');
+        // Show empty state
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#666';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('No data available for timeline', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+    
+    // Determine series based on filters
+    let seriesLabels = [];
+    let seriesData = [];
+    
+    if (filters.subGroup) {
+        // Show applications within selected sub group
+        const applications = [...new Set(data
+            .filter(d => d.subGroup === filters.subGroup)
+            .map(d => d.application))];
+        
+        seriesLabels = applications;
+        console.log('Showing applications:', applications);
+        
+    } else if (filters.group) {
+        // Show sub groups within selected group
+        const subGroups = [...new Set(data
+            .filter(d => d.group === filters.group)
+            .map(d => d.subGroup))];
+        
+        seriesLabels = subGroups;
+        console.log('Showing sub groups:', subGroups);
+        
+    } else {
+        // Show all groups
+        const groups = [...new Set(data.map(d => d.group))];
+        seriesLabels = groups;
+        console.log('Showing groups:', groups);
+    }
+    
+    // Calculate data for each series
+    seriesData = seriesLabels.map(label => {
+        const monthlyData = displayMonths.map(month => {
+            let monthData;
+            
+            if (filters.subGroup) {
+                monthData = data.filter(d => 
+                    d.application === label && 
+                    getMonthFromDate(d.goLiveDate) === month
+                );
+            } else if (filters.group) {
+                monthData = data.filter(d => 
+                    d.subGroup === label && 
+                    getMonthFromDate(d.goLiveDate) === month
+                );
+            } else {
+                monthData = data.filter(d => 
+                    d.group === label && 
+                    getMonthFromDate(d.goLiveDate) === month
+                );
+            }
+            
+            const total = monthData.reduce((sum, d) => 
+                sum + (d.functionalTestTotal || 0) + (d.regressionTestTotal || 0), 0
+            );
+            
+            return total;
+        });
+        
+        console.log(`Data for ${label}:`, monthlyData);
+        return monthlyData;
+    });
+    
+    // Color palette
+    const colors = [
+        '#c41e3a', '#3498db', '#27ae60', '#f39c12', '#9b59b6',
+        '#e74c3c', '#2ecc71', '#1abc9c', '#f1c40f', '#8e44ad'
+    ];
+    
+    // Create datasets
+    const datasets = seriesLabels.map((label, index) => ({
+        label: label,
+        data: seriesData[index],
+        borderColor: colors[index % colors.length],
+        backgroundColor: colors[index % colors.length] + '20',
+        tension: 0.4,
+        fill: false,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: colors[index % colors.length],
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        borderWidth: 3
+    }));
+    
+    console.log('Chart datasets:', datasets);
+    
+    const fontSize = getResponsiveFontSize();
+    const isMobile = window.innerWidth < 768;
+    
+    // Create chart
+    charts.testCasesTimeline = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: displayMonths,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            layout: {
+                padding: {
+                    top: 20,
+                    bottom: 10,
+                    left: 10,
+                    right: 10
+                }
+            },
+            plugins: {
+                legend: {
+                    position: isMobile ? 'bottom' : 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: {
+                            size: fontSize
+                        }
+                    }
+                },
+                tooltip: {
+                    titleFont: {
+                        size: fontSize + 1
+                    },
+                    bodyFont: {
+                        size: fontSize
+                    },
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        title: function(context) {
+                            return `${context[0].label} - Test Cases Executed`;
+                        },
+                        label: function(context) {
+                            const value = context.parsed.y;
+                            const label = context.dataset.label;
+                            return `${label}: ${value.toLocaleString()}`;
+                        }
+                    }
+                },
+                // Disable data labels for line chart
+                customDataLabels: {
+                    enabled: false
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Month',
+                        font: {
+                            size: fontSize,
+                            weight: 'bold'
+                        }
+                    },
+                    ticks: {
+                        font: {
+                            size: fontSize
+                        },
+                        maxRotation: isMobile ? 45 : 0
+                    },
+                    grid: {
+                        display: true,
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                y: {
+                    display: true,
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Test Cases',
+                        font: {
+                            size: fontSize,
+                            weight: 'bold'
+                        }
+                    },
+                    ticks: {
+                        font: {
+                            size: fontSize
+                        },
+                        callback: function(value) {
+                            if (value >= 1000) {
+                                return (value / 1000).toFixed(1) + 'K';
+                            }
+                            return value;
+                        }
+                    },
+                    grid: {
+                        display: true,
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                }
+            },
+            animation: {
+                duration: 1000,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+    
+    console.log('Timeline chart created successfully');
 }
 
 function renderReleaseStatusChart(data) {
