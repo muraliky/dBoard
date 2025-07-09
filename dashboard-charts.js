@@ -238,7 +238,8 @@ function sortMonthsChronologically(months) {
 
 // Test Cases Timeline Chart
 function renderTestCasesTimelineChart(data) {
-    console.log('Starting renderTestCasesTimelineChart with', data.length, 'records');
+    console.log('Starting renderTestCasesTimelineChart');
+    console.log('Current filters:', filters);
     
     const canvas = document.getElementById('testCasesTimelineChart');
     if (!canvas) {
@@ -255,17 +256,10 @@ function renderTestCasesTimelineChart(data) {
     // Destroy existing chart
     safeDestroyChart('testCasesTimeline');
     
-    // Debug: Check data and filters
-    console.log('Current filters:', filters);
-    console.log('Sample data:', data.slice(0, 3));
-    
-    // Get all months from ALL data (not just filtered data)
+    // Get all months from ALL data
     const allMonthsRaw = qualityData.map(d => getMonthFromDate(d.goLiveDate)).filter(m => m !== null);
     const uniqueMonths = [...new Set(allMonthsRaw)];
     const sortedMonths = sortMonthsChronologically(uniqueMonths);
-    
-    console.log('All months found:', uniqueMonths);
-    console.log('Sorted months:', sortedMonths);
     
     // Filter months based on month filter - show ALL months up to selected month
     let displayMonths = sortedMonths;
@@ -276,11 +270,10 @@ function renderTestCasesTimelineChart(data) {
         }
     }
     
-    console.log('Display months (up to selected):', displayMonths);
+    console.log('Display months:', displayMonths);
     
     if (displayMonths.length === 0) {
         console.warn('No months to display');
-        // Show empty state
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#666';
         ctx.font = '16px Arial';
@@ -289,56 +282,52 @@ function renderTestCasesTimelineChart(data) {
         return;
     }
     
-    // Determine series based on filters
+    // FIXED: Determine series based on filters
     let seriesLabels = [];
-    let seriesData = [];
+    let baseFilteredData = qualityData.filter(d => {
+        const matchGroup = !filters.group || d.group === filters.group;
+        const matchSubGroup = !filters.subGroup || d.subGroup === filters.subGroup;
+        return matchGroup && matchSubGroup;
+    });
     
-    if (filters.subGroup) {
-        // Show applications within selected sub group
-        const applications = [...new Set(qualityData
-            .filter(d => d.subGroup === filters.subGroup)
-            .map(d => d.application))];
+    if (filters.group && filters.subGroup) {
+        // Both Group and SubGroup selected - show individual Applications
+        seriesLabels = [...new Set(baseFilteredData.map(d => d.application))];
+        console.log('Showing applications for Group + SubGroup:', seriesLabels);
         
-        seriesLabels = applications;
-        console.log('Showing applications:', applications);
-        
-    } else if (filters.group) {
-        // Show sub groups within selected group
-        const subGroups = [...new Set(qualityData
-            .filter(d => d.group === filters.group)
-            .map(d => d.subGroup))];
-        
-        seriesLabels = subGroups;
-        console.log('Showing sub groups:', subGroups);
+    } else if (filters.group && !filters.subGroup) {
+        // Only Group selected - show SubGroups within that Group
+        seriesLabels = [...new Set(baseFilteredData.map(d => d.subGroup))];
+        console.log('Showing sub groups for Group:', seriesLabels);
         
     } else {
-        // Show all groups
-        const groups = [...new Set(qualityData.map(d => d.group))];
-        seriesLabels = groups;
-        console.log('Showing groups:', groups);
+        // No Group selected - show all Groups
+        seriesLabels = [...new Set(qualityData.map(d => d.group))];
+        console.log('Showing all groups:', seriesLabels);
     }
     
-    // Calculate data for each series - UPDATED TO INCLUDE ALL DATA UP TO SELECTED MONTH
+    // Calculate data for each series
     seriesData = seriesLabels.map(label => {
         const monthlyData = displayMonths.map(month => {
             let monthData;
             
-            if (filters.subGroup) {
-                // Get data for this application in this month (from ALL data, not filtered)
+            if (filters.group && filters.subGroup) {
+                // Show data for specific application
                 monthData = qualityData.filter(d => 
+                    d.group === filters.group &&
+                    d.subGroup === filters.subGroup &&
                     d.application === label && 
-                    getMonthFromDate(d.goLiveDate) === month &&
-                    d.subGroup === filters.subGroup  // Still respect the subGroup filter
+                    getMonthFromDate(d.goLiveDate) === month
                 );
-            } else if (filters.group) {
-                // Get data for this subGroup in this month (from ALL data, not filtered)
+            } else if (filters.group && !filters.subGroup) {
+                // Show data for specific subGroup within group
                 monthData = qualityData.filter(d => 
+                    d.group === filters.group &&
                     d.subGroup === label && 
-                    getMonthFromDate(d.goLiveDate) === month &&
-                    d.group === filters.group  // Still respect the group filter
+                    getMonthFromDate(d.goLiveDate) === month
                 );
             } else {
-                // Get data for this group in this month (from ALL data)
+                // Show data for specific group
                 monthData = qualityData.filter(d => 
                     d.group === label && 
                     getMonthFromDate(d.goLiveDate) === month
@@ -378,8 +367,6 @@ function renderTestCasesTimelineChart(data) {
         borderWidth: 3
     }));
     
-    console.log('Chart datasets:', datasets);
-    
     const fontSize = getResponsiveFontSize();
     const isMobile = window.innerWidth < 768;
     
@@ -417,12 +404,8 @@ function renderTestCasesTimelineChart(data) {
                     }
                 },
                 tooltip: {
-                    titleFont: {
-                        size: fontSize + 1
-                    },
-                    bodyFont: {
-                        size: fontSize
-                    },
+                    titleFont: { size: fontSize + 1 },
+                    bodyFont: { size: fontSize },
                     padding: 12,
                     cornerRadius: 8,
                     callbacks: {
@@ -433,21 +416,10 @@ function renderTestCasesTimelineChart(data) {
                             const value = context.parsed.y;
                             const label = context.dataset.label;
                             return `${label}: ${value.toLocaleString()}`;
-                        },
-                        afterBody: function(context) {
-                            // Show total for this month across all series
-                            const monthIndex = context[0].dataIndex;
-                            const monthTotal = datasets.reduce((sum, dataset) => 
-                                sum + (dataset.data[monthIndex] || 0), 0
-                            );
-                            return [`Total for ${context[0].label}: ${monthTotal.toLocaleString()}`];
                         }
                     }
                 },
-                // Disable data labels for line chart
-                customDataLabels: {
-                    enabled: false
-                }
+                customDataLabels: { enabled: false }
             },
             scales: {
                 x: {
@@ -455,15 +427,10 @@ function renderTestCasesTimelineChart(data) {
                     title: {
                         display: true,
                         text: filters.month ? `Months up to ${filters.month}` : 'All Months',
-                        font: {
-                            size: fontSize,
-                            weight: 'bold'
-                        }
+                        font: { size: fontSize, weight: 'bold' }
                     },
                     ticks: {
-                        font: {
-                            size: fontSize
-                        },
+                        font: { size: fontSize },
                         maxRotation: isMobile ? 45 : 0
                     },
                     grid: {
@@ -477,15 +444,10 @@ function renderTestCasesTimelineChart(data) {
                     title: {
                         display: true,
                         text: 'Number of Test Cases',
-                        font: {
-                            size: fontSize,
-                            weight: 'bold'
-                        }
+                        font: { size: fontSize, weight: 'bold' }
                     },
                     ticks: {
-                        font: {
-                            size: fontSize
-                        },
+                        font: { size: fontSize },
                         callback: function(value) {
                             if (value >= 1000) {
                                 return (value / 1000).toFixed(1) + 'K';
@@ -517,13 +479,18 @@ function renderReleaseStatusChart(data) {
     
     // Determine labels based on filters
     let labels;
-    if (filters.subGroup) {
+    if (filters.group && filters.subGroup) {
+        // Show applications within selected subgroup
         labels = [...new Set(data.map(d => d.application))];
-    } else if (filters.group) {
+    } else if (filters.group && !filters.subGroup) {
+        // Show subgroups within selected group
         labels = [...new Set(data.map(d => d.subGroup))];
     } else {
+        // Show all groups
         labels = [...new Set(data.map(d => d.group))];
     }
+    
+    console.log('Release Status Chart - Labels:', labels);
     
     // Truncate labels if too long for mobile
     const truncateLength = window.innerWidth < 768 ? 8 : 15;
@@ -534,27 +501,42 @@ function renderReleaseStatusChart(data) {
     // Calculate status counts for each label
     const goLiveCompleted = labels.map(label => {
         return data.filter(d => {
-            const matchLabel = filters.subGroup ? d.application === label :
-                             filters.group ? d.subGroup === label :
-                             d.group === label;
+            let matchLabel;
+            if (filters.group && filters.subGroup) {
+                matchLabel = d.application === label;
+            } else if (filters.group && !filters.subGroup) {
+                matchLabel = d.subGroup === label;
+            } else {
+                matchLabel = d.group === label;
+            }
             return matchLabel && d.goLiveStatus === 'Completed';
         }).length;
     });
     
     const goLiveDelayed = labels.map(label => {
         return data.filter(d => {
-            const matchLabel = filters.subGroup ? d.application === label :
-                             filters.group ? d.subGroup === label :
-                             d.group === label;
+            let matchLabel;
+            if (filters.group && filters.subGroup) {
+                matchLabel = d.application === label;
+            } else if (filters.group && !filters.subGroup) {
+                matchLabel = d.subGroup === label;
+            } else {
+                matchLabel = d.group === label;
+            }
             return matchLabel && d.goLiveStatus === 'Deferred';
         }).length;
     });
 
     const goLivePlanned = labels.map(label => {
         return data.filter(d => {
-            const matchLabel = filters.subGroup ? d.application === label :
-                             filters.group ? d.subGroup === label :
-                             d.group === label;
+            let matchLabel;
+            if (filters.group && filters.subGroup) {
+                matchLabel = d.application === label;
+            } else if (filters.group && !filters.subGroup) {
+                matchLabel = d.subGroup === label;
+            } else {
+                matchLabel = d.group === label;
+            }
             return matchLabel && d.goLiveStatus === 'Planned';
         }).length;
     });
@@ -648,12 +630,15 @@ function renderUATStatusChart(data) {
     safeDestroyChart('uatStatus');
     
     // Determine labels based on filters
-    let labels;
-    if (filters.subGroup) {
+     let labels;
+    if (filters.group && filters.subGroup) {
+        // Show applications within selected subgroup
         labels = [...new Set(data.map(d => d.application))];
-    } else if (filters.group) {
+    } else if (filters.group && !filters.subGroup) {
+        // Show subgroups within selected group
         labels = [...new Set(data.map(d => d.subGroup))];
     } else {
+        // Show all groups
         labels = [...new Set(data.map(d => d.group))];
     }
     
@@ -666,27 +651,42 @@ function renderUATStatusChart(data) {
     // Calculate status counts for each label
     const uatCompleted = labels.map(label => {
         return data.filter(d => {
-            const matchLabel = filters.subGroup ? d.application === label :
-                             filters.group ? d.subGroup === label :
-                             d.group === label;
+             let matchLabel;
+            if (filters.group && filters.subGroup) {
+                matchLabel = d.application === label;
+            } else if (filters.group && !filters.subGroup) {
+                matchLabel = d.subGroup === label;
+            } else {
+                matchLabel = d.group === label;
+            }
             return matchLabel && d.uatStatus === 'Completed';
         }).length;
     });
     
     const uatYetToStart = labels.map(label => {
         return data.filter(d => {
-            const matchLabel = filters.subGroup ? d.application === label :
-                             filters.group ? d.subGroup === label :
-                             d.group === label;
+             let matchLabel;
+            if (filters.group && filters.subGroup) {
+                matchLabel = d.application === label;
+            } else if (filters.group && !filters.subGroup) {
+                matchLabel = d.subGroup === label;
+            } else {
+                matchLabel = d.group === label;
+            }
             return matchLabel && d.uatStatus === 'Yet to start';
         }).length;
     });
 
     const uatInProgress = labels.map(label => {
         return data.filter(d => {
-            const matchLabel = filters.subGroup ? d.application === label :
-                             filters.group ? d.subGroup === label :
-                             d.group === label;
+             let matchLabel;
+            if (filters.group && filters.subGroup) {
+                matchLabel = d.application === label;
+            } else if (filters.group && !filters.subGroup) {
+                matchLabel = d.subGroup === label;
+            } else {
+                matchLabel = d.group === label;
+            }
             return matchLabel && d.uatStatus === 'In progress';
         }).length;
     });
@@ -1005,12 +1005,15 @@ function renderTestCaseDistributionChart(data) {
     safeDestroyChart('testCaseDistribution');
     
     // Determine labels based on filters
-    let labels;
-    if (filters.subGroup) {
+     let labels;
+    if (filters.group && filters.subGroup) {
+        // Show applications within selected subgroup
         labels = [...new Set(data.map(d => d.application))];
-    } else if (filters.group) {
+    } else if (filters.group && !filters.subGroup) {
+        // Show subgroups within selected group
         labels = [...new Set(data.map(d => d.subGroup))];
     } else {
+        // Show all groups
         labels = [...new Set(data.map(d => d.group))];
     }
     
@@ -1019,13 +1022,17 @@ function renderTestCaseDistributionChart(data) {
     const displayLabels = labels.map(label => 
         label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
     );
-    
+     
     // Calculate test case counts and pass rates
-    const testData = labels.map(label => {
+   const testData = labels.map(label => {
         const labelData = data.filter(d => {
-            if (filters.subGroup) return d.application === label;
-            if (filters.group) return d.subGroup === label;
-            return d.group === label;
+            if (filters.group && filters.subGroup) {
+                return d.application === label;
+            } else if (filters.group && !filters.subGroup) {
+                return d.subGroup === label;
+            } else {
+                return d.group === label;
+            }
         });
         
         const functional = {
@@ -1127,11 +1134,17 @@ function renderNewTestCasesProgressChart(data) {
     
     safeDestroyChart('newTestCases');
     
-    const labels = filters.subGroup ? 
-        [...new Set(data.map(d => d.application))] :
-        filters.group ? 
-        [...new Set(data.map(d => d.subGroup))] :
-        [...new Set(data.map(d => d.group))];
+   let labels;
+    if (filters.group && filters.subGroup) {
+        // Show applications within selected subgroup
+        labels = [...new Set(data.map(d => d.application))];
+    } else if (filters.group && !filters.subGroup) {
+        // Show subgroups within selected group
+        labels = [...new Set(data.map(d => d.subGroup))];
+    } else {
+        // Show all groups
+        labels = [...new Set(data.map(d => d.group))];
+    }
     
     // Truncate labels for mobile
     const truncateLength = window.innerWidth < 768 ? 8 : 15;
@@ -1140,11 +1153,15 @@ function renderNewTestCasesProgressChart(data) {
     );
     
     const testCases = labels.map(label => {
-        const labelData = data.filter(d => 
-            filters.subGroup ? d.application === label :
-            filters.group ? d.subGroup === label :
-            d.group === label
-        );
+        const labelData = data.filter(d => {
+            if (filters.group && filters.subGroup) {
+                return d.application === label;
+            } else if (filters.group && !filters.subGroup) {
+                return d.subGroup === label;
+            } else {
+                return d.group === label;
+            }
+        });
         return labelData.reduce((sum, d) => sum + d.newTestCasesDesigned, 0);
     });
     
@@ -1211,14 +1228,16 @@ function renderTopProblemAreasChart(data) {
     // Calculate defect counts by area
     let areaDefects = [];
     
-    if (filters.subGroup) {
+    if (filters.group && filters.subGroup) {
+        // Show applications
         data.forEach(d => {
             areaDefects.push({
                 area: d.application,
                 count: d.defectsTotal
             });
         });
-    } else if (filters.group) {
+    } else if (filters.group && !filters.subGroup) {
+        // Show subgroups
         const subGroups = [...new Set(data.map(d => d.subGroup))];
         subGroups.forEach(sg => {
             const count = data.filter(d => d.subGroup === sg)
@@ -1226,6 +1245,7 @@ function renderTopProblemAreasChart(data) {
             areaDefects.push({ area: sg, count });
         });
     } else {
+        // Show groups
         const groups = [...new Set(data.map(d => d.group))];
         groups.forEach(g => {
             const count = data.filter(d => d.group === g)

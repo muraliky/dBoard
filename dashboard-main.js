@@ -403,7 +403,7 @@ function getFilteredData() {
     return qualityData.filter(d => {
         const matchGroup = !filters.group || d.group === filters.group;
         const matchSubGroup = !filters.subGroup || d.subGroup === filters.subGroup;
-        // Updated month filter logic based on Go Live Date
+        // For month filter, we'll handle this differently in timeline vs other charts
         let matchMonth = true;
         if (filters.month) {
             const recordMonth = getMonthFromDate(d.goLiveDate);
@@ -412,7 +412,20 @@ function getFilteredData() {
         return matchGroup && matchSubGroup && matchMonth;
     });
 }
-
+function getFilteredDataForCharts(includeMonthFilter = true) {
+    return qualityData.filter(d => {
+        const matchGroup = !filters.group || d.group === filters.group;
+        const matchSubGroup = !filters.subGroup || d.subGroup === filters.subGroup;
+        
+        let matchMonth = true;
+        if (includeMonthFilter && filters.month) {
+            const recordMonth = getMonthFromDate(d.goLiveDate);
+            matchMonth = recordMonth === filters.month;
+        }
+        
+        return matchGroup && matchSubGroup && matchMonth;
+    });
+}
 // Update quality metrics
 function updateQualityMetrics() {
     const filteredData = getFilteredData();
