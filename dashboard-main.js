@@ -1,6 +1,5 @@
 // Global variables
 let qualityData = [];
-//let automationData = [];
 let currentPage = 'quality';
 let currentTab = 'overview';
 let filters = {
@@ -15,6 +14,16 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTabs();
     initializeFilters();
     loadData();
+    
+    // Initialize standardization page
+    if (typeof initializeStandardizationPage === 'function') {
+        initializeStandardizationPage();
+    }
+    
+    // Initialize automation page  
+    if (typeof initializeAutomationPage === 'function') {
+        initializeAutomationPage();
+    }
 });
 
 async function loadQualityData() {
@@ -85,11 +94,10 @@ async function loadQualityData() {
     
     console.log('Quality data loaded:', qualityData.length, 'records');
 }
+
 // Load all data
 async function loadData() {
-
     await loadQualityData();
-    //qualityData = loadJSONData(url);
     populateFilters();
     updateQualityMetrics();
 }
@@ -114,24 +122,38 @@ function switchPage(page) {
     document.querySelector(`[data-page="${page}"]`).classList.add('active');
     
     // Update page title
-    document.getElementById('page-title').textContent = 
-        page === 'quality' ? 'Quality Metrics' : 'Automation Metrics';
+    const pageTitles = {
+        'quality': 'Quality Metrics',
+        'automation': 'Automation Metrics',
+        'standardization': 'Automation Standardization'
+    };
+    document.getElementById('page-title').textContent = pageTitles[page] || 'Dashboard';
     
-    // Show/hide pages
-    document.getElementById('qualityPage').style.display = 
-        page === 'quality' ? 'block' : 'none';
-    document.getElementById('automationPage').style.display = 
-        page === 'automation' ? 'block' : 'none';
+    // Hide all pages
+    document.querySelectorAll('.page-content').forEach(pageEl => {
+        pageEl.style.display = 'none';
+    });
+    
+    // Show selected page
+    const targetPage = document.getElementById(page + 'Page');
+    if (targetPage) {
+        targetPage.style.display = 'block';
+    }
     
     // Update data based on page
-    if (page === 'quality') {
-        updateQualityMetrics();
-    } else if (page === 'automation') {
-        // Initialize automation page when switching to it
-        if (typeof initializeAutomationPage === 'function') {
-            initializeAutomationPage();
+    setTimeout(() => {
+        if (page === 'quality') {
+            updateQualityMetrics();
+        } else if (page === 'automation') {
+            if (typeof updateAutomationMetrics === 'function') {
+                updateAutomationMetrics();
+            }
+        } else if (page === 'standardization') {
+            if (typeof updateStandardizationMetrics === 'function') {
+                updateStandardizationMetrics();
+            }
         }
-    }
+    }, 100);
 }
 
 // Tabs
@@ -179,18 +201,33 @@ function initializeFilters() {
     groupFilter.addEventListener('change', function() {
         filters.group = this.value;
         updateSubGroupFilter();
-        updateQualityMetrics();
+        handleFilterChange();
     });
     
     subGroupFilter.addEventListener('change', function() {
         filters.subGroup = this.value;
-        updateQualityMetrics();
+        handleFilterChange();
     });
     
     monthFilter.addEventListener('change', function() {
         filters.month = this.value;
-        updateQualityMetrics();
+        handleFilterChange();
     });
+}
+
+// Handle filter changes for all pages
+function handleFilterChange() {
+    if (currentPage === 'quality') {
+        updateQualityMetrics();
+    } else if (currentPage === 'automation') {
+        if (typeof updateAutomationMetrics === 'function') {
+            updateAutomationMetrics();
+        }
+    } else if (currentPage === 'standardization') {
+        if (typeof updateStandardizationMetrics === 'function') {
+            updateStandardizationMetrics();
+        }
+    }
 }
 
 function updateSubGroupFilter() {
@@ -272,6 +309,7 @@ function populateFilters() {
     
     console.log('Selected default month:', filters.month);
 }
+
 function getMonthFromDate(dateString) {
     if (!dateString) {
         console.log('Empty date string received');
@@ -330,6 +368,7 @@ function getMonthFromDate(dateString) {
         return null;
     }
 }
+
 // Generate sample data
 function generateSampleData() {
     const groups = ['WIM', 'CSBB', 'Credit Solutions', 'Payments', 'London UAT'];
@@ -412,6 +451,7 @@ function getFilteredData() {
         return matchGroup && matchSubGroup && matchMonth;
     });
 }
+
 function getFilteredDataForCharts(includeMonthFilter = true) {
     return qualityData.filter(d => {
         const matchGroup = !filters.group || d.group === filters.group;
@@ -426,6 +466,7 @@ function getFilteredDataForCharts(includeMonthFilter = true) {
         return matchGroup && matchSubGroup && matchMonth;
     });
 }
+
 // Update quality metrics
 function updateQualityMetrics() {
     const filteredData = getFilteredData();
@@ -458,8 +499,6 @@ function updateKPIs(data) {
     // Avg Defect Density
     const totalDefects = data.reduce((sum, d) => sum + d.defectsTotal, 0);
     const totalRequirements = data.reduce((sum, d) => sum + d.requirements, 0);
-    //const defectDensity = totalRequirements > 0 ? (totalDefects / totalRequirements).toFixed(2) : 0;
-    //document.getElementById('avgDefectDensity').textContent = defectDensity;
     
     // Total Test Cases Executed (NEW)
     const totalTestCases = data.reduce((sum, d) => 

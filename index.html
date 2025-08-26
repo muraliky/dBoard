@@ -35,6 +35,14 @@
                         Automation Metrics
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="standardization">
+                        <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z"></path>
+                        </svg>
+                        Automation Standardization
+                    </a>
+                </li>
             </ul>
         </nav>
 
@@ -238,34 +246,34 @@
             <!-- Automation Metrics Page (Hidden by default) -->
             <div id="automationPage" class="page-content" style="display: none;">
                  <div class="tabs-container">
-            <div class="tabs">
-                <button class="tab active" data-tab="automation-overview">Coverage & Progress</button>
-                <button class="tab" data-tab="automation-efficiency">Efficiency</button>
-                <button class="tab" data-tab="automation-insights">Insights & Trends</button>
+              <div class="tabs">
+                <button class="tab active" data-tab="automation-overview">Coverage & Readiness</button>
+                <button class="tab" data-tab="automation-efficiency">Efficiency & ROI</button>
+                <button class="tab" data-tab="automation-insights">Strategic Insights</button>
             </div>
 
             <!-- Tab Contents -->
-            <!-- Coverage & Progress Tab -->
+           <!-- Tab 1: Coverage & Readiness -->
             <div class="tab-content active" id="automation-overview">
-                <!-- KPI Cards -->
+                <!-- Enhanced KPI Cards -->
                 <div class="kpi-grid">
                     <div class="kpi-card">
                         <div class="kpi-icon">
-                            <svg width="24" height="24" fill="#c41e3a" viewBox="0 0 20 20">
+                            <svg width="28" height="28" fill="#c41e3a" viewBox="0 0 20 20">
                                 <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
                                 <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 00-2 2v6a2 2 0 002 2h2a1 1 0 100-2H6V7h5a1 1 0 011 1v5h2V8a3 3 0 00-3-3H4z"></path>
                             </svg>
                         </div>
                         <div class="kpi-content">
-                            <div class="kpi-label">Total Test Cases</div>
+                            <div class="kpi-label">Total Manual Cases</div>
                             <div class="kpi-value" id="totalTestCases">0</div>
-                            <div class="kpi-subtext">Manual regression cases</div>
+                            <div class="kpi-subtext">Regression test cases</div>
                         </div>
                     </div>
                     
                     <div class="kpi-card">
                         <div class="kpi-icon">
-                            <svg width="24" height="24" fill="#27ae60" viewBox="0 0 20 20">
+                            <svg width="28" height="28" fill="#27ae60" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"></path>
                             </svg>
                         </div>
@@ -278,12 +286,12 @@
                     
                     <div class="kpi-card">
                         <div class="kpi-icon">
-                            <svg width="24" height="24" fill="#3498db" viewBox="0 0 20 20">
+                            <svg width="28" height="28" fill="#3498db" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z"></path>
                             </svg>
                         </div>
                         <div class="kpi-content">
-                            <div class="kpi-label">Coverage Rate</div>
+                            <div class="kpi-label">Average Coverage</div>
                             <div class="kpi-value" id="coverageRate">0%</div>
                             <div class="kpi-subtext">vs 90% target</div>
                         </div>
@@ -291,51 +299,75 @@
                     
                     <div class="kpi-card">
                         <div class="kpi-icon">
-                            <svg width="24" height="24" fill="#f39c12" viewBox="0 0 20 20">
+                            <svg width="28" height="28" fill="#f39c12" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"></path>
                             </svg>
                         </div>
                         <div class="kpi-content">
-                            <div class="kpi-label">New Scripts</div>
+                            <div class="kpi-label">Apps with Automation</div>
                             <div class="kpi-value" id="newScripts">0</div>
-                            <div class="kpi-subtext">Added this month</div>
+                            <div class="kpi-subtext">Automation started</div>
                         </div>
                     </div>
                     
                     <div class="kpi-card">
                         <div class="kpi-icon">
-                            <svg width="24" height="24" fill="#9b59b6" viewBox="0 0 20 20">
+                            <svg width="28" height="28" fill="#9b59b6" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"></path>
                             </svg>
                         </div>
                         <div class="kpi-content">
-                            <div class="kpi-label">Hours Saved</div>
+                            <div class="kpi-label">Total Hours Saved</div>
                             <div class="kpi-value" id="hoursSaved">0</div>
-                            <div class="kpi-subtext">Effort reduction</div>
+                            <div class="kpi-subtext">Monthly execution time</div>
                         </div>
                     </div>
-                    
                 </div>
 
-                <!-- Charts -->
+                <!-- Enhanced Charts Grid -->
                 <div class="charts-grid">
                     <div class="chart-container">
-                        <h3 class="chart-header">Automation Coverage</h3>
+                        <h3 class="chart-header">Automation Readiness by Area</h3>
                         <div class="chart-wrapper">
                             <canvas id="coverageByGroupChart"></canvas>
                         </div>
                     </div>
                     
                     <div class="chart-container">
-                        <h3 class="chart-header">Progress to Target (90%)</h3>
+                        <h3 class="chart-header">Coverage by Test Priority</h3>
                         <div class="chart-wrapper">
                             <canvas id="progressToTargetChart"></canvas>
                         </div>
                     </div>
-                 
-                    <!-- New Scripts Distribution -->
+                    
+                   <div class="chart-container full-width">
+                        <h3 class="chart-header">Manual vs Automated Test Cases</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="newScriptsDistChart1"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Efficiency & ROI -->
+            <div class="tab-content" id="automation-efficiency">
+                <div class="charts-grid">
                     <div class="chart-container">
-                        <h3 class="chart-header">New Scripts Automated</h3>
+                        <h3 class="chart-header">Hours Saved by Area</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="effortsByGroupChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h3 class="chart-header">Coverage vs Efficiency Matrix</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="efficiencyMatrixChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container full-width">
+                        <h3 class="chart-header">Execution Time Analysis</h3>
                         <div class="chart-wrapper">
                             <canvas id="newScriptsDistChart"></canvas>
                         </div>
@@ -343,40 +375,166 @@
                 </div>
             </div>
 
-            <!-- Efficiency & ROI Tab -->
-            <div class="tab-content" id="automation-efficiency">
-                <div class="charts-grid">
-                    <div class="chart-container pie-chart">
-                        <h3 class="chart-header">Efforts Saved</h3>
+            <!-- Tab 3: Strategic Insights -->
+            <div class="tab-content" id="automation-insights">
+                <div class="insights-grid">
+                    <div class="insight-card">
+                        <h3 class="insight-header">Coverage Gap Analysis</h3>
                         <div class="chart-wrapper">
-                            <canvas id="effortsByGroupChart"></canvas>
+                            <canvas id="coverageGapChart"></canvas>
                         </div>
                     </div>
                     
-                  
-                    
-                    <div class="chart-container">
-                        <h3 class="chart-header">Automation Efficiency Analysis</h3>
+                    <div class="insight-card">
+                        <h3 class="insight-header">Automation Opportunities</h3>
                         <div class="chart-wrapper">
-                            <canvas id="efficiencyMatrixChart"></canvas>
+                            <div id="priorityAreasList"></div>
                         </div>
                     </div>
+                    
                 </div>
             </div>
+        </div>
+    </div>
+<div id="standardizationPage" class="page-content" style="display: none;">
+    <div class="tabs-container">
+        <div class="tabs">
+            <button class="tab active" data-tab="standardization-overview">Standards Overview</button>
+            <button class="tab" data-tab="standardization-insights">Areas of Focus & Excellence</button>
+        </div>
 
-            <!-- Insights & Trends Tab -->
-           <div class="tab-content" id="automation-insights">
-    <div class="insights-grid">  <!-- NOT charts-grid -->
-        <div class="insight-card">  <!-- NO full-width class -->
-            <h3 class="insight-header">Coverage Gap Analysis</h3>
-            <div class="chart-wrapper">
-                <canvas id="coverageGapChart"></canvas>
+        <!-- Tab 1: Standards Overview -->
+       <div class="tab-content active" id="standardization-overview">
+    <!-- KPI Cards remain the same -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg width="28" height="28" fill="#c41e3a" viewBox="0 0 20 20">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                    <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 00-2 2v6a2 2 0 002 2h2a1 1 0 100-2H6V7h5a1 1 0 011 1v5h2V8a3 3 0 00-3-3H4z"></path>
+                </svg>
+            </div>
+            <div class="kpi-content">
+                <div class="kpi-label">Total Repositories</div>
+                <div class="kpi-value" id="totalRepos">0</div>
+                <div class="kpi-subtext">Under review</div>
             </div>
         </div>
-        <div class="insight-card">  <!-- NO full-width class -->
-            <h3 class="insight-header">Automation Opportunity Areas</h3>
+        
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg width="28" height="28" fill="#27ae60" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"></path>
+                </svg>
+            </div>
+            <div class="kpi-content">
+                <div class="kpi-label">Avg Coding Standards</div>
+                <div class="kpi-value" id="avgCodingStandards">0</div>
+                <div class="kpi-subtext">Out of 15</div>
+            </div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg width="28" height="28" fill="#3498db" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z"></path>
+                </svg>
+            </div>
+            <div class="kpi-content">
+                <div class="kpi-label">Avg WAF Standards</div>
+                <div class="kpi-value" id="avgWafStandards">0</div>
+                <div class="kpi-subtext">Framework compliance</div>
+            </div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg width="28" height="28" fill="#f39c12" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"></path>
+                </svg>
+            </div>
+            <div class="kpi-content">
+                <div class="kpi-label">Avg Execution Standards</div>
+                <div class="kpi-value" id="avgExecutionStandards">0</div>
+                <div class="kpi-subtext">Test execution quality</div>
+            </div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg width="28" height="28" fill="#9b59b6" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"></path>
+                </svg>
+            </div>
+            <div class="kpi-content">
+                <div class="kpi-label">Avg Maintenance Standards</div>
+                <div class="kpi-value" id="avgMaintenanceStandards">0</div>
+                <div class="kpi-subtext">Code maintainability</div>
+            </div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg width="28" height="28" fill="#e74c3c" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z"></path>
+                </svg>
+            </div>
+            <div class="kpi-content">
+                <div class="kpi-label">Overall Maturity</div>
+                <div class="kpi-value" id="avgOverallMaturity">0</div>
+                <div class="kpi-subtext">Average score</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW: Individual Charts Grid for Each Standard -->
+    <div class="charts-grid">
+        <div class="chart-container">
+            <h3 class="chart-header">Coding Standards</h3>
             <div class="chart-wrapper">
-                <canvas id="coverageGapChart1"></canvas>
+                <canvas id="codingStandardsChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h3 class="chart-header">WAF Standards</h3>
+            <div class="chart-wrapper">
+                <canvas id="wafStandardsChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h3 class="chart-header">Execution Standards</h3>
+            <div class="chart-wrapper">
+                <canvas id="executionStandardsChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h3 class="chart-header">Maintenance Standards</h3>
+            <div class="chart-wrapper">
+                <canvas id="maintenanceStandardsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+        <!-- Tab 2: Areas of Focus & Excellence -->
+        <div class="tab-content" id="standardization-insights">
+            <div class="insights-grid">
+        <div class="insight-card">
+            <h3 class="insight-header">Priority Areas of Focus</h3>
+            <div class="chart-wrapper">
+                <!-- This will now contain cards instead of a canvas -->
+                <div id="areaOfFocusChart"></div>
+            </div>
+        </div>
+                
+                <div class="insight-card full-width">
+                    <h3 class="insight-header">What They Did Well</h3>
+                    <div class="chart-wrapper">
+                        <div id="whatTheyDidWellChart"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -390,5 +548,6 @@
     <script src="dashboard-charts.js"></script>
     <script src="dashboard-main.js"></script>
     <script src="automation-metrics-new.js"></script>
+    <script src="automation_standardization.js"></script>
 </body>
 </html>

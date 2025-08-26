@@ -1,98 +1,1428 @@
-// Automation Metrics JavaScript - Fixed for Chart Display and Responsiveness
+// automation-json.js - Enhanced Automation Metrics for JSON Data
 let automationData = [];
 let automationCharts = {};
 
-// Chart.js defaults for automation charts
+// Chart.js defaults
 Chart.defaults.responsive = true;
 Chart.defaults.maintainAspectRatio = false;
 
-// Base chart options for automation charts
+// Base chart options
 const automationBaseOptions = {
-   responsive: true,
+    responsive: true,
     maintainAspectRatio: false,
     layout: {
-        padding: {
-            top: 25, // Increased for data labels
-            bottom: 10,
-            left: 10,
-            right: 10
-        }
+        padding: { top: 25, bottom: 10, left: 10, right: 10 }
     },
     plugins: {
         legend: {
-            labels: {
-                usePointStyle: true,
-                padding: 15,
-                font: {
-                    size: 12
-                }
-            }
+            labels: { usePointStyle: true, padding: 15, font: { size: 12 } }
         },
         tooltip: {
-            titleFont: {
-                size: 14
-            },
-            bodyFont: {
-                size: 12
-            },
+            titleFont: { size: 14 },
+            bodyFont: { size: 12 },
             padding: 12,
             cornerRadius: 8
-        },
-        customDataLabels: {
-            enabled: true
-        }
-    },
-    scales: {
-        x: {
-            ticks: {
-                maxRotation: 45,
-                font: {
-                    size: 11
-                }
-            },
-            grid: {
-                display: false
-            }
-        },
-        y: {
-            display: false, // Hide Y-axis
-            beginAtZero: true,
-            ticks: {
-                display: false
-            },
-            grid: {
-                display: false
-            }
         }
     }
 };
 
-// Utility function for responsive font sizes
-function getAutomationResponsiveFontSize() {
-    const width = window.innerWidth;
-    if (width < 480) return 10;
-    if (width < 768) return 11;
-    if (width < 1200) return 12;
-    return 12;
+// Load automation data from JSON
+async function loadAutomationData() {
+    console.log('Loading automation metrics data from JSON...');
+    
+    try {
+        const res = await fetch('data/Automation.json');
+        const jsonData = await res.json();
+
+        const flatData = Array.isArray(jsonData) ? jsonData : Object.values(jsonData).flat();
+
+        automationData = flatData.map(row => ({
+            // Basic Information
+            serialNo: parseInt(row['S.No']) || 0,
+            area: row['Area'] || '',
+            subArea: row['Sub Area'] || '',
+            applicationName: (row['Application Name'] || '').trim(),
+            typeOfApplication: row['Type of Application'] || '',
+            
+            // Readiness Indicators
+            regressionSuiteAvailable: row['Functional Regression Suite Available?'] || 'No',
+            automationStarted: row['Is Regression Test Automation Started? '] || 'No',
+            vulcanIntegration: row['Vulcan Integration'] || 'No',
+            
+            // Manual Test Cases by Priority
+            manualCritical: parseInt(row['Number of Manual Regression Test Cases Critical']) || 0,
+            manualHigh: parseInt(row['Number of Manual Regression Test Cases High']) || 0,
+            manualMedium: parseInt(row['Number of Manual Regression Test Cases Medium']) || 0,
+            manualLow: parseInt(row['Number of Manual Regression Test Cases Low']) || 0,
+            
+            // Automated Test Cases by Priority
+            automatedCritical: parseInt(row['Number of Automation Test Cases Critical ']) || 0,
+            automatedHigh: parseInt(row['Number of Automation Test Cases High ']) || 0,
+            automatedMedium: parseInt(row['Number of Automation Test Cases Medium ']) || 0,
+            automatedLow: parseInt(row['Number of Automation Test Cases Low ']) || 0,
+            
+            // Summary Metrics
+            totalManualCases: parseInt(row['Total Manual Cases']) || 0,
+            totalAutomatableCases: parseInt(row['Total Automatable Cases']) || 0,
+            totalAutomatedTillDate: parseInt(row['Total automated till date']) || 0,
+            automationCoverage: parseInt(row['% Automation Coverage']) || 0,
+            
+            // Time and Cost Metrics
+            manualExecutionHours: parseFloat(row['Manual Execution in hours']) || 0,
+            automationExecutionHours: parseFloat(row['Automation Execution in Hours']) || 0,
+            saveInHours: parseFloat(row['Save in hours']) || 0
+        }));
+
+    } catch (error) {
+        console.log('Error loading automation data, using sample:', error);
+        automationData = generateAutomationSampleData();
+    }
+    
+    console.log('Automation data loaded:', automationData.length, 'records');
+    updateAutomationMetrics();
 }
 
-// Utility function to safely destroy automation charts
-function safeDestroyAutomationChart(chartKey) {
-    if (automationCharts[chartKey]) {
-        try {
-            automationCharts[chartKey].destroy();
-        } catch (error) {
-            console.warn(`Error destroying automation chart ${chartKey}:`, error);
+// Generate sample data matching Excel structure
+function generateAutomationSampleData() {
+    const areas = ["WIM", "CSBB", "Credit Solutions", "Payments", "London UAT"];
+    const subAreas = {
+        "WIM": ["Digital", "Legacy", "Mobile", "API"],
+        "CSBB": ["Core Banking", "Customer Portal", "Analytics", "Reporting"],
+        "Credit Solutions": ["Loan Processing", "Risk Assessment", "Collections"],
+        "Payments": ["Gateway", "Settlement", "Reconciliation"],
+        "London UAT": ["Trading", "Compliance"]
+    };
+    
+    const data = [];
+    let serialNo = 1;
+    
+    areas.forEach(area => {
+        subAreas[area].forEach(subArea => {
+            for (let i = 1; i <= 3; i++) {
+                const criticalManual = Math.floor(Math.random() * 50) + 20;
+                const highManual = Math.floor(Math.random() * 80) + 40;
+                const mediumManual = Math.floor(Math.random() * 120) + 60;
+                const lowManual = Math.floor(Math.random() * 100) + 50;
+                const totalManual = criticalManual + highManual + mediumManual + lowManual;
+                
+                const criticalAuto = Math.floor(criticalManual * (0.6 + Math.random() * 0.3));
+                const highAuto = Math.floor(highManual * (0.5 + Math.random() * 0.4));
+                const mediumAuto = Math.floor(mediumManual * (0.3 + Math.random() * 0.4));
+                const lowAuto = Math.floor(lowManual * (0.2 + Math.random() * 0.3));
+                const totalAutomated = criticalAuto + highAuto + mediumAuto + lowAuto;
+                
+                const manualHours = Math.floor(totalManual * 0.5);
+                const autoHours = Math.floor(totalAutomated * 0.1);
+                
+                data.push({
+                    serialNo: serialNo++,
+                    area,
+                    subArea,
+                    applicationName: `${subArea} ${['Core', 'Portal', 'API', 'Mobile'][i-1] || 'System'}`,
+                    typeOfApplication: ["Web/Desktop", "Mobile", "API", "Batch"][Math.floor(Math.random() * 4)],
+                    regressionSuiteAvailable: Math.random() > 0.2 ? "Yes" : "No",
+                    automationStarted: Math.random() > 0.3 ? "Yes" : "No",
+                    vulcanIntegration: Math.random() > 0.4 ? "Yes" : "No",
+                    manualCritical: criticalManual,
+                    manualHigh: highManual,
+                    manualMedium: mediumManual,
+                    manualLow: lowManual,
+                    automatedCritical: criticalAuto,
+                    automatedHigh: highAuto,
+                    automatedMedium: mediumAuto,
+                    automatedLow: lowAuto,
+                    totalManualCases: totalManual,
+                    totalAutomatableCases: Math.floor(totalManual * 0.8),
+                    totalAutomatedTillDate: totalAutomated,
+                    automationCoverage: Math.round((totalAutomated / totalManual) * 100),
+                    manualExecutionHours: manualHours,
+                    automationExecutionHours: autoHours,
+                    saveInHours: manualHours - autoHours
+                });
+            }
+        });
+    });
+    
+    return data;
+}
+
+// Get filtered data
+function getFilteredAutomationData() {
+    if (typeof filters !== 'undefined') {
+        return automationData.filter(d => {
+            const matchGroup = !filters.group || d.area === filters.group;
+            const matchSubGroup = !filters.subGroup || d.subArea === filters.subGroup;
+            return matchGroup && matchSubGroup;
+        });
+    }
+    return automationData;
+}
+
+// Update KPIs
+function updateAutomationKPIs(data) {
+    const totalManual = data.reduce((sum, d) => sum + d.totalManualCases, 0);
+    const totalAutomated = data.reduce((sum, d) => sum + d.totalAutomatedTillDate, 0);
+    const totalHoursSaved = data.reduce((sum, d) => sum + d.saveInHours, 0);
+    const automationStarted = data.filter(d => d.automationStarted === 'Yes').length;
+    const averageCoverage = data.length > 0 ? 
+        Math.round(data.reduce((sum, d) => sum + d.automationCoverage, 0) / data.length) : 0;
+    
+    const elements = {
+        'totalTestCases': totalManual.toLocaleString(),
+        'automatedCases': totalAutomated.toLocaleString(),
+        'coverageRate': averageCoverage + '%',
+        'newScripts': automationStarted,
+        'hoursSaved': totalHoursSaved.toLocaleString()
+    };
+    
+    Object.entries(elements).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
         }
-        delete automationCharts[chartKey];
+    });
+}
+
+// 1. Automation Readiness by Area - STACKED BAR CHART
+function renderAutomationReadinessMatrix() {
+    const canvas = document.getElementById('coverageByGroupChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    safeDestroyAutomationChart('automationReadiness');
+    
+    const data = getFilteredAutomationData();
+    const areas = [...new Set(data.map(d => d.area))];
+    
+    // Calculate readiness counts for each area
+    const regressionSuiteData = areas.map(area => {
+        const areaData = data.filter(d => d.area === area);
+        return areaData.filter(d => d.regressionSuiteAvailable === 'Yes').length;
+    });
+    
+    const automationStartedData = areas.map(area => {
+        const areaData = data.filter(d => d.area === area);
+        return areaData.filter(d => d.automationStarted === 'Yes').length;
+    });
+    
+    const vulcanIntegratedData = areas.map(area => {
+        const areaData = data.filter(d => d.area === area);
+        return areaData.filter(d => d.vulcanIntegration === 'Yes').length;
+    });
+    
+    const notReadyData = areas.map(area => {
+        const areaData = data.filter(d => d.area === area);
+        const total = areaData.length;
+        const ready = areaData.filter(d => 
+            d.regressionSuiteAvailable === 'Yes' || 
+            d.automationStarted === 'Yes' || 
+            d.vulcanIntegration === 'Yes'
+        ).length;
+        return Math.max(0, total - ready);
+    });
+    
+    automationCharts.automationReadiness = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: areas,
+            datasets: [{
+                label: 'Regression Suite Available',
+                data: regressionSuiteData,
+                backgroundColor: '#3498db',
+                borderRadius: 5,
+                borderSkipped: false
+            }, {
+                label: 'Automation Started',
+                data: automationStartedData,
+                backgroundColor: '#27ae60',
+                borderRadius: 5,
+                borderSkipped: false
+            }, {
+                label: 'Vulcan Integration',
+                data: vulcanIntegratedData,
+                backgroundColor: '#9b59b6',
+                borderRadius: 5,
+                borderSkipped: false
+            }, {
+                label: 'Not Ready',
+                data: notReadyData,
+                backgroundColor: '#e74c3c',
+                borderRadius: 5,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            ...automationBaseOptions,
+            scales: {
+                x: {
+                    stacked: true,
+                    ticks: { font: { size: 11 } }
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Applications'
+                    },
+                    ticks: {
+                        stepSize: 1,
+                        font: { size: 11 }
+                    }
+                }
+            },
+            plugins: {
+                ...automationBaseOptions.plugins,
+                legend: {
+                    position: window.innerWidth < 768 ? 'bottom' : 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: { size: 12 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            return `${context[0].label} - Readiness Status`;
+                        },
+                        label: function(context) {
+                            const area = areas[context.dataIndex];
+                            const areaData = data.filter(d => d.area === area);
+                            const total = areaData.length;
+                            const percentage = total > 0 ? Math.round((context.parsed.y / total) * 100) : 0;
+                            
+                            return [
+                                `${context.dataset.label}: ${context.parsed.y}`,
+                                `${percentage}% of ${total} applications`
+                            ];
+                        },
+                        footer: function(context) {
+                            const area = areas[context[0].dataIndex];
+                            const areaData = data.filter(d => d.area === area);
+                            const readyCount = areaData.filter(d => 
+                                d.regressionSuiteAvailable === 'Yes' && 
+                                d.automationStarted === 'Yes'
+                            ).length;
+                            const readyPercentage = areaData.length > 0 ? 
+                                Math.round((readyCount / areaData.length) * 100) : 0;
+                            
+                            return `Fully Ready: ${readyCount} (${readyPercentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 2. Priority Coverage Analysis
+function renderPriorityCoverageChart() {
+    const canvas = document.getElementById('progressToTargetChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    safeDestroyAutomationChart('priorityCoverage');
+    
+    const data = getFilteredAutomationData();
+    const priorities = ['Critical', 'High', 'Medium', 'Low'];
+    
+    const priorityData = priorities.map(priority => {
+        const manualKey = `manual${priority}`;
+        const automatedKey = `automated${priority}`;
+        
+        const totalManual = data.reduce((sum, d) => sum + (d[manualKey] || 0), 0);
+        const totalAutomated = data.reduce((sum, d) => sum + (d[automatedKey] || 0), 0);
+        const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
+        
+        return {
+            priority,
+            coverage,
+            manualCount: totalManual,
+            automatedCount: totalAutomated
+        };
+    });
+    
+    automationCharts.priorityCoverage = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: priorities,
+            datasets: [{
+                label: 'Coverage %',
+                data: priorityData.map(d => d.coverage),
+                backgroundColor: priorityData.map(d => {
+                    if (d.coverage >= 80) return '#27ae60';
+                    if (d.coverage >= 60) return '#3498db';
+                    if (d.coverage >= 40) return '#f39c12';
+                    return '#e74c3c';
+                }),
+                borderRadius: 5
+            }]
+        },
+        options: {
+            ...automationBaseOptions,
+            plugins: {
+                ...automationBaseOptions.plugins,
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const priority = priorityData[context.dataIndex];
+                            return [
+                                `Coverage: ${context.parsed.y}%`,
+                                `Automated: ${priority.automatedCount}`,
+                                `Manual: ${priority.manualCount}`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    max: 100,
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return value + '%'; }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderManualVsAutomatedChart() {
+    const canvas = document.getElementById('newScriptsDistChart1');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    safeDestroyAutomationChart('manualVsAutomated');
+    
+    const data = getFilteredAutomationData();
+    
+    let labels = [];
+    if (filters.group && filters.subGroup) {
+        labels = [...new Set(data.map(d => d.applicationName))];
+    } else if (filters.group) {
+        labels = [...new Set(data.map(d => d.subArea))];
+    } else {
+        labels = [...new Set(data.map(d => d.area))];
+    }
+    
+    const manualCases = labels.map(label => {
+        return data.filter(d => {
+            if (filters.group && filters.subGroup) return d.applicationName === label;
+            if (filters.group) return d.subArea === label;
+            return d.area === label;
+        }).reduce((sum, d) => sum + d.totalManualCases, 0);
+    });
+    
+    const automatedCases = labels.map(label => {
+        return data.filter(d => {
+            if (filters.group && filters.subGroup) return d.applicationName === label;
+            if (filters.group) return d.subArea === label;
+            return d.area === label;
+        }).reduce((sum, d) => sum + d.totalAutomatedTillDate, 0);
+    });
+    
+    automationCharts.manualVsAutomated = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Total Manual Cases',
+                data: manualCases,
+                backgroundColor: '#e74c3c',
+                borderRadius: 5
+            }, {
+                label: 'Total Automated Cases',
+                data: automatedCases,
+                backgroundColor: '#27ae60',
+                borderRadius: 5
+            }]
+        },
+        options: {
+            ...automationBaseOptions,
+            plugins: {
+                ...automationBaseOptions.plugins,
+                legend: {
+                    position: window.innerWidth < 768 ? 'bottom' : 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: { size: 12 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const manual = manualCases[context.dataIndex];
+                            const automated = automatedCases[context.dataIndex];
+                            const coverage = manual > 0 ? Math.round((automated / manual) * 100) : 0;
+                            
+                            if (context.datasetIndex === 0) {
+                                return [
+                                    `Manual Cases: ${context.parsed.y.toLocaleString()}`,
+                                    `Coverage: ${coverage}%`
+                                ];
+                            } else {
+                                return [
+                                    `Automated Cases: ${context.parsed.y.toLocaleString()}`,
+                                    `Coverage: ${coverage}%`
+                                ];
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { maxRotation: 45, font: { size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Test Cases'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value >= 1000 ? (value/1000).toFixed(1) + 'K' : value;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 3. Time Savings Analysis
+function renderTimeSavingsAnalysis() {
+    const canvas = document.getElementById('newScriptsDistChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    safeDestroyAutomationChart('timeSavings');
+    
+    const data = getFilteredAutomationData();
+    
+    let labels = [];
+    if (filters.group && filters.subGroup) {
+        labels = [...new Set(data.map(d => d.applicationName))];
+    } else if (filters.group) {
+        labels = [...new Set(data.map(d => d.subArea))];
+    } else {
+        labels = [...new Set(data.map(d => d.area))];
+    }
+    
+    const manualHours = labels.map(label => {
+        return data.filter(d => {
+            if (filters.group && filters.subGroup) return d.applicationName === label;
+            if (filters.group) return d.subArea === label;
+            return d.area === label;
+        }).reduce((sum, d) => sum + d.manualExecutionHours, 0);
+    });
+    
+    const automationHours = labels.map(label => {
+        return data.filter(d => {
+            if (filters.group && filters.subGroup) return d.applicationName === label;
+            if (filters.group) return d.subArea === label;
+            return d.area === label;
+        }).reduce((sum, d) => sum + d.automationExecutionHours, 0);
+    });
+    
+    const hoursSaved = labels.map(label => {
+        return data.filter(d => {
+            if (filters.group && filters.subGroup) return d.applicationName === label;
+            if (filters.group) return d.subArea === label;
+            return d.area === label;
+        }).reduce((sum, d) => sum + d.saveInHours, 0);
+    });
+    
+    automationCharts.timeSavings = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Manual Hours',
+                data: manualHours,
+                backgroundColor: '#e74c3c',
+                borderRadius: 5
+            }, {
+                label: 'Automation Hours',
+                data: automationHours,
+                backgroundColor: '#3498db',
+                borderRadius: 5
+            }, {
+                label: 'Hours Saved',
+                data: hoursSaved,
+                type: 'line',
+                borderColor: '#27ae60',
+                backgroundColor: 'transparent',
+                borderWidth: 3,
+                pointBackgroundColor: '#27ae60',
+                pointRadius: 5,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            ...automationBaseOptions,
+            scales: {
+                x: {
+                    ticks: { maxRotation: 45, font: { size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Execution Hours' }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    beginAtZero: true,
+                    title: { display: true, text: 'Hours Saved' },
+                    grid: { drawOnChartArea: false }
+                }
+            },
+            plugins: {
+                ...automationBaseOptions.plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const hours = context.parsed.y;
+                            const cost = hours * 50;
+                            return [
+                                `${context.dataset.label}: ${hours} hours`,
+                                `Cost Impact: $${cost.toLocaleString()}`
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 4. ROI Efficiency Analysis
+function renderROIEfficiencyChart() {
+    const canvas = document.getElementById('effortsByGroupChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    safeDestroyAutomationChart('roiEfficiency');
+    
+    const data = getFilteredAutomationData();
+    
+    // Determine what level to show based on filters
+    let labels = [];
+    if (filters.group && filters.subGroup) {
+        // Show individual applications when both filters are selected
+        labels = [...new Set(data.map(d => d.applicationName))];
+    } else if (filters.group) {
+        // Show sub areas when only group is selected
+        labels = [...new Set(data.map(d => d.subArea))];
+    } else {
+        // Show areas when no filters are selected
+        labels = [...new Set(data.map(d => d.area))];
+    }
+    
+    const labelData = labels.map(label => {
+        const labelApps = data.filter(d => {
+            if (filters.group && filters.subGroup) return d.applicationName === label;
+            if (filters.group) return d.subArea === label;
+            return d.area === label;
+        });
+        
+        return {
+            label,
+            totalSaved: labelApps.reduce((sum, d) => sum + d.saveInHours, 0),
+            totalCost: labelApps.reduce((sum, d) => sum + d.saveInHours, 0) * 50
+        };
+    });
+    
+    automationCharts.roiEfficiency = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels.map((label, index) => {
+                const hours = labelData[index].totalSaved;
+                const displayHours = hours >= 1000 ? (hours/1000).toFixed(1) + 'K' : hours.toLocaleString();
+                return `${label} (${displayHours}h)`;
+            }),
+            datasets: [{
+                data: labelData.map(d => d.totalSaved),
+                backgroundColor: ['#c41e3a', '#3498db', '#27ae60', '#f39c12', '#9b59b6', '#e67e22', '#1abc9c', '#8e44ad'],
+                borderWidth: 0,
+                cutout: '60%'
+            }]
+        },
+        options: {
+            ...automationBaseOptions,
+            plugins: {
+                ...automationBaseOptions.plugins,
+                legend: {
+                    position: 'right',
+                    labels: { usePointStyle: true, padding: 20 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const item = labelData[context.dataIndex];
+                            return [
+                                `${item.label}: ${item.totalSaved} hours`,
+                                `Cost Saved: ${item.totalCost.toLocaleString()}`
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+// 5. Automation Efficiency Matrix
+function renderAutomationEfficiencyMatrix() {
+    const canvas = document.getElementById('efficiencyMatrixChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    safeDestroyAutomationChart('efficiencyMatrix');
+    
+    const data = getFilteredAutomationData();
+    
+    let labels = [];
+    if (filters.group && filters.subGroup) {
+        labels = [...new Set(data.map(d => d.applicationName))];
+    } else if (filters.group) {
+        labels = [...new Set(data.map(d => d.subArea))];
+    } else {
+        labels = [...new Set(data.map(d => d.area))];
+    }
+    
+    const coverageData = labels.map(label => {
+        const labelData = data.filter(d => {
+            if (filters.group && filters.subGroup) return d.applicationName === label;
+            if (filters.group) return d.subArea === label;
+            return d.area === label;
+        });
+        
+        const totalManual = labelData.reduce((sum, d) => sum + d.totalManualCases, 0);
+        const totalAutomated = labelData.reduce((sum, d) => sum + d.totalAutomatedTillDate, 0);
+        return totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
+    });
+    
+    const totalHoursSavedData = labels.map(label => {
+        const labelData = data.filter(d => {
+            if (filters.group && filters.subGroup) return d.applicationName === label;
+            if (filters.group) return d.subArea === label;
+            return d.area === label;
+        });
+        
+        return labelData.reduce((sum, d) => sum + d.saveInHours, 0);
+    });
+    
+    automationCharts.efficiencyMatrix = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Coverage %',
+                data: coverageData,
+                backgroundColor: '#3498db',
+                borderRadius: 5,
+                yAxisID: 'y'
+            }, {
+                label: 'Total Hours Saved',
+                data: totalHoursSavedData,
+                backgroundColor: '#e74c3c',
+                borderRadius: 5,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            ...automationBaseOptions,
+            scales: {
+                x: {
+                    ticks: { maxRotation: 45 }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    position: 'left',
+                    title: { display: true, text: 'Coverage %' },
+                    ticks: {
+                        callback: function(value) { return value + '%'; }
+                    }
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    title: { display: true, text: 'Total Hours Saved' },
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        callback: function(value) {
+                            return value >= 1000 ? (value/1000).toFixed(1) + 'K' : value;
+                        }
+                    }
+                }
+            },
+            plugins: {
+                ...automationBaseOptions.plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (context.datasetIndex === 0) {
+                                return `Coverage: ${context.parsed.y}%`;
+                            } else {
+                                const cost = context.parsed.y * 50;
+                                return [
+                                    `Hours Saved: ${context.parsed.y.toLocaleString()}`,
+                                    `Cost Saved: ${cost.toLocaleString()}`
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+
+// 6. Coverage Gap Analysis
+function renderCoverageGapChart() {
+    const canvas = document.getElementById('coverageGapChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    safeDestroyAutomationChart('coverageGap');
+    
+    const data = getFilteredAutomationData();
+    
+    // Determine grouping level based on active filters
+    let groupedData = [];
+    
+    if (filters.group && filters.subGroup) {
+        // Show individual applications when both area and sub-area are selected
+        groupedData = data
+            .filter(d => d.area === filters.group && d.subArea === filters.subGroup)
+            .map(d => ({
+                name: d.applicationName,
+                coverage: d.automationCoverage,
+                totalManual: d.totalManualCases,
+                totalAutomated: d.totalAutomatedTillDate,
+                area: d.area,
+                subArea: d.subArea
+            }));
+    } else if (filters.group) {
+        // Show sub-areas when only area is selected
+        const subAreas = [...new Set(data.filter(d => d.area === filters.group).map(d => d.subArea))];
+        
+        groupedData = subAreas.map(subArea => {
+            const subAreaData = data.filter(d => d.area === filters.group && d.subArea === subArea);
+            const totalManual = subAreaData.reduce((sum, d) => sum + d.totalManualCases, 0);
+            const totalAutomated = subAreaData.reduce((sum, d) => sum + d.totalAutomatedTillDate, 0);
+            const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
+            
+            return {
+                name: subArea,
+                coverage,
+                totalManual,
+                totalAutomated,
+                area: filters.group,
+                subArea: subArea,
+                applicationsCount: subAreaData.length
+            };
+        });
+    } else {
+        // Show areas when no filters are selected
+        const areas = [...new Set(data.map(d => d.area))];
+        
+        groupedData = areas.map(area => {
+            const areaData = data.filter(d => d.area === area);
+            const totalManual = areaData.reduce((sum, d) => sum + d.totalManualCases, 0);
+            const totalAutomated = areaData.reduce((sum, d) => sum + d.totalAutomatedTillDate, 0);
+            const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
+            
+            return {
+                name: area,
+                coverage,
+                totalManual,
+                totalAutomated,
+                area: area,
+                applicationsCount: areaData.length
+            };
+        });
+    }
+    
+    // Filter items with coverage gaps (below 90% target)
+    const itemsWithGaps = groupedData.filter(d => d.coverage < 90);
+    
+    if (itemsWithGaps.length === 0) {
+        // Display success message when all items meet the 90% target
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#27ae60';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        
+        let successMessage = 'All ';
+        if (filters.group && filters.subGroup) {
+            successMessage += 'applications';
+        } else if (filters.group) {
+            successMessage += 'sub-areas';
+        } else {
+            successMessage += 'areas';
+        }
+        successMessage += ' meet 90% coverage target!';
+        
+        ctx.fillText(successMessage, canvas.width / 2, canvas.height / 2);
+        return;
+    }
+    
+    // Sort by coverage (lowest first) and take top 8 for better visibility
+    itemsWithGaps.sort((a, b) => a.coverage - b.coverage);
+    const displayItems = itemsWithGaps.slice(0, 8);
+    
+    const labels = displayItems.map(d => d.name);
+    const currentCoverage = displayItems.map(d => d.coverage);
+    const gaps = displayItems.map(d => Math.max(0, 90 - d.coverage));
+    
+    automationCharts.coverageGap = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Current Coverage',
+                data: currentCoverage,
+                backgroundColor: currentCoverage.map(coverage => {
+                    if (coverage >= 70) return '#3498db';
+                    if (coverage >= 50) return '#f39c12';
+                    return '#e74c3c';
+                }),
+                borderRadius: 5
+            }, {
+                label: 'Gap to 90% Target',
+                data: gaps,
+                backgroundColor: 'rgba(231, 76, 60, 0.3)',
+                borderColor: '#e74c3c',
+                borderWidth: 2,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            ...automationBaseOptions,
+            scales: {
+                x: {
+                    ticks: { 
+                        maxRotation: 45,
+                        font: { size: 11 }
+                    }
+                },
+                y: {
+                    max: 100,
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Coverage Percentage'
+                    },
+                    ticks: {
+                        callback: function(value) { return value + '%'; }
+                    }
+                }
+            },
+            plugins: {
+                ...automationBaseOptions.plugins,
+                legend: {
+                    position: window.innerWidth < 768 ? 'bottom' : 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: { size: 12 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            const item = displayItems[context[0].dataIndex];
+                            let title = item.name;
+                            
+                            // Add contextual information based on filter level
+                            if (filters.group && filters.subGroup) {
+                                title += ` (${item.subArea})`;
+                            } else if (filters.group) {
+                                title += ` (${item.applicationsCount} apps)`;
+                            } else {
+                                title += ` (${item.applicationsCount} apps)`;
+                            }
+                            
+                            return title;
+                        },
+                        label: function(context) {
+                            const item = displayItems[context.dataIndex];
+                            const gapCases = Math.round(item.totalManual * ((90 - item.coverage) / 100));
+                            const potentialSavings = gapCases * 0.5 * 50; // Estimated savings per case
+                            
+                            if (context.datasetIndex === 0) {
+                                return [
+                                    `Current Coverage: ${context.parsed.y}%`,
+                                    `Automated: ${item.totalAutomated.toLocaleString()} cases`,
+                                    `Manual: ${item.totalManual.toLocaleString()} cases`
+                                ];
+                            } else {
+                                return [
+                                    `Gap to Target: ${context.parsed.y}%`,
+                                    `Cases to Automate: ${gapCases.toLocaleString()}`,
+                                    `Potential Savings: $${potentialSavings.toLocaleString()}/month`
+                                ];
+                            }
+                        },
+                        footer: function(context) {
+                            const item = displayItems[context[0].dataIndex];
+                            
+                            // Add different footer info based on filter level
+                            if (filters.group && filters.subGroup) {
+                                return `Application in ${item.area} → ${item.subArea}`;
+                            } else if (filters.group) {
+                                return `Sub-area in ${item.area}`;
+                            } else {
+                                return `Business Area`;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+
+// 7. Simple Card View for Automation Opportunities - With Inline CSS
+
+function renderAutomationOpportunityMatrix() {
+    const container = document.getElementById('priorityAreasList');
+    if (!container) return;
+    
+    const data = getFilteredAutomationData();
+    
+    // Group data based on current filter level
+    let groupedData = [];
+    
+    if (filters.group && filters.subGroup) {
+        // Show individual applications when both area and sub-area are selected
+        groupedData = data
+            .filter(d => d.area === filters.group && d.subArea === filters.subGroup)
+            .map(d => ({
+                name: d.applicationName,
+                area: d.area,
+                subArea: d.subArea,
+                coverage: d.automationCoverage,
+                gap: Math.max(0, 90 - d.automationCoverage),
+                highPriorityTests: d.manualCritical + d.manualHigh,
+                totalManual: d.totalManualCases,
+                totalAutomated: d.totalAutomatedTillDate,
+                readiness: d.regressionSuiteAvailable === 'Yes' ? 'Ready' : 'Not Ready',
+                saveInHours: d.saveInHours,
+                potentialSavings: d.saveInHours * 50,
+                regressionSuiteAvailable: d.regressionSuiteAvailable,
+                automationStarted: d.automationStarted
+            }));
+    } else if (filters.group) {
+        // Show sub-areas when only area is selected
+        const subAreas = [...new Set(data.filter(d => d.area === filters.group).map(d => d.subArea))];
+        
+        groupedData = subAreas.map(subArea => {
+            const subAreaData = data.filter(d => d.area === filters.group && d.subArea === subArea);
+            const totalManual = subAreaData.reduce((sum, d) => sum + d.totalManualCases, 0);
+            const totalAutomated = subAreaData.reduce((sum, d) => sum + d.totalAutomatedTillDate, 0);
+            const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
+            const highPriorityTests = subAreaData.reduce((sum, d) => sum + d.manualCritical + d.manualHigh, 0);
+            const readyCount = subAreaData.filter(d => d.regressionSuiteAvailable === 'Yes').length;
+            const totalApps = subAreaData.length;
+            
+            return {
+                name: subArea,
+                area: filters.group,
+                subArea: subArea,
+                coverage,
+                gap: Math.max(0, 90 - coverage),
+                highPriorityTests,
+                totalManual,
+                totalAutomated,
+                readiness: readyCount === totalApps ? 'Ready' : readyCount > 0 ? 'Partial' : 'Not Ready',
+                saveInHours: subAreaData.reduce((sum, d) => sum + d.saveInHours, 0),
+                potentialSavings: subAreaData.reduce((sum, d) => sum + d.saveInHours, 0) * 50,
+                applicationsCount: totalApps
+            };
+        });
+    } else {
+        // Show areas when no filters are selected
+        const areas = [...new Set(data.map(d => d.area))];
+        
+        groupedData = areas.map(area => {
+            const areaData = data.filter(d => d.area === area);
+            const totalManual = areaData.reduce((sum, d) => sum + d.totalManualCases, 0);
+            const totalAutomated = areaData.reduce((sum, d) => sum + d.totalAutomatedTillDate, 0);
+            const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
+            const highPriorityTests = areaData.reduce((sum, d) => sum + d.manualCritical + d.manualHigh, 0);
+            const readyCount = areaData.filter(d => d.regressionSuiteAvailable === 'Yes').length;
+            const totalApps = areaData.length;
+            
+            return {
+                name: area,
+                area: area,
+                subArea: '',
+                coverage,
+                gap: Math.max(0, 90 - coverage),
+                highPriorityTests,
+                totalManual,
+                totalAutomated,
+                readiness: readyCount === totalApps ? 'Ready' : readyCount > 0 ? 'Partial' : 'Not Ready',
+                saveInHours: areaData.reduce((sum, d) => sum + d.saveInHours, 0),
+                potentialSavings: areaData.reduce((sum, d) => sum + d.saveInHours, 0) * 50,
+                applicationsCount: totalApps
+            };
+        });
+    }
+    
+    // Calculate opportunities with enhanced scoring
+    const opportunities = groupedData.map(d => {
+        let score = 0;
+        score += (d.gap / 90) * 40;
+        
+        const highPriorityRatio = d.highPriorityTests / Math.max(1, d.totalManual);
+        score += highPriorityRatio * 30;
+        
+        const readinessScore = d.readiness === 'Ready' ? 0.5 : d.readiness === 'Partial' ? 0.3 : 0;
+        score += readinessScore * 20;
+        
+        const roiScore = Math.min(500, d.saveInHours) / 500;
+        score += roiScore * 10;
+        
+        return {
+            ...d,
+            score: Math.round(score)
+        };
+    })
+    .filter(o => o.score > 20 || o.gap > 10) // Show items with significant gaps or scores
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+    
+    if (opportunities.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; color: #27ae60;">
+                <h4 style="font-size: 20px; margin-bottom: 10px; color: #27ae60;">All applications have good coverage!</h4>
+                <p style="color: #666; font-size: 14px;">No significant automation opportunities found.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 25px; padding: 20px 0;">';
+    
+    opportunities.forEach((opp, index) => {
+        const priorityColor = opp.score >= 70 ? '#e74c3c' : opp.score >= 50 ? '#f39c12' : '#3498db';
+        const priorityBg = opp.score >= 70 ? 'linear-gradient(135deg, #fff5f5, #ffffff)' : 
+                          opp.score >= 50 ? 'linear-gradient(135deg, #fffbf0, #ffffff)' : 
+                          'linear-gradient(135deg, #f0f9ff, #ffffff)';
+        
+        // Determine display context based on filter level
+        let displayContext = '';
+        if (filters.group && filters.subGroup) {
+            displayContext = `Application in ${opp.area} → ${opp.subArea}`;
+        } else if (filters.group) {
+            displayContext = `Sub-area in ${opp.area} (${opp.applicationsCount || 1} apps)`;
+        } else {
+            displayContext = `Business Area (${opp.applicationsCount || 1} apps)`;
+        }
+        
+        html += `
+            <div style="
+                background: ${priorityBg};
+                border-radius: 12px;
+                padding: 25px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+                border-left: 5px solid ${priorityColor};
+                transition: all 0.3s ease;
+                position: relative;
+                cursor: pointer;
+                min-height: 320px;
+                height: auto;
+            " 
+            onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)';">
+                
+                <!-- Header -->
+                <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 700; color: #2c3e50;">${opp.name}</h4>
+                    <div style="font-size: 11px; color: #666; background: #f8f9fa; padding: 4px 8px; border-radius: 12px; display: inline-block;">
+                        ${displayContext}
+                    </div>
+                </div>
+                
+                <!-- Coverage Progress Bar -->
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 600; color: #555;">Coverage Progress</span>
+                        <span style="font-size: 12px; font-weight: 700; color: #2c3e50;">${opp.coverage}% / 90%</span>
+                    </div>
+                    <div style="background: #e0e0e0; border-radius: 10px; height: 12px; overflow: hidden;">
+                        <div style="
+                            height: 100%;
+                            width: ${Math.max(5, opp.coverage)}%;
+                            background: linear-gradient(90deg, ${opp.coverage >= 70 ? '#27ae60' : opp.coverage >= 50 ? '#f39c12' : '#e74c3c'}, ${opp.coverage >= 70 ? '#2ecc71' : opp.coverage >= 50 ? '#f1c40f' : '#ff6b6b'});
+                            border-radius: 10px;
+                            transition: width 1s ease;
+                        "></div>
+                    </div>
+                </div>
+                
+                <!-- Key Metrics Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 15px;">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">High Priority</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #2c3e50;">${opp.highPriorityTests}</div>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Manual</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #2c3e50;">${opp.totalManual}</div>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Readiness</div>
+                        <div style="font-size: 15px; font-weight: 700; color: ${opp.readiness === 'Ready' ? '#27ae60' : opp.readiness === 'Partial' ? '#f39c12' : '#e74c3c'};">${opp.readiness}</div>
+                    </div>
+                </div>
+                
+                <!-- Gap Visualization -->
+                <div style="background: linear-gradient(135deg, #f8f9fa, #ffffff); border-radius: 8px; padding: 15px; border: 1px solid #e0e0e0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: 700; color: #2c3e50;">Gap to Target</span>
+                        <span style="font-size: 16px; color: #e74c3c; font-weight: 700;">${opp.gap}%</span>
+                    </div>
+                    <div style="display: flex; height: 20px; border-radius: 10px; overflow: hidden; border: 2px solid #e0e0e0;">
+                        <div style="
+                            width: ${opp.coverage}%;
+                            background: linear-gradient(90deg, #27ae60, #2ecc71);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <span style="font-size: 11px; font-weight: 600; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+                                ${opp.coverage}%
+                            </span>
+                        </div>
+                        <div style="
+                            width: ${opp.gap}%;
+                            background: linear-gradient(90deg, #e74c3c, #ff6b6b);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <span style="font-size: 11px; font-weight: 600; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+                                ${opp.gap}%
+                            </span>
+                        </div>
+                    </div>
+                    <div style="font-size: 12px; color: #666; text-align: center; margin-top: 8px; font-style: italic;">
+                        Need to automate ~${Math.round(opp.totalManual * (opp.gap / 100))} more cases
+                    </div>
+                </div>
+                
+                <!-- Recommendation -->
+                <div style="
+                    background: linear-gradient(135deg, rgba(196, 30, 58, 0.05), rgba(255, 107, 107, 0.02));
+                    border-radius: 8px;
+                    padding: 12px;
+                    border-left: 4px solid #c41e3a;
+                    margin-top: 15px;
+                ">
+                    <div style="font-size: 13px; color: #2c3e50; line-height: 1.5;">
+                        ${getRecommendationText(opp)}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Helper function to generate recommendation text
+function getRecommendationText(opp) {
+    if (opp.score >= 70) {
+        return `<strong>Immediate Priority:</strong> High ROI opportunity with ${opp.highPriorityTests} critical/high priority tests. Start automation immediately.`;
+    } else if (opp.score >= 50) {
+        return `<strong>Medium Priority:</strong> Good automation candidate. Focus on ${opp.coverage < 50 ? 'critical test cases first' : 'expanding existing coverage'}.`;
+    } else {
+        return `<strong>Low Priority:</strong> Consider for future automation phases. ${opp.readiness === 'Ready' ? 'Infrastructure ready.' : 'Setup regression suite first.'}`;
+    }
+}
+// 8. ROI Summary
+function renderROISummary() {
+    const container = document.getElementById('roiSummaryGrid');
+    if (!container) return;
+    
+    const data = getFilteredAutomationData();
+    
+    const totalInvestment = data.reduce((sum, d) => sum + (d.totalAutomatedTillDate * 100), 0);
+    const totalSavings = data.reduce((sum, d) => sum + (d.saveInHours * 50), 0);
+    const overallROI = totalInvestment > 0 ? Math.round(((totalSavings - totalInvestment) / totalInvestment) * 100) : 0;
+    const paybackMonths = totalSavings > 0 ? Math.round(totalInvestment / (totalSavings / 12)) : 0;
+    
+    container.innerHTML = `
+        <div class="summary-item">
+            <div class="summary-label">Total Investment</div>
+            <div class="summary-value">${(totalInvestment).toLocaleString()}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Annual Savings</div>
+            <div class="summary-value">${totalSavings.toLocaleString()}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Overall ROI</div>
+            <div class="summary-value">${overallROI}%</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Payback Period</div>
+            <div class="summary-value">${paybackMonths} months</div>
+        </div>
+    `;
+}
+
+// 9. Strategic Recommendations
+function renderStrategicRecommendations() {
+    const container = document.getElementById('strategicRecommendations');
+    if (!container) return;
+    
+    const data = getFilteredAutomationData();
+    
+    const lowCoverage = data.filter(d => d.automationCoverage < 50).length;
+    const notStarted = data.filter(d => d.automationStarted === 'No').length;
+    const highROI = data.filter(d => d.saveInHours > 100).length;
+    const criticalGaps = data.filter(d => d.manualCritical > d.automatedCritical + 5).length;
+    
+    let recommendations = [];
+    
+    if (lowCoverage > 0) {
+        recommendations.push({
+            priority: 'High',
+            title: 'Address Low Coverage Applications',
+            description: `${lowCoverage} applications have <50% automation coverage. Focus on these first.`,
+            action: 'Prioritize automation for critical and high-priority test cases'
+        });
+    }
+    
+    if (notStarted > 0) {
+        recommendations.push({
+            priority: 'Medium',
+            title: 'Kickstart Automation Initiative',
+            description: `${notStarted} applications haven't started automation yet.`,
+            action: 'Establish regression test suites and begin pilot automation'
+        });
+    }
+    
+    if (criticalGaps > 0) {
+        recommendations.push({
+            priority: 'High',
+            title: 'Critical Test Priority',
+            description: `${criticalGaps} applications have significant critical test gaps.`,
+            action: 'Immediate focus on automating critical severity test cases'
+        });
+    }
+    
+    if (highROI > 0) {
+        recommendations.push({
+            priority: 'Low',
+            title: 'Scale High-ROI Applications',
+            description: `${highROI} applications show excellent ROI potential.`,
+            action: 'Increase automation investment in these areas'
+        });
+    }
+    
+    if (recommendations.length === 0) {
+        recommendations.push({
+            priority: 'Low',
+            title: 'Optimization Focus',
+            description: 'Overall automation strategy is performing well.',
+            action: 'Focus on fine-tuning existing automation and maintenance'
+        });
+    }
+    
+    let html = '<div class="recommendations-list">';
+    
+    recommendations.forEach(rec => {
+        const priorityClass = rec.priority.toLowerCase();
+        html += `
+            <div class="recommendation-item ${priorityClass}">
+                <div class="rec-header">
+                    <h4>${rec.title}</h4>
+                    <span class="priority-badge priority-${priorityClass}">${rec.priority}</span>
+                </div>
+                <p class="rec-description">${rec.description}</p>
+                <div class="rec-action">
+                    <strong>Recommended Action:</strong> ${rec.action}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Main render functions for tabs
+function renderAutomationOverviewCharts() {
+    console.log('Rendering automation overview charts...');
+    setTimeout(() => renderAutomationReadinessMatrix(), 100);
+    setTimeout(() => renderPriorityCoverageChart(), 200);
+    setTimeout(() => renderManualVsAutomatedChart(), 300);
+}
+
+function renderAutomationEfficiencyCharts() {
+    console.log('Rendering automation efficiency charts...');
+    setTimeout(() => renderROIEfficiencyChart(), 100);
+    setTimeout(() => renderAutomationEfficiencyMatrix(), 200);
+    setTimeout(() => renderTimeSavingsAnalysis(), 300);
+    //setTimeout(() => renderROISummary(), 300);
+}
+
+function renderAutomationInsightsCharts() {
+    console.log('Rendering automation insights charts...');
+    setTimeout(() => renderCoverageGapChart(), 100);
+    setTimeout(() => renderAutomationOpportunityMatrix(), 200);
+    setTimeout(() => renderStrategicRecommendations(), 300);
+}
+
+// Update main automation metrics
+function updateAutomationMetrics() {
+    console.log('Updating automation metrics...');
+    
+    const filteredData = getFilteredAutomationData();
+    console.log('Filtered automation data count:', filteredData.length);
+    
+    updateAutomationKPIs(filteredData);
+    
+    // Re-render charts for active tab
+    const activeTab = document.querySelector('#automationPage .tab.active');
+    if (activeTab) {
+        const tabName = activeTab.getAttribute('data-tab');
+        setTimeout(() => {
+            if (tabName === 'automation-overview') {
+                renderAutomationOverviewCharts();
+            } else if (tabName === 'automation-efficiency') {
+                renderAutomationEfficiencyCharts();
+            } else if (tabName === 'automation-insights') {
+                renderAutomationInsightsCharts();
+            }
+        }, 200);
     }
 }
 
-// Initialize Automation Page - Called when switching to automation page
+// Initialize automation page
 function initializeAutomationPage() {
-    console.log('Initializing Automation Page...');
+    console.log('Initializing Automation Page with JSON data...');
     
-    // Ensure DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
             setupAutomationPage();
@@ -103,26 +1433,19 @@ function initializeAutomationPage() {
 }
 
 function setupAutomationPage() {
-    // Initialize tabs
     initializeAutomationTabs();
-    
-    // Load automation data
     loadAutomationData();
-    
-    // Set up filter listeners for automation page
     setupAutomationFilterListeners();
+    populateAutomationFilters();
 }
 
-// Initialize automation tabs
 function initializeAutomationTabs() {
     const automationTabs = document.querySelectorAll('#automationPage .tab');
     
     automationTabs.forEach(tab => {
-        // Remove existing listeners
         tab.replaceWith(tab.cloneNode(true));
     });
     
-    // Add fresh listeners
     document.querySelectorAll('#automationPage .tab').forEach(tab => {
         tab.addEventListener('click', function(e) {
             e.preventDefault();
@@ -132,9 +1455,8 @@ function initializeAutomationTabs() {
     });
 }
 
-// Switch automation tabs
 function switchAutomationTab(tabName) {
-    console.log('Switching to tab:', tabName);
+    console.log('Switching to automation tab:', tabName);
     
     // Update tab buttons
     document.querySelectorAll('#automationPage .tab').forEach(tab => {
@@ -158,40 +1480,36 @@ function switchAutomationTab(tabName) {
         activeContent.style.display = 'block';
     }
     
-    // Force chart rendering with a delay to ensure DOM is ready
+    // Render appropriate charts
     setTimeout(() => {
-        renderChartsForTab(tabName);
+        if (tabName === 'automation-overview') {
+            renderAutomationReadinessMatrix();
+            renderPriorityCoverageChart();
+            renderManualVsAutomatedChart();
+        } else if (tabName === 'automation-efficiency') {
+            renderROIEfficiencyChart();
+            renderAutomationEfficiencyMatrix();
+            renderTimeSavingsAnalysis();
+            //renderROISummary();
+        } else if (tabName === 'automation-insights') {
+            renderCoverageGapChart();
+            renderAutomationOpportunityMatrix();
+            renderStrategicRecommendations();
+        }
     }, 300);
 }
 
-// Render charts based on active tab
-function renderChartsForTab(tabName) {
-    console.log('Rendering charts for tab:', tabName);
-    
-    // Destroy all existing automation charts first
-    Object.keys(automationCharts).forEach(key => {
-        safeDestroyAutomationChart(key);
-    });
-    
-    if (tabName === 'automation-overview') {
-        renderAutomationOverviewCharts();
-    } else if (tabName === 'automation-efficiency') {
-        renderAutomationEfficiencyCharts();
-    } else if (tabName === 'automation-insights') {
-        renderAutomationInsightsCharts();
-    }
-}
-
-// Setup filter listeners specifically for automation page
+// Setup filter listeners
 function setupAutomationFilterListeners() {
     const groupFilter = document.getElementById('groupFilter');
     const subGroupFilter = document.getElementById('subGroupFilter');
-    const monthFilter = document.getElementById('monthFilter');
     
     if (groupFilter && !groupFilter.hasAttribute('automation-listener')) {
         groupFilter.setAttribute('automation-listener', 'true');
         groupFilter.addEventListener('change', function() {
             if (currentPage === 'automation') {
+                filters.group = this.value;
+                updateSubAreaFilter();
                 updateAutomationMetrics();
             }
         });
@@ -201,1423 +1519,82 @@ function setupAutomationFilterListeners() {
         subGroupFilter.setAttribute('automation-listener', 'true');
         subGroupFilter.addEventListener('change', function() {
             if (currentPage === 'automation') {
-                updateAutomationMetrics();
-            }
-        });
-    }
-    
-    if (monthFilter && !monthFilter.hasAttribute('automation-listener')) {
-        monthFilter.setAttribute('automation-listener', 'true');
-        monthFilter.addEventListener('change', function() {
-            if (currentPage === 'automation') {
+                filters.subGroup = this.value;
                 updateAutomationMetrics();
             }
         });
     }
 }
 
-// Load automation data
-async function loadAutomationData() {
-    console.log('Loading automation data...');
+// Populate filters with automation data
+function populateAutomationFilters() {
+    console.log('Populating automation filters...');
     
-    try {
-        const res = await fetch('data/Automation.json');
-        const jsonData = await res.json();
-
-        // Optional: flatten if jsonData is an object with sheets
-        const flatData = Array.isArray(jsonData)
-        ? jsonData
-        : Object.values(jsonData).flat();
-
-        automationData = flatData.map(row => ({
-            group: row.Group || '',
-            subGroup: row['Sub Group'] || '',
-            application: (row[' Application name'] || '').trim(),
-            month: row.Month || '',
-            totalManualCases: parseInt(row['Total Manual Regression Cases']) || 0,
-            totalAutomated: parseInt(row['Toatl Automated']) || 0,
-            newScriptsAutomated: parseInt(row['New scripts Automated']) || 0,
-            targetAutomation: parseInt(row['Target % Automation 2025']) || 90,
-            actualAutomation: parseInt(row['Actual % of cases automated']) || 0,
-            effortsSaved: parseInt(row['Efforts Saved (.hrs)']) || 0
-        }));
-    } catch (error) {
-        console.log('Error loading data, using sample:', error);
-        automationData = generateAutomationSampleData();
-    }
+    const areas = [...new Set(automationData.map(d => d.area))].filter(a => a);
+    const groupFilter = document.getElementById('groupFilter');
     
-    console.log('Automation data loaded:', automationData.length, 'records');
-    updateAutomationMetrics();
-}
-
-// Generate sample data
-function generateAutomationSampleData() {
-    const groups = ['WIM', 'CSBB', 'Credit Solutions', 'Payments', 'London UAT'];
-    const subGroups = {
-        'WIM': ['PMP', 'MM', 'AOM', 'AgentDesktop'],
-        'CSBB': ['CSBB1.0', 'CSBB2.0', 'CSBB3.0', 'CSBB4.0'],
-        'Credit Solutions': ['1view', '1Click', 'Data', 'Test4'],
-        'Payments': ['Pega', 'Payment Gateway', 'Settlement'],
-        'London UAT': ['London1', 'London2']
-    };
-    
-    const data = [];
-    const months = ['June'];
-    
-    groups.forEach(group => {
-        if (subGroups[group]) {
-            subGroups[group].forEach(subGroup => {
-                months.forEach(month => {
-                    const totalManual = Math.floor(Math.random() * 200) + 150;
-                    const totalAutomated = Math.floor(Math.random() * totalManual * 0.7);
-                    data.push({
-                        group: group,
-                        subGroup: subGroup,
-                        application: `${subGroup}App`,
-                        month: month,
-                        totalManualCases: totalManual,
-                        totalAutomated: totalAutomated,
-                        newScriptsAutomated: Math.floor(Math.random() * 10) + 1,
-                        targetAutomation: 90,
-                        actualAutomation: Math.round((totalAutomated / totalManual) * 100),
-                        effortsSaved: Math.floor(totalAutomated * 5.5)
-                    });
-                });
-            });
-        }
-    });
-    
-    return data;
-}
-
-// Get filtered automation data
-function getFilteredAutomationData() {
-    if (typeof filters !== 'undefined') {
-        return automationData.filter(d => {
-            const matchGroup = !filters.group || d.group === filters.group;
-            const matchSubGroup = !filters.subGroup || d.subGroup === filters.subGroup;
-            const matchMonth = !filters.month || d.month === filters.month;
-            return matchGroup && matchSubGroup && matchMonth;
-        });
-    }
-    return automationData;
-}
-
-// Update automation metrics
-function updateAutomationMetrics() {
-    console.log('Updating automation metrics...');
-    
-    const filteredData = getFilteredAutomationData();
-    console.log('Filtered data count:', filteredData.length);
-    
-    // Update KPIs
-    updateAutomationKPIs(filteredData);
-    
-    // Get current active tab
-    const activeTab = document.querySelector('#automationPage .tab.active');
-    if (activeTab) {
-        const tabName = activeTab.getAttribute('data-tab');
-        setTimeout(() => {
-            renderChartsForTab(tabName);
-        }, 200);
-    }
-}
-
-// Update KPIs
-function updateAutomationKPIs(data) {
-    const totalManual = data.reduce((sum, d) => sum + d.totalManualCases, 0);
-    const totalAutomated = data.reduce((sum, d) => sum + d.totalAutomated, 0);
-    const totalEffortsSaved = data.reduce((sum, d) => sum + d.effortsSaved, 0);
-    const totalNewScripts = data.reduce((sum, d) => sum + d.newScriptsAutomated, 0);
-    const coverageRate = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-    
-    const elements = {
-        'totalTestCases': totalManual.toLocaleString(),
-        'automatedCases': totalAutomated.toLocaleString(),
-        'coverageRate': coverageRate + '%',
-        'newScripts': totalNewScripts,
-        'hoursSaved': totalEffortsSaved.toLocaleString()
-    };
-    
-    Object.entries(elements).forEach(([id, value]) => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.textContent = value;
-        }
-    });
-}
-
-// Overview Charts
-function renderAutomationOverviewCharts() {
-    console.log('Rendering overview charts...');
-    
-    // Add delay between charts to ensure proper rendering
-    setTimeout(() => renderCoverageByGroupChart(), 100);
-    setTimeout(() => renderProgressToTargetChart(), 200);
-    setTimeout(() => renderNewScriptsDistChart(), 300);
-}
-
-function renderCoverageByGroupChart() {
-    const canvas = document.getElementById('coverageByGroupChart');
-    if (!canvas) {
-        console.error('Coverage chart canvas not found');
-        return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-        console.error('Could not get 2D context for coverage chart');
-        return;
-    }
-    
-    safeDestroyAutomationChart('coverageByGroup');
-    
-    const data = getFilteredAutomationData();
-    
-    let labels;
-    if (typeof filters !== 'undefined' && filters.subGroup) {
-        labels = [...new Set(data.map(d => d.application))];
-    } else if (typeof filters !== 'undefined' && filters.group) {
-        labels = [...new Set(data.map(d => d.subGroup))];
-    } else {
-        labels = [...new Set(data.map(d => d.group))];
-    }
-    
-    // Truncate labels for mobile
-    const truncateLength = window.innerWidth < 768 ? 8 : 15;
-    const displayLabels = labels.map(label => 
-        label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
-    );
-    
-    const coverageData = labels.map(label => {
-        const labelData = data.filter(d => {
-            if (typeof filters !== 'undefined' && filters.subGroup) return d.application === label;
-            if (typeof filters !== 'undefined' && filters.group) return d.subGroup === label;
-            return d.group === label;
-        });
-        const totalManual = labelData.reduce((sum, d) => sum + d.totalManualCases, 0);
-        const totalAutomated = labelData.reduce((sum, d) => sum + d.totalAutomated, 0);
-        return totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-    });
-    
-    const fontSize = getAutomationResponsiveFontSize();
-    
-    try {
-        automationCharts.coverageByGroup = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: displayLabels,
-                datasets: [{
-                    label: 'Coverage %',
-                    data: coverageData,
-                    backgroundColor: coverageData.map(value => {
-                        if (value >= 80) return '#27ae60';
-                        if (value >= 60) return '#3498db';
-                        if (value >= 40) return '#f39c12';
-                        return '#e74c3c';
-                    }),
-                    borderRadius: 5
-                }]
-            },
-            options: {
-                ...automationBaseOptions,
-                plugins: {
-                    ...automationBaseOptions.plugins,
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    ...automationBaseOptions.scales,
-                    x: {
-                        ...automationBaseOptions.scales.x,
-                        ticks: {
-                            ...automationBaseOptions.scales.x.ticks,
-                            maxRotation: window.innerWidth < 768 ? 45 : 30,
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    },
-                    y: {
-                        ...automationBaseOptions.scales.y,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            },
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    }
-                }
+    if (groupFilter) {
+        const existingOptions = Array.from(groupFilter.options).map(opt => opt.value);
+        
+        areas.forEach(area => {
+            if (!existingOptions.includes(area)) {
+                const option = document.createElement('option');
+                option.value = area;
+                option.textContent = area;
+                groupFilter.appendChild(option);
             }
         });
-        console.log('Coverage chart created successfully');
-    } catch (error) {
-        console.error('Error creating coverage chart:', error);
     }
 }
 
-function renderProgressToTargetChart() {
-    const canvas = document.getElementById('progressToTargetChart');
-    if (!canvas) {
-        console.error('Progress chart canvas not found');
-        return;
-    }
+function updateSubAreaFilter() {
+    const subGroupFilter = document.getElementById('subGroupFilter');
+    if (!subGroupFilter) return;
     
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-        console.error('Could not get 2D context for progress chart');
-        return;
-    }
+    const currentValue = subGroupFilter.value;
+    subGroupFilter.innerHTML = '<option value="">All Sub Areas</option>';
     
-    safeDestroyAutomationChart('progressToTarget');
-    
-    const data = getFilteredAutomationData();
-    
-    let labels, actualCoverage;
-    if (typeof filters !== 'undefined' && filters.subGroup) {
-        // Show applications when subgroup is selected
-        labels = [...new Set(data.map(d => d.application))];
-        actualCoverage = labels.map(app => {
-            const appData = data.filter(d => d.application === app);
-            const totalManual = appData.reduce((sum, d) => sum + d.totalManualCases, 0);
-            const totalAutomated = appData.reduce((sum, d) => sum + d.totalAutomated, 0);
-            return totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-        });
-    } else if (typeof filters !== 'undefined' && filters.group) {
-        // Show subgroups when group is selected
-        labels = [...new Set(data.map(d => d.subGroup))];
-        actualCoverage = labels.map(subGroup => {
-            const subGroupData = data.filter(d => d.subGroup === subGroup);
-            const totalManual = subGroupData.reduce((sum, d) => sum + d.totalManualCases, 0);
-            const totalAutomated = subGroupData.reduce((sum, d) => sum + d.totalAutomated, 0);
-            return totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-        });
-    } else {
-        // Show groups by default
-        labels = [...new Set(data.map(d => d.group))];
-        actualCoverage = labels.map(group => {
-            const groupData = data.filter(d => d.group === group);
-            const totalManual = groupData.reduce((sum, d) => sum + d.totalManualCases, 0);
-            const totalAutomated = groupData.reduce((sum, d) => sum + d.totalAutomated, 0);
-            return totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-        });
-    }
-    
-    // Truncate labels for mobile
-    const truncateLength = window.innerWidth < 768 ? 8 : 15;
-    const displayLabels = labels.map(label => 
-        label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
-    );
-    
-    const fontSize = getAutomationResponsiveFontSize();
-    
-    try {
-        automationCharts.progressToTarget = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: displayLabels,
-                datasets: [{
-                    label: 'Actual Coverage',
-                    data: actualCoverage,
-                    backgroundColor: actualCoverage.map(value => {
-                        if (value >= 90) return '#27ae60';
-                        if (value >= 70) return '#3498db';
-                        if (value >= 50) return '#f39c12';
-                        return '#e74c3c';
-                    }),
-                    borderRadius: 5
-                }, {
-                    label: 'Target (90%)',
-                    data: labels.map(() => 90),
-                    type: 'line',
-                    borderColor: '#c41e3a',
-                    backgroundColor: 'transparent',
-                    borderWidth: 3,
-                    borderDash: [5, 5],
-                    pointBackgroundColor: '#c41e3a',
-                    pointBorderColor: '#c41e3a',
-                    pointRadius: 4,
-                    tension: 0
-                }]
-            },
-            options: {
-                ...automationBaseOptions,
-                plugins: {
-                    ...automationBaseOptions.plugins,
-                    legend: {
-                        ...automationBaseOptions.plugins.legend,
-                        position: window.innerWidth < 768 ? 'bottom' : 'top',
-                        labels: {
-                            ...automationBaseOptions.plugins.legend.labels,
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    },
-                    tooltip: {
-                        ...automationBaseOptions.plugins.tooltip,
-                        callbacks: {
-                            label: function(context) {
-                                if (context.datasetIndex === 0) {
-                                    const gap = 90 - context.parsed.y;
-                                    return [
-                                        'Actual: ' + context.parsed.y + '%',
-                                        'Gap: ' + gap + '%'
-                                    ];
-                                }
-                                return 'Target: ' + context.parsed.y + '%';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    ...automationBaseOptions.scales,
-                    x: {
-                        ...automationBaseOptions.scales.x,
-                        ticks: {
-                            ...automationBaseOptions.scales.x.ticks,
-                            maxRotation: window.innerWidth < 768 ? 45 : 30,
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    },
-                    y: {
-                        ...automationBaseOptions.scales.y,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            },
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    }
-                }
+    if (filters.group) {
+        const subAreas = [...new Set(automationData
+            .filter(d => d.area === filters.group)
+            .map(d => d.subArea))].filter(sa => sa);
+        
+        subAreas.forEach(subArea => {
+            const option = document.createElement('option');
+            option.value = subArea;
+            option.textContent = subArea;
+            if (subArea === currentValue) {
+                option.selected = true;
             }
+            subGroupFilter.appendChild(option);
         });
-        console.log('Progress chart created successfully');
-    } catch (error) {
-        console.error('Error creating progress chart:', error);
+    }
+    
+    if (filters.group && !subGroupFilter.value) {
+        filters.subGroup = '';
     }
 }
 
-function renderNewScriptsDistChart() {
-    const canvas = document.getElementById('newScriptsDistChart');
-    if (!canvas) {
-        console.error('New scripts chart canvas not found');
-        return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    safeDestroyAutomationChart('newScriptsDist');
-    
-    const data = getFilteredAutomationData();
-    
-    let labels, newScriptsData;
-    if (typeof filters !== 'undefined' && filters.subGroup) {
-        // Show applications when subgroup is selected
-        labels = [...new Set(data.map(d => d.application))];
-        newScriptsData = labels.map(app => {
-            return data.filter(d => d.application === app)
-                .reduce((sum, d) => sum + d.newScriptsAutomated, 0);
-        });
-    } else if (typeof filters !== 'undefined' && filters.group) {
-        // Show subgroups when group is selected
-        labels = [...new Set(data.map(d => d.subGroup))];
-        newScriptsData = labels.map(subGroup => {
-            return data.filter(d => d.subGroup === subGroup)
-                .reduce((sum, d) => sum + d.newScriptsAutomated, 0);
-        });
-    } else {
-        // Show groups by default
-        labels = [...new Set(data.map(d => d.group))];
-        newScriptsData = labels.map(group => {
-            return data.filter(d => d.group === group)
-                .reduce((sum, d) => sum + d.newScriptsAutomated, 0);
-        });
-    }
-    
-    // Truncate labels for mobile
-    const truncateLength = window.innerWidth < 768 ? 8 : 15;
-    const displayLabels = labels.map(label => 
-        label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
-    );
-    
-    const fontSize = getAutomationResponsiveFontSize();
-    
-    try {
-        automationCharts.newScriptsDist = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: displayLabels,
-                datasets: [{
-                    label: 'New Scripts Automated',
-                    data: newScriptsData,
-                    backgroundColor: '#3498db',
-                    borderColor: '#2980b9',
-                    borderWidth: 1,
-                    borderRadius: 5
-                }]
-            },
-            options: {
-                ...automationBaseOptions,
-                plugins: {
-                    ...automationBaseOptions.plugins,
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        ...automationBaseOptions.plugins.tooltip,
-                        callbacks: {
-                            label: function(context) {
-                                const scripts = context.parsed.y;
-                                const estimatedHours = scripts * 40; // Assume 40 hours per script
-                                return [
-                                    'Scripts: ' + scripts,
-                                    'Est. Effort: ' + estimatedHours + ' hours'
-                                ];
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    ...automationBaseOptions.scales,
-                    x: {
-                        ...automationBaseOptions.scales.x,
-                        ticks: {
-                            ...automationBaseOptions.scales.x.ticks,
-                            maxRotation: window.innerWidth < 768 ? 45 : 30,
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    },
-                    y: {
-                        ...automationBaseOptions.scales.y,
-                        ticks: {
-                            stepSize: 1,
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        console.log('New script distribution chart created successfully');
-    } catch (error) {
-        console.error('Error creating new scripts chart:', error);
-    }
-}
-
-// Efficiency Charts
-function renderAutomationEfficiencyCharts() {
-    console.log('Rendering efficiency charts...');
-    
-    setTimeout(() => renderEffortsByGroupChart(), 100);
-    setTimeout(() => renderEfficiencyMatrix(), 200);
-}
-
-function renderEffortsByGroupChart() {
-    const canvas = document.getElementById('effortsByGroupChart');
-    if (!canvas) {
-        console.error('Efforts chart canvas not found');
-        return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    // Completely destroy existing chart
-    if (automationCharts.effortsByGroup) {
-        automationCharts.effortsByGroup.destroy();
-        delete automationCharts.effortsByGroup;
-    }
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    
-    const data = getFilteredAutomationData();
-    const groups = [...new Set(data.map(d => d.group))];
-    const effortsData = groups.map(group => {
-        return data.filter(d => d.group === group)
-            .reduce((sum, d) => sum + d.effortsSaved, 0);
-    });
-    
-    const totalHours = effortsData.reduce((sum, hours) => sum + hours, 0);
-    const fontSize = getAutomationResponsiveFontSize();
-    
-    try {
-        automationCharts.effortsByGroup = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: groups.map((group, index) => {
-                    const hours = effortsData[index];
-                    const displayHours = hours >= 1000 ? (hours/1000).toFixed(1) + 'K' : hours.toLocaleString();
-                    return `${group} (${displayHours}h)`;
-                }),
-                datasets: [{
-                    data: effortsData,
-                    backgroundColor: ['#c41e3a', '#3498db', '#2ecc71', '#f39c12', '#9b59b6'],
-                    borderWidth: 0,
-                    cutout: '75%'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false, // Disable animations
-                plugins: {
-                    legend: {
-                        position: window.innerWidth < 768 ? 'bottom' : 'right',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 15,
-                            font: { size: fontSize }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const hours = context.parsed;
-                                const cost = hours * 50;
-                                const percentage = ((hours / totalHours) * 100).toFixed(1);
-                                return [
-                                    context.label + ' (' + percentage + '%)',
-                                    'Cost Saved: $' + cost.toLocaleString()
-                                ];
-                            }
-                        }
-                    },
-                    // DISABLE ALL CENTER TEXT PLUGINS
-                    datalabels: false,
-                    centerText: false,
-                    chartCenterText: false,
-                    pieceLabel: false,
-                    customDataLabels: false,
-                    enhancedDataLabels: false
-                },
-                layout: { padding: 20 }
-            },
-            plugins: [{
-                id: 'preventCenterText',
-                beforeDraw: function(chart) {
-                    const ctx = chart.ctx;
-                    const centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
-                    const centerY = (chart.chartArea.top + chart.chartArea.bottom) / 2;
-                    const radius = chart.innerRadius;
-                    
-                    ctx.save();
-                    ctx.fillStyle = '#ffffff';
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.restore();
-                },
-                afterDraw: function(chart) {
-                    const ctx = chart.ctx;
-                    const centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
-                    const centerY = (chart.chartArea.top + chart.chartArea.bottom) / 2;
-                    const radius = chart.innerRadius * 0.95;
-                    
-                    ctx.save();
-                    ctx.fillStyle = '#ffffff';
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.restore();
-                }
-            }]
-        });
-        console.log('Efforts chart created successfully');
-    } catch (error) {
-        console.error('Error creating efforts chart:', error);
-    }
-}
-
-
-function renderEfficiencyMatrix() {
-    console.log('Starting renderEfficiencyMatrix...');
-    
-    // First, try to find existing canvas
-    let canvas = document.getElementById('efficiencyMatrixChart');
-    
-    // If canvas doesn't exist, create it in the existing div
-    if (!canvas) {
-        console.log('Canvas not found, creating it...');
-        const container = document.getElementById('efficiencyMatrix');
-        if (!container) {
-            console.error('Neither canvas nor container found');
-            return;
+// Utility functions
+function safeDestroyAutomationChart(chartKey) {
+    if (automationCharts[chartKey]) {
+        try {
+            automationCharts[chartKey].destroy();
+        } catch (error) {
+            console.warn(`Error destroying automation chart ${chartKey}:`, error);
         }
-        
-        // Clear the container and add canvas
-        container.innerHTML = '<canvas id="efficiencyMatrixChart" style="width: 100%; height: 400px;"></canvas>';
-        canvas = document.getElementById('efficiencyMatrixChart');
-    }
-    
-    if (!canvas) {
-        console.error('Failed to create canvas');
-        return;
-    }
-    
-    console.log('Canvas ready:', canvas);
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-        console.error('Could not get 2D context from canvas');
-        return;
-    }
-    
-    // Destroy existing chart if it exists
-    safeDestroyAutomationChart('efficiencyMatrix');
-    
-    // Get filtered data
-    const data = getFilteredAutomationData();
-    console.log('Filtered data:', data.length, 'records');
-    
-    if (data.length === 0) {
-        console.warn('No data available for efficiency matrix');
-        return;
-    }
-    
-    let items;
-    try {
-        // Determine what to show based on filters
-        if (typeof filters !== 'undefined' && filters.subGroup) {
-            console.log('Showing applications for subGroup:', filters.subGroup);
-            const apps = [...new Set(data.map(d => d.application))];
-            items = apps.map(app => {
-                const appData = data.filter(d => d.application === app);
-                const totalManual = appData.reduce((sum, d) => sum + (d.totalManualCases || 0), 0);
-                const totalAutomated = appData.reduce((sum, d) => sum + (d.totalAutomated || 0), 0);
-                const totalHours = appData.reduce((sum, d) => sum + (d.effortsSaved || 0), 0);
-                const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-                const efficiency = totalAutomated > 0 ? parseFloat((totalHours / totalAutomated).toFixed(1)) : 0;
-                
-                return { 
-                    name: app, 
-                    coverage, 
-                    efficiency, 
-                    totalAutomated, 
-                    totalHours,
-                    totalManual 
-                };
-            });
-        } else if (typeof filters !== 'undefined' && filters.group) {
-            console.log('Showing subgroups for group:', filters.group);
-            const subGroups = [...new Set(data.map(d => d.subGroup))];
-            items = subGroups.map(subGroup => {
-                const subGroupData = data.filter(d => d.subGroup === subGroup);
-                const totalManual = subGroupData.reduce((sum, d) => sum + (d.totalManualCases || 0), 0);
-                const totalAutomated = subGroupData.reduce((sum, d) => sum + (d.totalAutomated || 0), 0);
-                const totalHours = subGroupData.reduce((sum, d) => sum + (d.effortsSaved || 0), 0);
-                const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-                const efficiency = totalAutomated > 0 ? parseFloat((totalHours / totalAutomated).toFixed(1)) : 0;
-                
-                return { 
-                    name: subGroup, 
-                    coverage, 
-                    efficiency, 
-                    totalAutomated, 
-                    totalHours,
-                    totalManual 
-                };
-            });
-        } else {
-            console.log('Showing all groups');
-            const groups = [...new Set(data.map(d => d.group))];
-            items = groups.map(group => {
-                const groupData = data.filter(d => d.group === group);
-                const totalManual = groupData.reduce((sum, d) => sum + (d.totalManualCases || 0), 0);
-                const totalAutomated = groupData.reduce((sum, d) => sum + (d.totalAutomated || 0), 0);
-                const totalHours = groupData.reduce((sum, d) => sum + (d.effortsSaved || 0), 0);
-                const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-                const efficiency = totalAutomated > 0 ? parseFloat((totalHours / totalAutomated).toFixed(1)) : 0;
-                
-                return { 
-                    name: group, 
-                    coverage, 
-                    efficiency, 
-                    totalAutomated, 
-                    totalHours,
-                    totalManual 
-                };
-            });
-        }
-        
-        console.log('Processed items:', items);
-        
-        if (items.length === 0) {
-            console.warn('No items to display in efficiency matrix');
-            return;
-        }
-        
-        const labels = items.map(item => item.name);
-        const coverageData = items.map(item => item.coverage);
-        const efficiencyData = items.map(item => item.efficiency);
-        
-        // Truncate labels for mobile
-        const truncateLength = window.innerWidth < 768 ? 8 : 15;
-        const displayLabels = labels.map(label => 
-            label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
-        );
-        
-        console.log('Chart data prepared:', {
-            labels: displayLabels,
-            coverageData,
-            efficiencyData
-        });
-        
-        const fontSize = getAutomationResponsiveFontSize();
-        
-        // Create the chart
-        automationCharts.efficiencyMatrix = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: displayLabels,
-                datasets: [{
-                    label: 'Coverage %',
-                    data: coverageData,
-                    backgroundColor: '#3498db',
-                    borderColor: '#2980b9',
-                    borderWidth: 1,
-                    yAxisID: 'y'
-                }, {
-                    label: 'Efficiency (hrs/case)',
-                    data: efficiencyData,
-                    backgroundColor: '#e74c3c',
-                    borderColor: '#c0392b',
-                    borderWidth: 1,
-                    yAxisID: 'y1'
-                }]
-            },
-            options: {
-                ...automationBaseOptions,
-                plugins: {
-                    ...automationBaseOptions.plugins,
-                    legend: {
-                        ...automationBaseOptions.plugins.legend,
-                        position: window.innerWidth < 768 ? 'bottom' : 'top',
-                        labels: {
-                            ...automationBaseOptions.plugins.legend.labels,
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    },
-                    tooltip: {
-                        ...automationBaseOptions.plugins.tooltip,
-                        callbacks: {
-                            label: function(context) {
-                                const item = items[context.dataIndex];
-                                if (context.datasetIndex === 0) {
-                                    return [
-                                        'Coverage: ' + context.parsed.y + '%',
-                                        'Automated Cases: ' + item.totalAutomated,
-                                        'Total Cases: ' + item.totalManual
-                                    ];
-                                } else {
-                                    return [
-                                        'Efficiency: ' + context.parsed.y + ' hrs/case',
-                                        'Total Hours Saved: ' + item.totalHours,
-                                        'Cost Saved: '  + (item.totalHours * 50).toLocaleString()
-                                    ];
-                                }
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        ticks: {
-                            maxRotation: window.innerWidth < 768 ? 45 : 30,
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    },
-                    y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        max: 100,
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            },
-                            font: {
-                                size: fontSize
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Coverage %',
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        beginAtZero: true,
-                        grid: {
-                            drawOnChartArea: false
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return value + ' hrs';
-                            },
-                            font: {
-                                size: fontSize
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Efficiency (hrs/case)',
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        
-        console.log('Efficiency matrix chart created successfully');
-        
-    } catch (error) {
-        console.error('Error creating efficiency matrix chart:', error);
-        console.error('Error stack:', error.stack);
+        delete automationCharts[chartKey];
     }
 }
 
-// Insights Charts
-function renderAutomationInsightsCharts() {
-    console.log('Rendering insights charts...');
-    
-    setTimeout(() => renderCoverageGapChart(), 100);
-    setTimeout(() => renderAutomationMatrix(), 200);
-}
-
-function renderCoverageGapChart() {
-    const canvas = document.getElementById('coverageGapChart');
-    if (!canvas) {
-        console.error('Coverage gap chart canvas not found');
-        return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    safeDestroyAutomationChart('coverageGap');
-    
-    const data = getFilteredAutomationData();
-    
-    let labels, gaps, actualCoverage;
-    if (typeof filters !== 'undefined' && filters.subGroup) {
-        // Show applications when subgroup is selected
-        labels = [...new Set(data.map(d => d.application))];
-        gaps = labels.map(app => {
-            const appData = data.filter(d => d.application === app);
-            const totalManual = appData.reduce((sum, d) => sum + d.totalManualCases, 0);
-            const totalAutomated = appData.reduce((sum, d) => sum + d.totalAutomated, 0);
-            const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-            return Math.max(0, 90 - coverage);
-        });
-        actualCoverage = labels.map(app => {
-            const appData = data.filter(d => d.application === app);
-            const totalManual = appData.reduce((sum, d) => sum + d.totalManualCases, 0);
-            const totalAutomated = appData.reduce((sum, d) => sum + d.totalAutomated, 0);
-            return totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-        });
-    } else if (typeof filters !== 'undefined' && filters.group) {
-        // Show subgroups when group is selected
-        labels = [...new Set(data.map(d => d.subGroup))];
-        gaps = labels.map(subGroup => {
-            const subGroupData = data.filter(d => d.subGroup === subGroup);
-            const totalManual = subGroupData.reduce((sum, d) => sum + d.totalManualCases, 0);
-            const totalAutomated = subGroupData.reduce((sum, d) => sum + d.totalAutomated, 0);
-            const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-            return Math.max(0, 90 - coverage);
-        });
-        actualCoverage = labels.map(subGroup => {
-            const subGroupData = data.filter(d => d.subGroup === subGroup);
-            const totalManual = subGroupData.reduce((sum, d) => sum + d.totalManualCases, 0);
-            const totalAutomated = subGroupData.reduce((sum, d) => sum + d.totalAutomated, 0);
-            return totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-        });
-    } else {
-        // Show groups by default
-        labels = [...new Set(data.map(d => d.group))];
-        gaps = labels.map(group => {
-            const groupData = data.filter(d => d.group === group);
-            const totalManual = groupData.reduce((sum, d) => sum + d.totalManualCases, 0);
-            const totalAutomated = groupData.reduce((sum, d) => sum + d.totalAutomated, 0);
-            const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-            return Math.max(0, 90 - coverage);
-        });
-        actualCoverage = labels.map(group => {
-            const groupData = data.filter(d => d.group === group);
-            const totalManual = groupData.reduce((sum, d) => sum + d.totalManualCases, 0);
-            const totalAutomated = groupData.reduce((sum, d) => sum + d.totalAutomated, 0);
-            return totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-        });
-    }
-    
-    // Truncate labels for mobile
-    const truncateLength = window.innerWidth < 768 ? 8 : 15;
-    const displayLabels = labels.map(label => 
-        label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
-    );
-    
-    const fontSize = getAutomationResponsiveFontSize();
-    
-    try {
-        automationCharts.coverageGap = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: displayLabels,
-                datasets: [{
-                    label: 'Current Coverage',
-                    data: actualCoverage,
-                    backgroundColor: actualCoverage.map(coverage => {
-                        if (coverage >= 80) return '#27ae60';
-                        if (coverage >= 60) return '#3498db';
-                        if (coverage >= 40) return '#f39c12';
-                        return '#e74c3c';
-                    }),
-                    borderRadius: 5,
-                    order: 2
-                }, {
-                    label: 'Gap to Target (90%)',
-                    data: gaps,
-                    backgroundColor: gaps.map(gap => {
-                        if (gap <= 10) return 'rgba(39, 174, 96, 0.3)';
-                        if (gap <= 30) return 'rgba(52, 152, 219, 0.3)';
-                        if (gap <= 50) return 'rgba(243, 156, 18, 0.3)';
-                        return 'rgba(231, 76, 60, 0.3)';
-                    }),
-                    borderColor: gaps.map(gap => {
-                        if (gap <= 10) return '#27ae60';
-                        if (gap <= 30) return '#3498db';
-                        if (gap <= 50) return '#f39c12';
-                        return '#e74c3c';
-                    }),
-                    borderWidth: 2,
-                    borderRadius: 5,
-                    order: 1
-                }]
-            },
-            options: {
-                ...automationBaseOptions,
-                plugins: {
-                    ...automationBaseOptions.plugins,
-                    legend: {
-                        ...automationBaseOptions.plugins.legend,
-                        position: window.innerWidth < 768 ? 'bottom' : 'top',
-                        labels: {
-                            ...automationBaseOptions.plugins.legend.labels,
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    },
-                    tooltip: {
-                        ...automationBaseOptions.plugins.tooltip,
-                        callbacks: {
-                            label: function(context) {
-                                if (context.datasetIndex === 0) {
-                                    return 'Current Coverage: ' + context.parsed.y + '%';
-                                } else {
-                                    const totalCases = data.filter(d => {
-                                        if (typeof filters !== 'undefined' && filters.subGroup) return d.application === labels[context.dataIndex];
-                                        if (typeof filters !== 'undefined' && filters.group) return d.subGroup === labels[context.dataIndex];
-                                        return d.group === labels[context.dataIndex];
-                                    }).reduce((sum, d) => sum + d.totalManualCases, 0);
-                                    const potentialCases = Math.round(totalCases * (context.parsed.y / 100));
-                                    return [
-                                        'Gap: ' + context.parsed.y + '%',
-                                        'Potential Cases: ' + potentialCases,
-                                        'Est. Hours: ' + (potentialCases * 5.5).toFixed(0)
-                                    ];
-                                }
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    ...automationBaseOptions.scales,
-                    x: {
-                        ...automationBaseOptions.scales.x,
-                        ticks: {
-                            ...automationBaseOptions.scales.x.ticks,
-                            maxRotation: window.innerWidth < 768 ? 45 : 30,
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    },
-                    y: {
-                        ...automationBaseOptions.scales.y,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            },
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        console.log('Coverage gap chart created successfully');
-    } catch (error) {
-        console.error('Error creating coverage gap chart:', error);
-    }
-    
-    // Update summary with more detailed insights
-    const avgGap = gaps.length > 0 ? gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length : 0;
-    const appsNeedingWork = gaps.filter(gap => gap > 30).length;
-    const totalPotentialCases = data.reduce((sum, d) => {
-        const coverage = d.actualAutomation || 0;
-        const gap = Math.max(0, 90 - coverage);
-        return sum + Math.round(d.totalManualCases * (gap / 100));
-    }, 0);
-    const potentialHours = totalPotentialCases * 5.5;
-    const potentialSavings = potentialHours * 50;
-    
-    const summaryElement = document.getElementById('coverageGapSummary');
-    if (summaryElement) {
-        const isMobile = window.innerWidth < 768;
-        summaryElement.innerHTML = `
-            <div class="gap-summary-grid" style="${isMobile ? 'grid-template-columns: 1fr 1fr;' : ''}">
-                <div class="gap-summary-item">
-                    <div class="gap-summary-label">Average Gap</div>
-                    <div class="gap-summary-value">${avgGap.toFixed(1)}%</div>
-                </div>
-                <div class="gap-summary-item">
-                    <div class="gap-summary-label">Items Needing Focus</div>
-                    <div class="gap-summary-value">${appsNeedingWork}</div>
-                </div>
-                <div class="gap-summary-item">
-                    <div class="gap-summary-label">Potential Cases</div>
-                    <div class="gap-summary-value">${totalPotentialCases}</div>
-                </div>
-                <div class="gap-summary-item">
-                    <div class="gap-summary-label">Potential Savings</div>
-                    <div class="gap-summary-value">${potentialSavings.toLocaleString()}</div>
-                </div>
-            </div>
-        `;
-    }
-}
-
-function renderAutomationMatrix() {
-    console.log('Rendering automation opportunity areas...');
-    
-    const canvas = document.getElementById('coverageGapChart1');
-    if (!canvas) {
-        console.error('Automation opportunity areas canvas not found');
-        return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    
-    // Destroy existing chart
-    safeDestroyAutomationChart('opportunity');
-    
-    const data = getFilteredAutomationData();
-    
-    // Filter for coverage < 50%
-    const lowCoverageData = data.filter(d => {
-        const coverage = d.actualAutomation || 0;
-        return coverage < 50;
-    });
-    
-    console.log(`Found ${lowCoverageData.length} opportunity areas`);
-    
-    if (lowCoverageData.length === 0) {
-        const container = canvas.parentElement;
-        container.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: #27ae60;">
-                <h3>Excellent Coverage!</h3>
-                <p>All areas have ≥50% automation coverage</p>
-            </div>
-        `;
-        return;
-    }
-    
-    let items;
-    
-    // Group data based on current filters
-    if (typeof filters !== 'undefined' && filters.subGroup) {
-        // Show applications
-        const apps = [...new Set(lowCoverageData.map(d => d.application))];
-        items = apps.map(app => {
-            const appData = lowCoverageData.filter(d => d.application === app);
-            const totalManual = appData.reduce((sum, d) => sum + (d.totalManualCases || 0), 0);
-            const totalAutomated = appData.reduce((sum, d) => sum + (d.totalAutomated || 0), 0);
-            const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-            const potentialCases = totalManual - totalAutomated;
-            
-            return {
-                name: app,
-                coverage,
-                potentialCases,
-                totalManual
-            };
-        });
-    } else if (typeof filters !== 'undefined' && filters.group) {
-        // Show subgroups
-        const subGroups = [...new Set(lowCoverageData.map(d => d.subGroup))];
-        items = subGroups.map(subGroup => {
-            const subGroupData = lowCoverageData.filter(d => d.subGroup === subGroup);
-            const totalManual = subGroupData.reduce((sum, d) => sum + (d.totalManualCases || 0), 0);
-            const totalAutomated = subGroupData.reduce((sum, d) => sum + (d.totalAutomated || 0), 0);
-            const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-            const potentialCases = totalManual - totalAutomated;
-            
-            return {
-                name: subGroup,
-                coverage,
-                potentialCases,
-                totalManual
-            };
-        });
-    } else {
-        // Show groups
-        const groups = [...new Set(lowCoverageData.map(d => d.group))];
-        items = groups.map(group => {
-            const groupData = lowCoverageData.filter(d => d.group === group);
-            const totalManual = groupData.reduce((sum, d) => sum + (d.totalManualCases || 0), 0);
-            const totalAutomated = groupData.reduce((sum, d) => sum + (d.totalAutomated || 0), 0);
-            const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-            const potentialCases = totalManual - totalAutomated;
-            
-            return {
-                name: group,
-                coverage,
-                potentialCases,
-                totalManual
-            };
-        });
-    }
-    
-    // Sort by lowest coverage first (biggest opportunities)
-    items.sort((a, b) => a.coverage - b.coverage);
-    
-    if (items.length === 0) {
-        const container = canvas.parentElement;
-        container.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: #27ae60;">
-                <h3>Great Coverage!</h3>
-                <p>No opportunity areas in current selection</p>
-            </div>
-        `;
-        return;
-    }
-    
-    const labels = items.map(item => item.name);
-    const coverageData = items.map(item => item.coverage);
-    const potentialData = items.map(item => item.potentialCases);
-    
-    // Truncate labels for mobile
-    const truncateLength = window.innerWidth < 768 ? 8 : 15;
-    const displayLabels = labels.map(label => 
-        label.length > truncateLength ? label.substring(0, truncateLength) + '...' : label
-    );
-    
-    const fontSize = getAutomationResponsiveFontSize();
-    
-    try {
-        automationCharts.opportunity = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: displayLabels,
-                datasets: [{
-                    label: 'Current Coverage %',
-                    data: coverageData,
-                    backgroundColor: coverageData.map(coverage => {
-                        if (coverage < 20) return '#e74c3c'; // Critical - Red
-                        if (coverage < 35) return '#f39c12'; // High opportunity - Orange
-                        return '#3498db'; // Moderate opportunity - Blue
-                    }),
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                ...automationBaseOptions,
-                plugins: {
-                    ...automationBaseOptions.plugins,
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        ...automationBaseOptions.plugins.tooltip,
-                        callbacks: {
-                            title: function(context) {
-                                return labels[context[0].dataIndex] + ' - Opportunity Area';
-                            },
-                            label: function(context) {
-                                const item = items[context.dataIndex];
-                                const potentialSavings = item.potentialCases * 5.5 * 50; // 5.5 hrs/case * $50/hr
-                                return [
-                                    'Current Coverage: ' + context.parsed.y + '%',
-                                    'Potential Cases: ' + item.potentialCases,
-                                    'Total Cases: ' + item.totalManual
-                                ];
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    ...automationBaseOptions.scales,
-                    x: {
-                        ...automationBaseOptions.scales.x,
-                        ticks: {
-                            ...automationBaseOptions.scales.x.ticks,
-                            maxRotation: window.innerWidth < 768 ? 45 : 30,
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    },
-                    y: {
-                        ...automationBaseOptions.scales.y,
-                        max: 50,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            },
-                            font: {
-                                size: fontSize
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Current Automation Coverage %',
-                            font: {
-                                size: fontSize
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        
-        // Add simple summary below chart
-        const totalPotential = items.reduce((sum, item) => sum + item.potentialCases, 0);
-        const totalSavings = totalPotential * 5.5 * 50;
-        
-        const container = canvas.parentElement;
-        const existingSummary = container.querySelector('.opportunity-summary');
-        if (existingSummary) {
-            existingSummary.remove();
-        }
-        
-        const summaryDiv = document.createElement('div');
-        summaryDiv.className = 'opportunity-summary';
-        summaryDiv.innerHTML = `
-            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; text-align: center;">
-                <strong style="color: #c41e3a;">${items.length} Opportunity Areas Found</strong><br>
-                <span style="color: #666; font-size: 14px;">
-                    ${totalPotential.toLocaleString()} potential cases • 
-                    ${totalSavings.toLocaleString()} potential savings
-                </span>
-            </div>
-        `;
-        container.appendChild(summaryDiv);
-        
-        console.log('Opportunity areas chart created successfully');
-        
-    } catch (error) {
-        console.error('Error creating opportunity chart:', error);
-    }
-}
-
-// Resize handler for automation charts
-function handleAutomationChartResize() {
-    // Update font sizes based on current window size
-    const fontSize = getAutomationResponsiveFontSize();
-    
-    // Get current active tab
-    const activeTab = document.querySelector('#automationPage .tab.active');
-    if (activeTab) {
-        const tabName = activeTab.getAttribute('data-tab');
-        
-        // Add a small delay to ensure DOM has updated
-        setTimeout(() => {
-            renderChartsForTab(tabName);
-        }, 100);
-    }
-}
-
-// Add resize listener for automation charts
-if (typeof window !== 'undefined') {
-    window.addEventListener('resize', debounce(handleAutomationChartResize, 300));
-}
-
-// Function to update all visible automation charts
-function updateVisibleAutomationCharts() {
-    Object.keys(automationCharts).forEach(key => {
-        const canvas = document.getElementById(key + 'Chart') || document.getElementById(key);
-        if (canvas && isElementVisible(canvas) && automationCharts[key]) {
-            try {
-                automationCharts[key].update('none'); // Update without animation for performance
-            } catch (error) {
-                console.warn(`Error updating automation chart ${key}:`, error);
-            }
-        }
-    });
-}
-
-// Function to check if element is visible (reuse from main charts)
-function isElementVisible(element) {
-    if (!element) return false;
-    const rect = element.getBoundingClientRect();
-    return (
-        rect.top >= 0 &&
-        rect.left >= 0 &&
-        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-    );
-}
-
-// Debounce function for resize events (reuse from main charts)
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-// Export functions for external use
+// Export functions for integration with main dashboard
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
+        loadAutomationData,
         initializeAutomationPage,
         updateAutomationMetrics,
-        renderChartsForTab,
-        handleAutomationChartResize,
-        updateVisibleAutomationCharts,
+        switchAutomationTab,
+        populateAutomationFilters,
         automationCharts
     };
-} 
+}
