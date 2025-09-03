@@ -1,177 +1,19 @@
-// FIXED: Get past 3 months from current month (not future months)
-function getMonthsForTrends(selectedMonth) {
-    console.log('\n=== GETTING PAST 3 MONTHS FOR TRENDS ===');
-    
-    const analysis = analyzeTrendsData();
-    const { availableMonths, monthData } = analysis;
-    
-    if (availableMonths.length === 0) {
-        console.error('No months with test data found');
-        return [];
-    }
-    
-    console.log(`Selected month: "${selectedMonth}"`);
-    console.log('Available months:', availableMonths);
-    
-    // If no specific month is selected, use the latest available month
-    const currentMonth = selectedMonth || availableMonths[availableMonths.length - 1];
-    console.log(`Using current month: "${currentMonth}"`);
-    
-    // Get past 3 months including current month
-    const pastMonths = getPast3MonthsFromCurrent(currentMonth, availableMonths);
-    
-    console.log('Past 3 months (including current):', pastMonths);
-    return pastMonths;
+import type { Reporter, FullConfig, Suite, TestCase, TestResult, FullResult } from '@playwright/test/reporter';
+
+class CustomReporter implements Reporter {
+  onBegin(config: FullConfig, suite: Suite) {
+    console.log(`Starting tests: ${suite.allTests().length} tests`);
+  }
+
+  onTestEnd(test: TestCase, result: TestResult) {
+    console.log(`${test.title}: ${result.status}`);
+  }
+
+  onEnd(result: FullResult) {
+    console.log('All tests completed!');
+  }
+
+  // Optional: Implement other methods as needed, such as onStdOut, onStdErr, onError
 }
 
-// NEW FUNCTION: Get past 3 months from current month
-function getPast3MonthsFromCurrent(currentMonth, availableMonths) {
-    const months = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    
-    // Find the index of current month
-    const currentIndex = months.indexOf(currentMonth);
-    if (currentIndex === -1) {
-        console.warn(`Current month "${currentMonth}" not found in months array`);
-        return availableMonths.slice(-3); // Fallback to last 3 available
-    }
-    
-    console.log(`Current month "${currentMonth}" is at index ${currentIndex}`);
-    
-    // Generate past 3 months (including current)
-    const pastMonthsToCheck = [];
-    for (let i = 2; i >= 0; i--) { // Start from 2 months ago to current
-        const monthIndex = (currentIndex - i + 12) % 12; // Handle year wrap-around
-        pastMonthsToCheck.push(months[monthIndex]);
-    }
-    
-    console.log('Past 3 months to check:', pastMonthsToCheck);
-    
-    // Filter to only include months that have data
-    const pastMonthsWithData = pastMonthsToCheck.filter(month => 
-        availableMonths.includes(month)
-    );
-    
-    console.log('Past months with actual data:', pastMonthsWithData);
-    
-    // If we don't have enough past months with data, supplement with available months
-    if (pastMonthsWithData.length < 3) {
-        console.log('Not enough past months with data, supplementing...');
-        
-        // Add more available months if needed
-        const additionalMonths = availableMonths.filter(month => 
-            !pastMonthsWithData.includes(month)
-        );
-        
-        // Take the most recent additional months
-        const supplemented = [...pastMonthsWithData, ...additionalMonths.slice(-3)];
-        
-        // Remove duplicates and limit to 3
-        const uniqueMonths = [...new Set(supplemented)];
-        const final = uniqueMonths.slice(-3);
-        
-        console.log('Supplemented with additional months:', final);
-        return final;
-    }
-    
-    return pastMonthsWithData;
-}
-
-// ALTERNATIVE SIMPLER APPROACH: Always get past 3 months chronologically
-function getMonthsForTrendsSimple(selectedMonth) {
-    console.log('\n=== GETTING PAST 3 MONTHS (SIMPLE APPROACH) ===');
-    
-    const analysis = analyzeTrendsData();
-    const { availableMonths } = analysis;
-    
-    if (availableMonths.length === 0) {
-        return [];
-    }
-    
-    // If we have a selected month, find past 3 months from that point
-    if (selectedMonth && availableMonths.includes(selectedMonth)) {
-        const months = [
-            'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'
-        ];
-        
-        const currentIndex = months.indexOf(selectedMonth);
-        const pastMonths = [];
-        
-        // Get past 3 months (including current)
-        for (let i = 2; i >= 0; i--) {
-            const monthIndex = (currentIndex - i + 12) % 12;
-            const monthName = months[monthIndex];
-            
-            // Only include if we have data for this month
-            if (availableMonths.includes(monthName)) {
-                pastMonths.push(monthName);
-            }
-        }
-        
-        console.log(`Past 3 months from ${selectedMonth}:`, pastMonths);
-        
-        // If we have enough past months, return them
-        if (pastMonths.length > 0) {
-            return pastMonths;
-        }
-    }
-    
-    // Fallback: return the most recent 3 months with data
-    console.log('Using fallback: most recent 3 months with data');
-    return availableMonths.slice(-3);
-}
-
-// UPDATE THE MAIN RENDER FUNCTION TO USE THE FIXED LOGIC
-function renderTestCasesTrendsChartFixed(data) {
-    console.log('\n=== RENDERING FIXED TRENDS CHART ===');
-    
-    const ctx = document.getElementById('testCasesTrendsChart');
-    if (!ctx) {
-        console.error('Canvas not found');
-        return;
-    }
-    
-    safeDestroyChart('testCasesTrends');
-    
-    const sourceData = data || qualityData || [];
-    if (sourceData.length === 0) {
-        showEmptyTrendsChart('No data available');
-        return;
-    }
-    
-    // 🔥 FIXED: Use the corrected function that gets past months
-    const monthsToShow = getMonthsForTrendsSimple(filters.month);
-    
-    if (monthsToShow.length === 0) {
-        showEmptyTrendsChart('No months with test case data found');
-        return;
-    }
-    
-    console.log('Final months to display (PAST 3 from current):', monthsToShow);
-    
-    // Rest of the function remains the same...
-    // [Include all the existing logic for entities, datasets, chart creation]
-    
-    // The key change is just using the fixed month selection logic above
-    
-    console.log('✅ Trends chart created successfully with PAST 3 months!');
-}
-
-// DEBUGGING: Test the month logic
-function testMonthLogic() {
-    console.log('\n=== TESTING MONTH LOGIC ===');
-    
-    const testMonths = ['March', 'June', 'September', 'December'];
-    
-    testMonths.forEach(month => {
-        console.log(`\n--- Testing for current month: ${month} ---`);
-        const result = getPast3MonthsFromCurrent(month, [
-            'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'
-        ]);
-        console.log(`Past 3 months: ${result.join(', ')}`);
-    });
-}
+export default CustomReporter;
