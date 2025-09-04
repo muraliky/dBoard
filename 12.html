@@ -1,464 +1,82 @@
-// DEBUG DATA FILTERING ISSUE
-// When current month works but past months show zero
+import path from "path";
+import fs from "fs";
+import ExcelJS from "exceljs";
 
-// STEP 1: Compare current month vs past months data
-function debugDataByMonth() {
-    console.log('\n🔍 DEBUGGING DATA BY MONTH - Why past months show zero');
-    
-    const sourceData = qualityData || [];
-    const monthsToShow = getMonthsForTrendsSimple(filters.month);
-    
-    console.log('Months to analyze:', monthsToShow);
-    console.log('Current filters:', filters);
-    
-    // Analyze each month separately
-    monthsToShow.forEach(month => {
-        console.log(`\n📅 ANALYZING ${month.toUpperCase()}`);
-        console.log('=' .repeat(40));
-        
-        // Get all records for this month
-        const monthRecords = sourceData.filter(record => {
-            const recordMonth = getMonthFromDateEnhanced(record.goLiveDate);
-            return recordMonth === month;
-        });
-        
-        console.log(`Total records in ${month}: ${monthRecords.length}`);
-        
-        if (monthRecords.length === 0) {
-            console.log(`❌ NO RECORDS FOUND for ${month}`);
-            
-            // Show what months DO exist
-            const existingMonths = new Set();
-            sourceData.forEach(record => {
-                const m = getMonthFromDateEnhanced(record.goLiveDate);
-                if (m) existingMonths.add(m);
-            });
-            console.log('Available months in data:', Array.from(existingMonths).sort());
-            return;
-        }
-        
-        // Show sample records
-        console.log(`Sample records in ${month}:`);
-        monthRecords.slice(0, 3).forEach((record, i) => {
-            console.log(`  [${i}] Date: ${record.goLiveDate} | Group: "${record.group}" | SubGroup: "${record.subGroup}" | App: "${record.application}"`);
-            console.log(`      Functional: ${record.functionalTestTotal}, Regression: ${record.regressionTestTotal}`);
-        });
-        
-        // Check data quality
-        const recordsWithTestData = monthRecords.filter(record => {
-            const functional = parseInt(record.functionalTestTotal) || 0;
-            const regression = parseInt(record.regressionTestTotal) || 0;
-            return functional > 0 || regression > 0;
-        });
-        
-        console.log(`Records with test data: ${recordsWithTestData.length}/${monthRecords.length}`);
-        
-        // Check filter matching
-        let matchingRecords = 0;
-        let totalTestCases = 0;
-        
-        monthRecords.forEach(record => {
-            let matches = false;
-            
-            if (filters.group && filters.subGroup) {
-                matches = record.group === filters.group && 
-                         record.subGroup === filters.subGroup;
-            } else if (filters.group) {
-                matches = record.group === filters.group;
-            } else {
-                matches = true; // No filters
-            }
-            
-            if (matches) {
-                matchingRecords++;
-                const functional = parseInt(record.functionalTestTotal) || 0;
-                const regression = parseInt(record.regressionTestTotal) || 0;
-                totalTestCases += functional + regression;
-            }
-        });
-        
-        console.log(`Records matching filters: ${matchingRecords}`);
-        console.log(`Total test cases after filters: ${totalTestCases}`);
-        
-        if (matchingRecords === 0) {
-            console.log(`❌ NO RECORDS MATCH FILTERS in ${month}`);
-            
-            // Show what groups/subgroups exist in this month
-            const groups = new Set();
-            const subGroups = new Set();
-            monthRecords.forEach(record => {
-                if (record.group) groups.add(record.group);
-                if (record.subGroup) subGroups.add(record.subGroup);
-            });
-            
-            console.log(`Available groups in ${month}:`, Array.from(groups));
-            console.log(`Available subgroups in ${month}:`, Array.from(subGroups));
-            console.log(`Looking for group: "${filters.group}", subgroup: "${filters.subGroup}"`);
-        }
-        
-        if (totalTestCases === 0) {
-            console.log(`❌ MATCHING RECORDS HAVE ZERO TEST CASES in ${month}`);
-        }
-    });
+export type Row = Record<string, string>;
+
+type LoadOptions = {
+  filePath: string;              // e.g. data/TestData.xlsx
+  sheetName?: string;            // optional; first sheet if omitted
+  yesValues?: string[];          // which values mean "run"
+  trimHeaders?: boolean;         // default true
+  normalizeHeaders?: boolean;    // default false (preserve Excel headers)
+};
+
+/** Convert any ExcelJS cell value to a string (empty when nullish). */
+function toStringValue(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "object" && "text" in (v as any)) return String((v as any).text ?? "").trim();
+  return String(v).trim();
 }
 
-// STEP 2: Compare date parsing across months
-function debugDateParsing() {
-    console.log('\n🔍 DEBUGGING DATE PARSING ACROSS MONTHS');
-    
-    const sourceData = qualityData || [];
-    const dateSamples = {};
-    
-    // Group sample dates by parsed month
-    sourceData.forEach((record, index) => {
-        const parsedMonth = getMonthFromDateEnhanced(record.goLiveDate);
-        
-        if (!dateSamples[parsedMonth]) {
-            dateSamples[parsedMonth] = [];
-        }
-        
-        if (dateSamples[parsedMonth].length < 3) {
-            dateSamples[parsedMonth].push({
-                index,
-                original: record.goLiveDate,
-                type: typeof record.goLiveDate,
-                parsed: parsedMonth
-            });
-        }
-    });
-    
-    console.log('Date parsing samples by month:');
-    Object.entries(dateSamples).forEach(([month, samples]) => {
-        console.log(`\n${month || 'NULL/UNDEFINED'}:`);
-        samples.forEach(sample => {
-            console.log(`  "${sample.original}" (${sample.type}) -> "${sample.parsed}"`);
-        });
-    });
+/** Optionally normalize header names (if you prefer stable keys). */
+function normalize(h: string): string {
+  return h.toLowerCase().replace(/\s+|[_-]+/g, "").trim();
 }
 
-// STEP 3: Test entity matching logic specifically
-function debugEntityMatching() {
-    console.log('\n🔍 DEBUGGING ENTITY MATCHING LOGIC');
-    
-    const sourceData = qualityData || [];
-    const monthsToShow = getMonthsForTrendsSimple(filters.month);
-    
-    // Determine what entities we should be comparing
-    const entitiesWithData = new Set();
-    
-    sourceData.forEach(record => {
-        const month = getMonthFromDateEnhanced(record.goLiveDate);
-        if (!monthsToShow.includes(month)) return;
-        
-        const functionalTotal = parseInt(record.functionalTestTotal) || 0;
-        const regressionTotal = parseInt(record.regressionTestTotal) || 0;
-        if (functionalTotal === 0 && regressionTotal === 0) return;
-        
-        if (filters.group && filters.subGroup) {
-            if (record.group === filters.group && record.subGroup === filters.subGroup) {
-                entitiesWithData.add(record.application);
-            }
-        } else if (filters.group) {
-            if (record.group === filters.group) {
-                entitiesWithData.add(record.subGroup);
-            }
-        } else {
-            entitiesWithData.add(record.group);
-        }
-    });
-    
-    const entities = Array.from(entitiesWithData).filter(e => e && e.trim());
-    console.log('Entities that should have data:', entities);
-    
-    // Test each entity for each month
-    entities.slice(0, 2).forEach(entity => {
-        console.log(`\n🔍 Testing entity: "${entity}"`);
-        
-        monthsToShow.forEach(month => {
-            console.log(`\n  --- ${entity} in ${month} ---`);
-            
-            const monthRecords = sourceData.filter(record => {
-                const recordMonth = getMonthFromDateEnhanced(record.goLiveDate);
-                return recordMonth === month;
-            });
-            
-            console.log(`  Total records in ${month}: ${monthRecords.length}`);
-            
-            if (monthRecords.length === 0) {
-                console.log(`  ❌ No records in ${month}`);
-                return;
-            }
-            
-            // Test entity matching
-            const entityRecords = monthRecords.filter(record => {
-                if (filters.group && filters.subGroup) {
-                    const groupMatch = record.group === filters.group;
-                    const subGroupMatch = record.subGroup === filters.subGroup;
-                    const appMatch = record.application === entity;
-                    
-                    console.log(`    Record: Group="${record.group}" (${groupMatch}) | SubGroup="${record.subGroup}" (${subGroupMatch}) | App="${record.application}" (${appMatch})`);
-                    
-                    return groupMatch && subGroupMatch && appMatch;
-                } else if (filters.group) {
-                    const groupMatch = record.group === filters.group;
-                    const subGroupMatch = record.subGroup === entity;
-                    
-                    console.log(`    Record: Group="${record.group}" (${groupMatch}) | SubGroup="${record.subGroup}" (${subGroupMatch})`);
-                    
-                    return groupMatch && subGroupMatch;
-                } else {
-                    const groupMatch = record.group === entity;
-                    
-                    console.log(`    Record: Group="${record.group}" (${groupMatch})`);
-                    
-                    return groupMatch;
-                }
-            });
-            
-            console.log(`  Matching records: ${entityRecords.length}`);
-            
-            if (entityRecords.length > 0) {
-                const totalTestCases = entityRecords.reduce((sum, record) => {
-                    const functional = parseInt(record.functionalTestTotal) || 0;
-                    const regression = parseInt(record.regressionTestTotal) || 0;
-                    return sum + functional + regression;
-                }, 0);
-                
-                console.log(`  Total test cases: ${totalTestCases}`);
-                
-                if (totalTestCases === 0) {
-                    console.log(`  ⚠️  Records found but zero test cases!`);
-                    entityRecords.forEach(record => {
-                        console.log(`    F:${record.functionalTestTotal}, R:${record.regressionTestTotal}`);
-                    });
-                }
-            } else {
-                console.log(`  ❌ No matching records for "${entity}"`);
-                
-                // Show what's available
-                const availableEntities = new Set();
-                monthRecords.forEach(record => {
-                    if (filters.group && filters.subGroup) {
-                        if (record.group === filters.group && record.subGroup === filters.subGroup) {
-                            availableEntities.add(record.application);
-                        }
-                    } else if (filters.group) {
-                        if (record.group === filters.group) {
-                            availableEntities.add(record.subGroup);
-                        }
-                    } else {
-                        availableEntities.add(record.group);
-                    }
-                });
-                
-                console.log(`  Available entities: [${Array.from(availableEntities).join(', ')}]`);
-            }
-        });
-    });
-}
+export async function loadEnabledRows(opts: LoadOptions): Promise<Row[]> {
+  const {
+    filePath,
+    sheetName,
+    yesValues = ["yes", "y", "true", "1"],
+    trimHeaders = true,
+    normalizeHeaders = false,
+  } = opts;
 
-// STEP 4: Check for data consistency issues
-function debugDataConsistency() {
-    console.log('\n🔍 DEBUGGING DATA CONSISTENCY ISSUES');
-    
-    const sourceData = qualityData || [];
-    const monthsToShow = getMonthsForTrendsSimple(filters.month);
-    
-    console.log('Checking for common data issues...');
-    
-    // Check 1: Date format consistency
-    console.log('\n1. Date format consistency:');
-    const dateFormats = new Set();
-    sourceData.forEach(record => {
-        if (record.goLiveDate) {
-            dateFormats.add(typeof record.goLiveDate);
-        }
-    });
-    console.log('Date types found:', Array.from(dateFormats));
-    
-    // Check 2: Missing or null values
-    console.log('\n2. Missing/null value analysis:');
-    const nullCounts = {
-        goLiveDate: 0,
-        group: 0,
-        subGroup: 0,
-        application: 0,
-        functionalTestTotal: 0,
-        regressionTestTotal: 0
-    };
-    
-    sourceData.forEach(record => {
-        Object.keys(nullCounts).forEach(key => {
-            if (!record[key] || record[key] === null || record[key] === undefined || record[key] === '') {
-                nullCounts[key]++;
-            }
-        });
-    });
-    
-    console.log('Null/missing values:');
-    Object.entries(nullCounts).forEach(([field, count]) => {
-        const percentage = ((count / sourceData.length) * 100).toFixed(1);
-        console.log(`  ${field}: ${count}/${sourceData.length} (${percentage}%)`);
-    });
-    
-    // Check 3: Entity name consistency
-    console.log('\n3. Entity name consistency:');
-    monthsToShow.forEach(month => {
-        const monthRecords = sourceData.filter(record => {
-            const recordMonth = getMonthFromDateEnhanced(record.goLiveDate);
-            return recordMonth === month;
-        });
-        
-        if (monthRecords.length === 0) return;
-        
-        const entities = new Set();
-        monthRecords.forEach(record => {
-            if (filters.group && filters.subGroup) {
-                if (record.group === filters.group && record.subGroup === filters.subGroup) {
-                    entities.add(record.application);
-                }
-            } else if (filters.group) {
-                if (record.group === filters.group) {
-                    entities.add(record.subGroup);
-                }
-            } else {
-                entities.add(record.group);
-            }
-        });
-        
-        console.log(`${month}: [${Array.from(entities).join(', ')}]`);
-    });
-}
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(path.resolve(filePath));
 
-// MAIN COMPREHENSIVE DEBUG FUNCTION
-function debugPastMonthsZeroData() {
-    console.log('\n🚀 DEBUGGING WHY PAST MONTHS SHOW ZERO DATA');
-    console.log('='.repeat(50));
-    
-    console.log('Current situation:');
-    console.log('✅ Chart displays correctly');
-    console.log('✅ Current month shows data'); 
-    console.log('❌ Past 2 months show zero');
-    console.log('');
-    
-    // Run all debug steps
-    debugDateParsing();
-    debugDataByMonth();
-    debugEntityMatching();
-    debugDataConsistency();
-    
-    console.log('\n🎯 SUMMARY & LIKELY FIXES:');
-    console.log('1. Check if past months actually have data in your source');
-    console.log('2. Verify date parsing works consistently for all months');
-    console.log('3. Check if entity names changed between months');
-    console.log('4. Verify filters are not too restrictive for past data');
-    console.log('5. Check for missing/null values in past months');
-}
+  const sheet = sheetName ? workbook.getWorksheet(sheetName) : workbook.worksheets[0];
+  if (!sheet) throw new Error(`Worksheet "${sheetName ?? "<first>"}" not found`);
 
-// QUICK FIX: More flexible data retrieval
-function getEntityDataFlexible(sourceData, entity, month, filters) {
-    console.log(`\n🔧 FLEXIBLE: Getting data for "${entity}" in "${month}"`);
-    
-    // Step 1: Get all records for the month (more lenient date matching)
-    const monthRecords = sourceData.filter(record => {
-        const recordMonth = getMonthFromDateEnhanced(record.goLiveDate);
-        
-        // Try exact match first
-        if (recordMonth === month) return true;
-        
-        // Try partial month name matching
-        if (recordMonth && month && 
-            recordMonth.toLowerCase().includes(month.toLowerCase()) ||
-            month.toLowerCase().includes(recordMonth.toLowerCase())) {
-            return true;
-        }
-        
-        return false;
+  // 1) Read headers from row 1
+  const headersRaw: string[] = [];
+  sheet.getRow(1).eachCell((cell, col) => {
+    const raw = String(cell.value ?? "");
+    headersRaw[col - 1] = trimHeaders ? raw.trim() : raw;
+  });
+
+  const headers = headersRaw.map(h => (normalizeHeaders ? normalize(h) : h));
+
+  const enabled: Row[] = [];
+
+  // 2) Iterate rows
+  sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber === 1) return; // skip header
+
+    const obj: Row = {};
+    // Fill with empty strings by default for ALL headers
+    for (const h of headers) obj[h] = "";
+
+    headers.forEach((h, idx) => {
+      const v = row.getCell(idx + 1).value;
+      obj[h] = toStringValue(v);
     });
-    
-    console.log(`Found ${monthRecords.length} records for ${month}`);
-    
-    if (monthRecords.length === 0) {
-        return { totalTestCases: 0, functionalTotal: 0, regressionTotal: 0, recordsCount: 0 };
+
+    // Default RunMode = "No" if absent/blank
+    const runModeKey = headers.find(h => h.toLowerCase() === "runmode");
+    const run = toStringValue(runModeKey ? obj[runModeKey] : "").toLowerCase() || "no";
+    if (runModeKey) obj[runModeKey] = run; // keep what we computed
+
+    if (yesValues.includes(run)) {
+      enabled.push(obj);
     }
-    
-    // Step 2: More flexible entity matching
-    const entityRecords = monthRecords.filter(record => {
-        // Normalize strings for comparison
-        const normalizeStr = (str) => str ? str.toString().trim().toLowerCase() : '';
-        const normalizedEntity = normalizeStr(entity);
-        
-        if (filters.group && filters.subGroup) {
-            const groupMatch = normalizeStr(record.group) === normalizeStr(filters.group);
-            const subGroupMatch = normalizeStr(record.subGroup) === normalizeStr(filters.subGroup);
-            const appMatch = normalizeStr(record.application) === normalizedEntity ||
-                           normalizeStr(record.application).includes(normalizedEntity) ||
-                           normalizedEntity.includes(normalizeStr(record.application));
-            
-            return groupMatch && subGroupMatch && appMatch;
-        } else if (filters.group) {
-            const groupMatch = normalizeStr(record.group) === normalizeStr(filters.group);
-            const subGroupMatch = normalizeStr(record.subGroup) === normalizedEntity ||
-                                 normalizeStr(record.subGroup).includes(normalizedEntity) ||
-                                 normalizedEntity.includes(normalizeStr(record.subGroup));
-            
-            return groupMatch && subGroupMatch;
-        } else {
-            const groupMatch = normalizeStr(record.group) === normalizedEntity ||
-                             normalizeStr(record.group).includes(normalizedEntity) ||
-                             normalizedEntity.includes(normalizeStr(record.group));
-            
-            return groupMatch;
-        }
-    });
-    
-    console.log(`Found ${entityRecords.length} matching records`);
-    
-    // Step 3: Calculate totals with better parsing
-    const functionalTotal = entityRecords.reduce((sum, record) => {
-        let val = record.functionalTestTotal;
-        if (typeof val === 'string') val = parseInt(val.replace(/[^0-9]/g, '')) || 0;
-        if (typeof val === 'number') return sum + val;
-        return sum;
-    }, 0);
-    
-    const regressionTotal = entityRecords.reduce((sum, record) => {
-        let val = record.regressionTestTotal;
-        if (typeof val === 'string') val = parseInt(val.replace(/[^0-9]/g, '')) || 0;
-        if (typeof val === 'number') return sum + val;
-        return sum;
-    }, 0);
-    
-    const totalTestCases = functionalTotal + regressionTotal;
-    
-    console.log(`Results: F=${functionalTotal}, R=${regressionTotal}, Total=${totalTestCases}`);
-    
-    return {
-        totalTestCases,
-        functionalTotal,
-        regressionTotal,
-        recordsCount: entityRecords.length
-    };
+  });
+
+  return enabled;
 }
 
-// USAGE
-console.log(`
-🎯 TO DEBUG PAST MONTHS SHOWING ZERO:
-
-1. Run: debugPastMonthsZeroData()
-   - This will analyze everything systematically
-
-2. Look for these common issues:
-   ❌ Date parsing fails for past months
-   ❌ Entity names different in past months  
-   ❌ Missing data in past months
-   ❌ Filters too restrictive
-
-3. Try the flexible data retrieval:
-   Replace your getEntityDataForMonth with getEntityDataFlexible
-
-4. Check your source data manually:
-   - Do past months actually have records?
-   - Are the date formats consistent?
-   - Are group/subgroup names the same?
-`);
+export function writeRowsJson(rows: Row[], outPath: string) {
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify(rows, null, 2), "utf8");
+}
