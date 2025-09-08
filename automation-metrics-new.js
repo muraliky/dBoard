@@ -1083,46 +1083,34 @@ function renderAutomationOpportunityMatrix() {
         });
     }
     
-    // Calculate opportunities with enhanced scoring
-    const opportunities = groupedData.map(d => {
-        let score = 0;
-        score += (d.gap / 90) * 40;
-        
-        const highPriorityRatio = d.highPriorityTests / Math.max(1, d.totalManual);
-        score += highPriorityRatio * 30;
-        
-        const readinessScore = d.readiness === 'Ready' ? 0.5 : d.readiness === 'Partial' ? 0.3 : 0;
-        score += readinessScore * 20;
-        
-        const roiScore = Math.min(500, d.saveInHours) / 500;
-        score += roiScore * 10;
-        
-        return {
-            ...d,
-            score: Math.round(score)
-        };
-    })
-    .filter(o => o.score > 20 || o.gap > 10) // Show items with significant gaps or scores
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6);
+    // Sort by coverage gap (highest gaps first)
+    const allOpportunities = groupedData.sort((a, b) => b.gap - a.gap);
     
-    if (opportunities.length === 0) {
+    if (allOpportunities.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 60px 20px; color: #27ae60;">
-                <h4 style="font-size: 20px; margin-bottom: 10px; color: #27ae60;">All applications have good coverage!</h4>
-                <p style="color: #666; font-size: 14px;">No significant automation opportunities found.</p>
+                <h4 style="font-size: 20px; margin-bottom: 10px; color: #27ae60;">No data available!</h4>
+                <p style="color: #666; font-size: 14px;">No automation data found for the selected filters.</p>
             </div>
         `;
         return;
     }
     
-    let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 25px; padding: 20px 0;">';
+    // Simple responsive grid - no pagination, no header
+    let html = `
+        <div style="
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
+            gap: 20px;
+            padding: 10px 0;
+        ">
+    `;
     
-    opportunities.forEach((opp, index) => {
-        const priorityColor = opp.score >= 70 ? '#e74c3c' : opp.score >= 50 ? '#f39c12' : '#3498db';
-        const priorityBg = opp.score >= 70 ? 'linear-gradient(135deg, #fff5f5, #ffffff)' : 
-                          opp.score >= 50 ? 'linear-gradient(135deg, #fffbf0, #ffffff)' : 
-                          'linear-gradient(135deg, #f0f9ff, #ffffff)';
+    allOpportunities.forEach((opp, index) => {
+        const priorityColor = opp.gap >= 30 ? '#e74c3c' : opp.gap >= 15 ? '#f39c12' : '#27ae60';
+        const priorityBg = opp.gap >= 30 ? 'linear-gradient(135deg, #fff5f5, #ffffff)' : 
+                          opp.gap >= 15 ? 'linear-gradient(135deg, #fffbf0, #ffffff)' : 
+                          'linear-gradient(135deg, #f0fff0, #ffffff)';
         
         // Determine display context based on filter level
         let displayContext = '';
@@ -1197,7 +1185,7 @@ function renderAutomationOpportunityMatrix() {
                 <div style="background: linear-gradient(135deg, #f8f9fa, #ffffff); border-radius: 8px; padding: 15px; border: 1px solid #e0e0e0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <span style="font-weight: 700; color: #2c3e50;">Gap to Target</span>
-                        <span style="font-size: 16px; color: #e74c3c; font-weight: 700;">${opp.gap}%</span>
+                        <span style="font-size: 16px; color: ${opp.gap > 30 ? '#e74c3c' : opp.gap > 15 ? '#f39c12' : '#27ae60'}; font-weight: 700;">${opp.gap}%</span>
                     </div>
                     <div style="display: flex; height: 20px; border-radius: 10px; overflow: hidden; border: 2px solid #e0e0e0;">
                         <div style="
@@ -1208,7 +1196,7 @@ function renderAutomationOpportunityMatrix() {
                             justify-content: center;
                         ">
                             <span style="font-size: 11px; font-weight: 600; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
-                                ${opp.coverage}%
+                                ${opp.coverage > 15 ? opp.coverage + '%' : ''}
                             </span>
                         </div>
                         <div style="
@@ -1219,25 +1207,31 @@ function renderAutomationOpportunityMatrix() {
                             justify-content: center;
                         ">
                             <span style="font-size: 11px; font-weight: 600; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
-                                ${opp.gap}%
+                                ${opp.gap > 15 ? opp.gap + '%' : ''}
                             </span>
                         </div>
                     </div>
                     <div style="font-size: 12px; color: #666; text-align: center; margin-top: 8px; font-style: italic;">
-                        Need to automate ~${Math.round(opp.totalManual * (opp.gap / 100))} more cases
+                        ${opp.gap > 0 ? `Need to automate ~${Math.round(opp.totalManual * (opp.gap / 100))} more cases` : 'Target achieved!'}
                     </div>
                 </div>
                 
-                <!-- Recommendation -->
+                <!-- Status Summary -->
                 <div style="
-                    background: linear-gradient(135deg, rgba(196, 30, 58, 0.05), rgba(255, 107, 107, 0.02));
+                    background: ${opp.gap > 30 ? 'linear-gradient(135deg, rgba(231, 76, 60, 0.05), rgba(255, 107, 107, 0.02))' : 
+                                 opp.gap > 15 ? 'linear-gradient(135deg, rgba(243, 156, 18, 0.05), rgba(241, 196, 15, 0.02))' :
+                                 'linear-gradient(135deg, rgba(39, 174, 96, 0.05), rgba(46, 204, 113, 0.02))'};
                     border-radius: 8px;
                     padding: 12px;
-                    border-left: 4px solid #c41e3a;
+                    border-left: 4px solid ${priorityColor};
                     margin-top: 15px;
                 ">
                     <div style="font-size: 13px; color: #2c3e50; line-height: 1.5;">
-                        ${getRecommendationText(opp)}
+                        <strong>Status:</strong> 
+                        ${opp.gap === 0 ? 'Target achieved - maintain current automation' :
+                          opp.gap <= 10 ? 'Close to target - minor improvements needed' :
+                          opp.gap <= 30 ? 'Moderate gap - focus on critical test cases' :
+                          'Significant gap - priority for automation initiative'}
                     </div>
                 </div>
             </div>
@@ -1248,14 +1242,34 @@ function renderAutomationOpportunityMatrix() {
     container.innerHTML = html;
 }
 
-// Helper function to generate recommendation text
+// Pagination handler function
+function changeOpportunityPage(newPage) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('opportunityPage', newPage);
+    
+    // Update URL without page reload
+    const newUrl = window.location.pathname + '?' + urlParams.toString();
+    window.history.pushState({}, '', newUrl);
+    
+    // Re-render the opportunities
+    renderAutomationOpportunityMatrix();
+    
+    // Scroll to top of opportunities section
+    const container = document.getElementById('priorityAreasList');
+    if (container) {
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+// Helper function to get recommendation text (simplified for all items)
 function getRecommendationText(opp) {
-    if (opp.score >= 70) {
-        return `<strong>Immediate Priority:</strong> High ROI opportunity with ${opp.highPriorityTests} critical/high priority tests. Start automation immediately.`;
-    } else if (opp.score >= 50) {
-        return `<strong>Medium Priority:</strong> Good automation candidate. Focus on ${opp.coverage < 50 ? 'critical test cases first' : 'expanding existing coverage'}.`;
+    if (opp.gap === 0) {
+        return `Target achieved! Focus on maintaining current automation coverage and optimizing execution times.`;
+    } else if (opp.gap <= 10) {
+        return `Close to target. Minor automation improvements needed for ${opp.highPriorityTests} critical/high priority tests.`;
+    } else if (opp.gap <= 30) {
+        return `Moderate gap. Focus on automating critical test cases first. ${opp.readiness === 'Ready' ? 'Infrastructure ready.' : 'Setup regression suite first.'}`;
     } else {
-        return `<strong>Low Priority:</strong> Consider for future automation phases. ${opp.readiness === 'Ready' ? 'Infrastructure ready.' : 'Setup regression suite first.'}`;
+        return `Significant opportunity. High priority for automation initiative with ${opp.highPriorityTests} critical/high priority tests waiting.`;
     }
 }
 // 8. ROI Summary

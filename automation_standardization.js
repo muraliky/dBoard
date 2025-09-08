@@ -396,12 +396,11 @@ function renderAreaOfFocusChart() {
             });
     });
     
-    // Sort by count and take top 8
-    const sortedFocus = Object.entries(focusDetails)
-        .sort(([,a], [,b]) => b.count - a.count)
-        .slice(0, 8);
+    // Sort by count and show ALL focus areas (not just top 8)
+    const allFocusAreas = Object.entries(focusDetails)
+        .sort(([,a], [,b]) => b.count - a.count);
     
-    if (sortedFocus.length === 0) {
+    if (allFocusAreas.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 40px; color: #666;">
                 <h4>No focus areas identified</h4>
@@ -411,7 +410,7 @@ function renderAreaOfFocusChart() {
         return;
     }
     
-    // Create tooltip container
+    // Create tooltip container for hover details
     const tooltipId = 'focus-tooltip-' + Date.now();
     const tooltip = document.createElement('div');
     tooltip.id = tooltipId;
@@ -431,12 +430,25 @@ function renderAreaOfFocusChart() {
     `;
     document.body.appendChild(tooltip);
     
-    // Render as cards with enhanced hover functionality
+    // Render ALL focus areas as cards
     let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">';
     
-    sortedFocus.forEach(([focus, details], index) => {
-        const cardColor = index < 3 ? '#e74c3c' : index < 6 ? '#f39c12' : '#3498db';
-        const priorityLabel = index < 3 ? 'High Priority' : index < 6 ? 'Medium Priority' : 'Low Priority';
+    allFocusAreas.forEach(([focus, details], index) => {
+        // Color coding based on frequency (high frequency = higher priority)
+        const maxCount = Math.max(...allFocusAreas.map(([, d]) => d.count));
+        const intensity = details.count / maxCount;
+        
+        let cardColor, priorityLabel;
+        if (intensity >= 0.7) {
+            cardColor = '#e74c3c';
+            priorityLabel = 'High Priority';
+        } else if (intensity >= 0.4) {
+            cardColor = '#f39c12';
+            priorityLabel = 'Medium Priority';
+        } else {
+            cardColor = '#3498db';
+            priorityLabel = 'Low Priority';
+        }
         
         // Create repository list for tooltip
         const repoList = details.repositories
@@ -454,6 +466,8 @@ function renderAreaOfFocusChart() {
                 transition: all 0.3s ease;
                 text-align: center;
                 cursor: pointer;
+                min-height: 160px;
+                height: auto;
             "
             onmouseenter="showFocusTooltip(event, '${tooltipId}', \`${focus}<br><br><strong>Repositories:</strong><br>${repoList}\`);"
             onmouseleave="hideFocusTooltip('${tooltipId}');"
@@ -461,6 +475,7 @@ function renderAreaOfFocusChart() {
             onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)';"
             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)';">
                 
+                <!-- Count Badge -->
                 <div style="
                     background: ${cardColor};
                     color: white;
@@ -475,10 +490,12 @@ function renderAreaOfFocusChart() {
                     margin: 0 auto 15px auto;
                 ">${details.count}</div>
                 
+                <!-- Focus Area Title -->
                 <h5 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 700; color: #2c3e50; line-height: 1.3;">
                     ${focus}
                 </h5>
                 
+                <!-- Priority Badge -->
                 <div style="
                     background: ${cardColor}20;
                     color: ${cardColor};
@@ -488,13 +505,30 @@ function renderAreaOfFocusChart() {
                     font-weight: 600;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
+                    margin-bottom: 10px;
+                    display: inline-block;
                 ">${priorityLabel}</div>
                 
-                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                <!-- Repository Count -->
+                <div style="margin-bottom: 8px; font-size: 12px; color: #666;">
                     ${details.count} ${details.count === 1 ? 'repository' : 'repositories'}
                 </div>
                 
-                <div style="margin-top: 8px; font-size: 11px; color: #999; font-style: italic;">
+                <!-- Progress Bar showing relative frequency -->
+                <div style="margin-bottom: 8px;">
+                    <div style="background: #f0f0f0; border-radius: 6px; height: 6px; overflow: hidden;">
+                        <div style="
+                            width: ${Math.max(10, intensity * 100)}%;
+                            height: 100%;
+                            background: linear-gradient(90deg, ${cardColor}, ${cardColor}aa);
+                            border-radius: 6px;
+                            transition: width 0.8s ease;
+                        "></div>
+                    </div>
+                </div>
+                
+                <!-- Hover Instruction -->
+                <div style="font-size: 11px; color: #999; font-style: italic;">
                     Hover for details
                 </div>
             </div>
@@ -505,7 +539,7 @@ function renderAreaOfFocusChart() {
     container.innerHTML = html;
 }
 
-// Global tooltip functions for focus cards
+// Keep the existing global tooltip functions
 window.showFocusTooltip = function(event, tooltipId, content) {
     const tooltip = document.getElementById(tooltipId);
     if (tooltip) {
@@ -549,7 +583,7 @@ window.moveFocusTooltip = function(event, tooltipId) {
     }
 };
 
-// Clean up tooltips when switching tabs or pages
+// Clean up tooltips when switching tabs or pages (keep existing function)
 function cleanupFocusTooltips() {
     const tooltips = document.querySelectorAll('[id^="focus-tooltip-"]');
     tooltips.forEach(tooltip => {
@@ -624,13 +658,33 @@ function renderWhatTheyDidWellChart() {
             maxScore,
             allScores: scores
         };
-    }).sort((a, b) => b.maxScore - a.maxScore);
+    }).sort((a, b) => b.maxScore - a.maxScore); // Sort by highest score first
     
-    // Render as cards with inline CSS
+    if (strengthAnalysis.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; color: #666;">
+                <h4 style="font-size: 20px; margin-bottom: 10px;">No data available</h4>
+                <p style="color: #999; font-size: 14px;">No standardization data found for the selected filters.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Render ALL items as cards with inline CSS
     let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">';
     
-    strengthAnalysis.slice(0, 6).forEach(item => {
-        const strengthColor = item.maxScore >= 10 ? '#27ae60' : item.maxScore >= 7 ? '#f39c12' : '#e74c3c';
+    strengthAnalysis.forEach(item => {
+        const strengthColor = item.maxScore >= 12 ? '#27ae60' : item.maxScore >= 9 ? '#f39c12' : item.maxScore >= 6 ? '#3498db' : '#e74c3c';
+        
+        // Determine display context based on filter level
+        let displayContext = '';
+        if (filters.group && filters.subGroup) {
+            displayContext = `Repository in ${filters.group} → ${filters.subGroup}`;
+        } else if (filters.group) {
+            displayContext = `Sub-group in ${filters.group}`;
+        } else {
+            displayContext = `Business Group`;
+        }
         
         html += `
             <div style="
@@ -640,24 +694,35 @@ function renderWhatTheyDidWellChart() {
                 box-shadow: 0 4px 15px rgba(0,0,0,0.08);
                 border-left: 5px solid ${strengthColor};
                 transition: all 0.3s ease;
+                min-height: 280px;
+                height: auto;
             "
             onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)';"
             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)';">
                 
+                <!-- Header -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h4 style="margin: 0; font-size: 16px; font-weight: 700; color: #2c3e50;">${item.name}</h4>
+                    <div>
+                        <h4 style="margin: 0; font-size: 16px; font-weight: 700; color: #2c3e50;">${item.name}</h4>
+                        <div style="font-size: 11px; color: #666; background: #f8f9fa; padding: 3px 8px; border-radius: 8px; display: inline-block; margin-top: 4px;">
+                            ${displayContext}
+                        </div>
+                    </div>
                     <div style="
                         background: ${strengthColor};
                         color: white;
-                        padding: 6px 12px;
+                        padding: 8px 12px;
                         border-radius: 16px;
                         font-weight: 700;
-                        font-size: 12px;
+                        font-size: 14px;
+                        min-width: 40px;
+                        text-align: center;
                     ">${item.maxScore}</div>
                 </div>
                 
+                <!-- Strengths Section -->
                 <div style="margin-bottom: 15px;">
-                    <div style="font-size: 12px; color: #666; font-weight: 600; margin-bottom: 8px;">STRENGTHS</div>
+                    <div style="font-size: 12px; color: #666; font-weight: 600; margin-bottom: 8px;">STRONGEST AREAS</div>
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">
                         ${item.strengths.map(strength => `
                             <span style="
@@ -672,15 +737,36 @@ function renderWhatTheyDidWellChart() {
                     </div>
                 </div>
                 
-                <div>
+                <!-- All Scores Section -->
+                <div style="margin-bottom: 15px;">
                     <div style="font-size: 12px; color: #666; font-weight: 600; margin-bottom: 8px;">ALL SCORES</div>
-                    ${Object.entries(item.allScores).map(([standard, score]) => `
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                            <span style="font-size: 11px; color: #555; flex: 1;">${standard}</span>
-                            <span style="font-size: 12px; font-weight: 700; color: #2c3e50;">${score}</span>
-                        </div>
-                    `).join('')}
+                    ${Object.entries(item.allScores).map(([standard, score]) => {
+                        const isHighest = score === item.maxScore;
+                        const barColor = isHighest ? strengthColor : '#e0e0e0';
+                        const textColor = isHighest ? '#2c3e50' : '#666';
+                        const barWidth = Math.max(10, (score / 15) * 100); // Assuming max score is 15
+                        
+                        return `
+                            <div style="margin-bottom: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                    <span style="font-size: 11px; color: ${textColor}; font-weight: ${isHighest ? '700' : '500'};">${standard}</span>
+                                    <span style="font-size: 12px; font-weight: 700; color: ${textColor};">${score}</span>
+                                </div>
+                                <div style="background: #f0f0f0; border-radius: 4px; height: 6px; overflow: hidden;">
+                                    <div style="
+                                        width: ${barWidth}%;
+                                        height: 100%;
+                                        background: ${barColor};
+                                        border-radius: 4px;
+                                        transition: width 0.8s ease;
+                                    "></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
+                
+
             </div>
         `;
     });

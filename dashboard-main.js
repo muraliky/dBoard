@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof initializeAutomationPage === 'function') {
         initializeAutomationPage();
     }
+    if (typeof initializeInitiativesPage === 'function') {
+        initializeInitiativesPage();
+    }
 });
 
 async function loadQualityData() {
@@ -125,7 +128,8 @@ function switchPage(page) {
     const pageTitles = {
         'quality': 'Quality Metrics',
         'automation': 'Automation Metrics',
-        'standardization': 'Automation Standardization'
+        'standardization': 'Automation Standardization',
+        'initiatives': 'Initiatives 2025'
     };
     document.getElementById('page-title').textContent = pageTitles[page] || 'Dashboard';
     
@@ -151,6 +155,10 @@ function switchPage(page) {
         } else if (page === 'standardization') {
             if (typeof updateStandardizationMetrics === 'function') {
                 updateStandardizationMetrics();
+            }
+        }else if (page === 'initiatives') {  // ADD THIS BLOCK
+            if (typeof updateInitiativesMetrics === 'function') {
+                updateInitiativesMetrics();
             }
         }
     }, 100);
