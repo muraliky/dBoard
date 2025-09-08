@@ -1,183 +1,310 @@
-// 3. Render improved technology word cloud - FIXED VERSION
-function renderTechnologyWordCloud() {
-    const container = document.getElementById('technologyWordCloud');
+// 7. Updated Card View for Automation Opportunities - Shows ALL areas regardless of coverage
+
+function renderAutomationOpportunityMatrix() {
+    const container = document.getElementById('priorityAreasList');
     if (!container) return;
     
-    const data = getFilteredInitiativesData();
-    const techCount = {};
+    const data = getFilteredAutomationData();
     
-    data.forEach(initiative => {
-        if (initiative.technologyStack && initiative.technologyStack.trim() !== '') {
-            const techs = initiative.technologyStack.split(/[,;]+/).map(tech => tech.trim()).filter(tech => tech !== '');
-            techs.forEach(tech => {
-                const cleanTech = tech.trim();
-                if (cleanTech) {
-                    techCount[cleanTech] = (techCount[cleanTech] || 0) + 1;
-                }
-            });
-        }
-    });
+    // Group data based on current filter level
+    let groupedData = [];
     
-    if (Object.keys(techCount).length === 0) {
+    if (filters.group && filters.subGroup) {
+        // Show individual applications when both area and sub-area are selected
+        groupedData = data
+            .filter(d => d.area === filters.group && d.subArea === filters.subGroup)
+            .map(d => ({
+                name: d.applicationName,
+                area: d.area,
+                subArea: d.subArea,
+                coverage: d.automationCoverage,
+                gap: Math.max(0, 90 - d.automationCoverage),
+                highPriorityTests: d.manualCritical + d.manualHigh,
+                totalManual: d.totalManualCases,
+                totalAutomated: d.totalAutomatedTillDate,
+                readiness: d.regressionSuiteAvailable === 'Yes' ? 'Ready' : 'Not Ready',
+                saveInHours: d.saveInHours,
+                potentialSavings: d.saveInHours * 50,
+                regressionSuiteAvailable: d.regressionSuiteAvailable,
+                automationStarted: d.automationStarted
+            }));
+    } else if (filters.group) {
+        // Show sub-areas when only area is selected
+        const subAreas = [...new Set(data.filter(d => d.area === filters.group).map(d => d.subArea))];
+        
+        groupedData = subAreas.map(subArea => {
+            const subAreaData = data.filter(d => d.area === filters.group && d.subArea === subArea);
+            const totalManual = subAreaData.reduce((sum, d) => sum + d.totalManualCases, 0);
+            const totalAutomated = subAreaData.reduce((sum, d) => sum + d.totalAutomatedTillDate, 0);
+            const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
+            const highPriorityTests = subAreaData.reduce((sum, d) => sum + d.manualCritical + d.manualHigh, 0);
+            const readyCount = subAreaData.filter(d => d.regressionSuiteAvailable === 'Yes').length;
+            const totalApps = subAreaData.length;
+            
+            return {
+                name: subArea,
+                area: filters.group,
+                subArea: subArea,
+                coverage,
+                gap: Math.max(0, 90 - coverage),
+                highPriorityTests,
+                totalManual,
+                totalAutomated,
+                readiness: readyCount === totalApps ? 'Ready' : readyCount > 0 ? 'Partial' : 'Not Ready',
+                saveInHours: subAreaData.reduce((sum, d) => sum + d.saveInHours, 0),
+                potentialSavings: subAreaData.reduce((sum, d) => sum + d.saveInHours, 0) * 50,
+                applicationsCount: totalApps
+            };
+        });
+    } else {
+        // Show areas when no filters are selected
+        const areas = [...new Set(data.map(d => d.area))];
+        
+        groupedData = areas.map(area => {
+            const areaData = data.filter(d => d.area === area);
+            const totalManual = areaData.reduce((sum, d) => sum + d.totalManualCases, 0);
+            const totalAutomated = areaData.reduce((sum, d) => sum + d.totalAutomatedTillDate, 0);
+            const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
+            const highPriorityTests = areaData.reduce((sum, d) => sum + d.manualCritical + d.manualHigh, 0);
+            const readyCount = areaData.filter(d => d.regressionSuiteAvailable === 'Yes').length;
+            const totalApps = areaData.length;
+            
+            return {
+                name: area,
+                area: area,
+                subArea: '',
+                coverage,
+                gap: Math.max(0, 90 - coverage),
+                highPriorityTests,
+                totalManual,
+                totalAutomated,
+                readiness: readyCount === totalApps ? 'Ready' : readyCount > 0 ? 'Partial' : 'Not Ready',
+                saveInHours: areaData.reduce((sum, d) => sum + d.saveInHours, 0),
+                potentialSavings: areaData.reduce((sum, d) => sum + d.saveInHours, 0) * 50,
+                applicationsCount: totalApps
+            };
+        });
+    }
+    
+    // Sort by coverage gap (highest gaps first), but keep ALL items - don't filter out any
+    const allOpportunities = groupedData.sort((a, b) => b.gap - a.gap);
+    
+    if (allOpportunities.length === 0) {
         container.innerHTML = `
-            <div style="text-align: center; padding: 60px 20px; color: #666;">
-                <h4>No technology stack data available</h4>
-                <p>Technology information will appear here as initiatives are added.</p>
+            <div style="text-align: center; padding: 60px 20px; color: #27ae60;">
+                <h4 style="font-size: 20px; margin-bottom: 10px; color: #27ae60;">No data available!</h4>
+                <p style="color: #666; font-size: 14px;">No automation data found for the selected filters.</p>
             </div>
         `;
         return;
     }
     
-    const sortedTechs = Object.entries(techCount).sort(([,a], [,b]) => b - a);
-    const totalInitiativesCount = data.length; // Use total initiatives count (10)
-    
-    // Create improved word cloud HTML with cards layout
+    // Simple responsive grid - no pagination, no header - showing ALL areas
     let html = `
         <div style="
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            border-radius: 16px;
-            padding: 30px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            border: 1px solid #dee2e6;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
+            gap: 20px;
+            padding: 10px 0;
         ">
-            <!-- Header -->
-            <div style="
-                text-align: center; 
-                margin-bottom: 25px; 
-                padding-bottom: 15px; 
-                border-bottom: 2px solid #c41e3a20;
-            ">
-                <h3 style="
-                    margin: 0; 
-                    color: #2c3e50; 
-                    font-size: 18px; 
-                    font-weight: 700;
-                ">Technology Stack Usage</h3>
-                <p style="
-                    margin: 5px 0 0 0; 
-                    color: #666; 
-                    font-size: 13px;
-                ">Technologies used across ${totalInitiativesCount} different tools</p>
-            </div>
-            
-            <!-- Technology Cards Grid -->
-            <div style="
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-                gap: 15px;
-                margin-bottom: 20px;
-            ">
     `;
     
-    // Create technology cards - ALL HIGHLIGHTED EQUALLY
-    sortedTechs.forEach(([tech, count]) => {
-        // All cards get the same highlight level (no frequency-based variation)
-        const cardColor = 'rgba(196, 30, 58, 0.15)';
-        const borderColor = 'rgba(196, 30, 58, 0.5)';
-        const textColor = 'rgba(196, 30, 58, 0.85)';
+    allOpportunities.forEach((opp, index) => {
+        // Determine card styling based on coverage performance
+        let cardTheme = {};
+        if (opp.coverage >= 90) {
+            // Excellent performance - green theme
+            cardTheme = {
+                color: '#27ae60',
+                background: 'linear-gradient(135deg, #f0fff0, #ffffff)',
+                statusText: 'Target Achieved',
+                statusIcon: '✓'
+            };
+        } else if (opp.coverage >= 70) {
+            // Good performance - blue theme
+            cardTheme = {
+                color: '#3498db',
+                background: 'linear-gradient(135deg, #f0f8ff, #ffffff)',
+                statusText: 'Good Progress',
+                statusIcon: '↗'
+            };
+        } else if (opp.coverage >= 50) {
+            // Moderate performance - orange theme
+            cardTheme = {
+                color: '#f39c12',
+                background: 'linear-gradient(135deg, #fffbf0, #ffffff)',
+                statusText: 'Needs Attention',
+                statusIcon: '⚠'
+            };
+        } else {
+            // Low performance - red theme
+            cardTheme = {
+                color: '#e74c3c',
+                background: 'linear-gradient(135deg, #fff5f5, #ffffff)',
+                statusText: 'High Priority',
+                statusIcon: '!'
+            };
+        }
+        
+        // Determine display context based on filter level
+        let displayContext = '';
+        if (filters.group && filters.subGroup) {
+            displayContext = `Application in ${opp.area} → ${opp.subArea}`;
+        } else if (filters.group) {
+            displayContext = `Sub-area in ${opp.area} (${opp.applicationsCount || 1} apps)`;
+        } else {
+            displayContext = `Business Area (${opp.applicationsCount || 1} apps)`;
+        }
         
         html += `
             <div style="
-                background: white;
-                border: 2px solid ${borderColor};
+                background: ${cardTheme.background};
                 border-radius: 12px;
-                padding: 15px;
-                text-align: center;
+                padding: 25px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+                border-left: 5px solid ${cardTheme.color};
                 transition: all 0.3s ease;
-                cursor: pointer;
                 position: relative;
-                overflow: hidden;
-            "
-            onmouseover="
-                this.style.transform='translateY(-3px)'; 
-                this.style.boxShadow='0 8px 25px rgba(196, 30, 58, 0.2)';
-                this.style.borderColor='#c41e3a';
-            "
-            onmouseout="
-                this.style.transform='translateY(0)'; 
-                this.style.boxShadow='none';
-                this.style.borderColor='${borderColor}';
-            ">
-                <!-- Background Pattern -->
-                <div style="
-                    position: absolute;
-                    top: -10px;
-                    right: -10px;
-                    width: 40px;
-                    height: 40px;
-                    background: ${cardColor};
-                    border-radius: 50%;
-                    opacity: 0.5;
-                "></div>
+                cursor: pointer;
+                min-height: 320px;
+                height: auto;
+            " 
+            onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)';">
                 
-                <!-- Technology Name -->
-                <div style="
-                    font-size: 16px;
-                    font-weight: 700;
-                    color: ${textColor};
-                    margin-bottom: 8px;
-                    position: relative;
-                    z-index: 2;
-                ">${tech}</div>
+                <!-- Header with Status Badge -->
+                <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <h4 style="margin: 0; font-size: 16px; font-weight: 700; color: #2c3e50; flex: 1;">${opp.name}</h4>
+                        <div style="
+                            background: ${cardTheme.color}; 
+                            color: white; 
+                            padding: 4px 8px; 
+                            border-radius: 12px; 
+                            font-size: 11px; 
+                            font-weight: 600;
+                            margin-left: 10px;
+                            display: flex;
+                            align-items: center;
+                            gap: 4px;
+                        ">
+                            <span>${cardTheme.statusIcon}</span>
+                            <span>${cardTheme.statusText}</span>
+                        </div>
+                    </div>
+                    <div style="font-size: 11px; color: #666; background: #f8f9fa; padding: 4px 8px; border-radius: 12px; display: inline-block;">
+                        ${displayContext}
+                    </div>
+                </div>
                 
-                <!-- Usage Count -->
-                <div style="
-                    font-size: 12px;
-                    color: #666;
-                    font-weight: 500;
-                    position: relative;
-                    z-index: 2;
-                ">${count} project${count > 1 ? 's' : ''}</div>
+                <!-- Coverage Progress Bar -->
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 600; color: #555;">Coverage Progress</span>
+                        <span style="font-size: 12px; font-weight: 700; color: #2c3e50;">${opp.coverage}% / 90%</span>
+                    </div>
+                    <div style="background: #e0e0e0; border-radius: 10px; height: 12px; overflow: hidden;">
+                        <div style="
+                            height: 100%;
+                            width: ${Math.max(5, opp.coverage)}%;
+                            background: linear-gradient(90deg, ${cardTheme.color}, ${cardTheme.color}cc);
+                            border-radius: 10px;
+                            transition: width 1s ease;
+                        "></div>
+                    </div>
+                </div>
                 
-                <!-- Usage Bar - All same color intensity -->
+                <!-- Key Metrics Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 15px;">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">High Priority</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #2c3e50;">${opp.highPriorityTests.toLocaleString()}</div>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Manual</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #2c3e50;">${opp.totalManual.toLocaleString()}</div>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Readiness</div>
+                        <div style="font-size: 15px; font-weight: 700; color: ${opp.readiness === 'Ready' ? '#27ae60' : opp.readiness === 'Partial' ? '#f39c12' : '#e74c3c'};">${opp.readiness}</div>
+                    </div>
+                </div>
+                
+                <!-- Performance Visualization -->
+                <div style="background: linear-gradient(135deg, #f8f9fa, #ffffff); border-radius: 8px; padding: 15px; border: 1px solid #e0e0e0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: 700; color: #2c3e50;">Performance</span>
+                        <span style="font-size: 16px; color: ${cardTheme.color}; font-weight: 700;">${opp.coverage}%</span>
+                    </div>
+                    <div style="display: flex; height: 20px; border-radius: 10px; overflow: hidden; border: 2px solid #e0e0e0;">
+                        <div style="
+                            width: ${opp.coverage}%;
+                            background: linear-gradient(90deg, ${cardTheme.color}, ${cardTheme.color}cc);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <span style="font-size: 11px; font-weight: 600; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+                                ${opp.coverage > 15 ? opp.coverage + '%' : ''}
+                            </span>
+                        </div>
+                        ${opp.gap > 0 ? `
+                        <div style="
+                            width: ${opp.gap}%;
+                            background: linear-gradient(90deg, #e0e0e0, #d0d0d0);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <span style="font-size: 11px; font-weight: 600; color: #666;">
+                                ${opp.gap > 15 ? opp.gap + '%' : ''}
+                            </span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div style="font-size: 12px; color: #666; text-align: center; margin-top: 8px; font-style: italic;">
+                        ${getPerformanceMessage(opp)}
+                    </div>
+                </div>
+                
+                <!-- Hours Saved & ROI -->
                 <div style="
-                    margin-top: 10px;
-                    background: #f0f0f0;
-                    height: 4px;
-                    border-radius: 2px;
-                    overflow: hidden;
-                    position: relative;
-                    z-index: 2;
+                    background: ${opp.saveInHours > 100 ? 'linear-gradient(135deg, rgba(39, 174, 96, 0.05), rgba(46, 204, 113, 0.02))' : 'linear-gradient(135deg, rgba(52, 152, 219, 0.05), rgba(41, 128, 185, 0.02))'};
+                    border-radius: 8px;
+                    padding: 12px;
+                    border-left: 4px solid ${opp.saveInHours > 100 ? '#27ae60' : '#3498db'};
+                    margin-top: 15px;
                 ">
-                    <div style="
-                        width: 100%;
-                        height: 100%;
-                        background: linear-gradient(90deg, ${textColor}, ${borderColor});
-                        border-radius: 2px;
-                        transition: width 0.8s ease;
-                    "></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 12px; color: #666; font-weight: 600;">Hours Saved</div>
+                            <div style="font-size: 16px; color: #2c3e50; font-weight: 700;">${opp.saveInHours.toLocaleString()}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 12px; color: #666; font-weight: 600;">Cost Impact</div>
+                            <div style="font-size: 16px; color: ${opp.saveInHours > 100 ? '#27ae60' : '#3498db'}; font-weight: 700;">$${(opp.saveInHours * 50).toLocaleString()}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
     });
     
-    html += `
-            </div>
-            
-            <!-- Summary Stats -->
-            <div style="
-                display: flex;
-                justify-content: space-around;
-                padding: 20px;
-                background: white;
-                border-radius: 12px;
-                border: 1px solid #e9ecef;
-            ">
-                <div style="text-align: center;">
-                    <div style="font-size: 20px; font-weight: 700; color: #c41e3a;">${Object.keys(techCount).length}</div>
-                    <div style="font-size: 11px; color: #666; text-transform: uppercase;">Technologies</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 20px; font-weight: 700; color: #27ae60;">${sortedTechs[0] ? sortedTechs[0][0] : 'N/A'}</div>
-                    <div style="font-size: 11px; color: #666; text-transform: uppercase;">Most Used</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 20px; font-weight: 700; color: #3498db;">${totalInitiativesCount}</div>
-                    <div style="font-size: 11px; color: #666; text-transform: uppercase;">Total Tools</div>
-                </div>
-            </div>
-        </div>
-    `;
-    
+    html += '</div>';
     container.innerHTML = html;
+}
+
+// Helper function to get performance message based on coverage
+function getPerformanceMessage(opp) {
+    if (opp.coverage >= 90) {
+        return 'Excellent! Target achieved - focus on optimization';
+    } else if (opp.coverage >= 70) {
+        return 'Good progress - minor improvements to reach target';
+    } else if (opp.coverage >= 50) {
+        return `Moderate coverage - ${Math.round(opp.totalManual * (opp.gap / 100))} more cases to automate`;
+    } else {
+        return `Significant opportunity - prioritize for automation initiative`;
+    }
 }
