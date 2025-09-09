@@ -1,16 +1,329 @@
-// Automation Standardization Module - Updated for JSON Data Loading
+const html = `
+        <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+            <!-- Main Introduction -->
+            <div style="
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 40px;
+                border-radius: 16px;
+                margin-bottom: 30px;
+                text-align: center;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            ">
+                <h2 style="margin: 0 0 25px 0; font-size: 28px; font-weight: 700;">
+                    How Audit is Done?
+                </h2>
+                <div style="text-align: left; max-width: 800px; margin: 0 auto;">
+                    <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;">
+                        <strong>1.</strong> Each Test automation project will be assessed against 4 types of standards - (Coding standards, WAF Standards, Execution Standards, Maintenance Standards).
+                    </p>
+                    <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;">
+                        <strong>2.</strong> Each standard will have again defined check points on which the project/Repo will be assessed.
+                    </p>
+                    <p style="margin: 0; font-size: 16px; line-height: 1.6;">
+                        <strong>3.</strong> At end of audit maturity will be calculated based on points project got divided by Total points.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Standards Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-bottom: 40px;">
+                
+                <!-- Coding Standards -->
+                <div style="
+                    background: white;
+                    border-radius: 16px;
+                    padding: 30px;
+                    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+                    border-left: 6px solid #3498db;
+                    transition: transform 0.3s ease, box-shadow 0.3s ease;
+                "
+                onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 12px 30px rgba(0,0,0,0.15)';"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)';">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <div style="
+                            background: #3498db;
+                            color: white;
+                            width: 50px;
+                            height: 50px;
+                            border-radius: 12px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin-right: 15px;
+                            font-weight: 700;
+                            font-size: 18px;
+                        ">1</div>
+                        <h3 style="margin: 0; color: #2c3e50; font-size: 20px; font-weight: 700;">
+                            Coding Standards
+                        </h3>
+                    </div>
+                    <div style="
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        color: #666;
+                        line-height: 1.6;
+                    ">
+                        <strong style="color: #3498db;">Maximum Score: 5 points</strong><br>
+                        Assesses code quality, naming conventions, structure, and adherence to programming best practices.
+                    </div>
+                </div>
+
+                <!-- WAF Standards -->
+                <div style="
+                    background: white;
+                    border-radius: 16px;
+                    padding: 30px;
+                    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+                    border-left: 6px solid #e74c3c;
+                    transition: transform 0.3s ease, box-shadow 0.3s ease;
+                "
+                onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 12px 30px rgba(0,0,0,0.15)';"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)';">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <div style="
+                            background: #e74c3c;
+                            color: white;
+                            width: 50px;
+                            height: 50px;
+                            border-radius: 12px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin-right: 15px;
+                            font-weight: 700;
+                            font-size: 18px;
+                        ">2</div>
+                        <h3 style="margin: 0; color: #2c3e50; font-size: 20px; font-weight: 700;">
+                            WAF Standards
+                        </h3>
+                    </div>
+                    <div style="
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        color: #666;
+                        line-height: 1.6;
+                    ">
+                        <strong style="color: #e74c3c;">Maximum Score: 16 points</strong><br>
+                        Evaluates Web Application Framework compliance, architecture patterns, and framework-specific best practices.
+                    </div>
+                </div>
+
+                <!-- Execution Standards -->
+                <div style="
+                    background: white;
+                    border-radius: 16px;
+                    padding: 30px;
+                    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+                    border-left: 6px solid #2ecc71;
+                    transition: transform 0.3s ease, box-shadow 0.3s ease;
+                "
+                onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 12px 30px rgba(0,0,0,0.15)';"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)';">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <div style="
+                            background: #2ecc71;
+                            color: white;
+                            width: 50px;
+                            height: 50px;
+                            border-radius: 12px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin-right: 15px;
+                            font-weight: 700;
+                            font-size: 18px;
+                        ">3</div>
+                        <h3 style="margin: 0; color: #2c3e50; font-size: 20px; font-weight: 700;">
+                            Execution Standards
+                        </h3>
+                    </div>
+                    <div style="
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        color: #666;
+                        line-height: 1.6;
+                    ">
+                        <strong style="color: #2ecc71;">Maximum Score: 5 points</strong><br>
+                        Reviews test execution efficiency, parallel execution capabilities, and runtime optimization practices.
+                    </div>
+                </div>
+
+                <!-- Maintenance Standards -->
+                <div style="
+                    background: white;
+                    border-radius: 16px;
+                    padding: 30px;
+                    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+                    border-left: 6px solid #f39c12;
+                    transition: transform 0.3s ease, box-shadow 0.3s ease;
+                "
+                onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 12px 30px rgba(0,0,0,0.15)';"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)';">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <div style="
+                            background: #f39c12;
+                            color: white;
+                            width: 50px;
+                            height: 50px;
+                            border-radius: 12px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin-right: 15px;
+                            font-weight: 700;
+                            font-size: 18px;
+                        ">4</div>
+                        <h3 style="margin: 0; color: #2c3e50; font-size: 20px; font-weight: 700;">
+                            Maintenance Standards
+                        </h3>
+                    </div>
+                    <div style="
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        color: #666;
+                        line-height: 1.6;
+                    ">
+                        <strong style="color: #f39c12;">Maximum Score: 6 points</strong><br>
+                        Assesses code maintainability, documentation quality, version control practices, and long-term sustainability.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maturity Calculation Section -->
+            <div style="
+                background: white;
+                border-radius: 16px;
+                padding: 40px;
+                box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+                border-top: 4px solid #9b59b6;
+                margin-bottom: 30px;
+            ">
+                <h3 style="
+                    margin: 0 0 25px 0;
+                    color: #2c3e50;
+                    font-size: 24px;
+                    font-weight: 700;
+                    text-align: center;
+                ">Maturity Level Calculation</h3>
+                
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <div style="
+                        background: #f8f9fa;
+                        padding: 20px;
+                        border-radius: 12px;
+                        font-size: 16px;
+                        color: #2c3e50;
+                        display: inline-block;
+                        font-weight: 600;
+                    ">
+                        Maturity Level = (Points Earned ÷ Total Points) × 100
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <!-- Level 1 -->
+                    <div style="
+                        background: #e74c3c;
+                        color: white;
+                        padding: 25px;
+                        border-radius: 12px;
+                        text-align: center;
+                        transition: transform 0.3s ease;
+                    "
+                    onmouseover="this.style.transform='scale(1.05)';"
+                    onmouseout="this.style.transform='scale(1)';">
+                        <div style="font-size: 32px; font-weight: 700; margin-bottom: 10px;">1</div>
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">BASIC LEVEL</div>
+                        <div style="font-size: 12px; opacity: 0.9;">< 25%</div>
+                    </div>
+                    
+                    <!-- Level 2 -->
+                    <div style="
+                        background: #f39c12;
+                        color: white;
+                        padding: 25px;
+                        border-radius: 12px;
+                        text-align: center;
+                        transition: transform 0.3s ease;
+                    "
+                    onmouseover="this.style.transform='scale(1.05)';"
+                    onmouseout="this.style.transform='scale(1)';">
+                        <div style="font-size: 32px; font-weight: 700; margin-bottom: 10px;">2</div>
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">DEVELOPING</div>
+                        <div style="font-size: 12px; opacity: 0.9;">25% - 50%</div>
+                    </div>
+                    
+                    <!-- Level 3 -->
+                    <div style="
+                        background: #3498db;
+                        color: white;
+                        padding: 25px;
+                        border-radius: 12px;
+                        text-align: center;
+                        transition: transform 0.3s ease;
+                    "
+                    onmouseover="this.style.transform='scale(1.05)';"
+                    onmouseout="this.style.transform='scale(1)';">
+                        <div style="font-size: 32px; font-weight: 700; margin-bottom: 10px;">3</div>
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">PROFICIENT</div>
+                        <div style="font-size: 12px; opacity: 0.9;">50% - 75%</div>
+                    </div>
+                    
+                    <!-- Level 4 -->
+                    <div style="
+                        background: #2ecc71;
+                        color: white;
+                        padding: 25px;
+                        border-radius: 12px;
+                        text-align: center;
+                        transition: transform 0.3s ease;
+                    "
+                    onmouseover="this.style.transform='scale(1.05)';"
+                    onmouseout="this.style.transform='scale(1)';">
+                        <div style="font-size: 32px; font-weight: 700; margin-bottom: 10px;">4</div>
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">ADVANCED</div>
+                        <div style="font-size: 12px; opacity: 0.9;">75% - < 100%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Score Information -->
+            <div style="
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 30px;
+                border-radius: 16px;
+                text-align: center;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            ">
+                <h3 style="margin: 0 0 15px 0; font-size: 22px; font-weight: 700;">
+                    Total Maximum Score: 32 Points
+                </h3>
+                <p style="margin: 0; font-size: 16px; opacity: 0.9; line-height: 1.6;">
+                    Coding (5) + WAF (16) + Execution (5) + Maintenance (6) = 32 Total Points
+                </p>
+            </div>
+        </div>
+    `;// Automation Standardization Module - Complete Working Version
 let standardizationData = [];
 let standardizationCharts = {};
 
-//Chart.register(ChartDataLabels);
-
-// Base options for bar charts with centered labels
+// Register Chart.js plugins
 if (typeof Chart !== 'undefined' && Chart.register) {
     Chart.register(ChartDataLabels);
 }
 
-// Clean base options for all bar charts
-const cleanBarOptions = {
+// Base options for grouped bar charts
+const groupedBarOptions = {
     responsive: true,
     maintainAspectRatio: false,
     animation: {
@@ -20,9 +333,7 @@ const cleanBarOptions = {
     scales: {
         x: {
             ticks: { 
-                maxRotation: 45,
-                font: { size: 11 },
-                color: '#666'
+                display: false  // Hide x-axis values
             },
             grid: {
                 display: false
@@ -32,13 +343,12 @@ const cleanBarOptions = {
             beginAtZero: true,
             title: {
                 display: true,
-                text: 'Score',
+                text: 'Value',
                 color: '#666',
                 font: { weight: 'bold' }
             },
             ticks: {
-                font: { size: 11 },
-                color: '#666'
+                display: false  // Hide y-axis values
             },
             grid: {
                 color: 'rgba(0,0,0,0.1)'
@@ -47,10 +357,25 @@ const cleanBarOptions = {
     },
     plugins: {
         legend: {
-            display: false
+            display: true,
+            position: 'top',
+            labels: {
+                usePointStyle: true,
+                padding: 20,
+                font: {
+                    size: 12
+                }
+            }
         },
         tooltip: {
-            enabled: false  // Completely disable tooltips
+            enabled: true,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            titleColor: 'white',
+            bodyColor: 'white',
+            borderColor: '#333',
+            borderWidth: 1,
+            cornerRadius: 6,
+            displayColors: true
         },
         datalabels: {
             display: true,
@@ -59,58 +384,79 @@ const cleanBarOptions = {
             color: 'white',
             font: {
                 weight: 'bold',
-                size: 13
+                size: 12
             },
             formatter: function(value) {
                 return value;
             },
-            textStrokeColor: 'rgba(0,0,0,0.5)',
+            textStrokeColor: 'rgba(0,0,0,0.6)',
             textStrokeWidth: 1
         }
     }
 };
 
-// Helper function to get chart data based on filters
-function getChartData(data, standardType) {
+// Helper function to get chart data for grouped bars with maximum scores
+function getGroupedChartData(data, standardType) {
     let labels = [];
-    let chartData = [];
+    let scoreData = [];
+    let repoCountData = [];
+    let maxScoreData = [];
+    
+    // Define maximum scores for each standard type
+    const maxScores = {
+        'codingStandards': 5,
+        'wafStandards': 16,
+        'executionStandards': 5,
+        'maintenanceStandards': 6
+    };
     
     if (filters.group && filters.subGroup) {
         // Show individual repositories
         labels = data.map(d => d.repoName);
-        chartData = data.map(d => d[standardType]);
+        scoreData = data.map(d => d[standardType]);
+        repoCountData = data.map(() => 1); // Each repo is 1 repository
+        maxScoreData = data.map(() => maxScores[standardType]);
     } else if (filters.group) {
         // Show sub-groups
         const subGroups = [...new Set(data.map(d => d.subGroup))];
         labels = subGroups;
-        chartData = subGroups.map(subGroup => {
+        scoreData = subGroups.map(subGroup => {
             const subGroupData = data.filter(d => d.subGroup === subGroup);
             const avg = subGroupData.reduce((sum, d) => sum + d[standardType], 0) / subGroupData.length;
             return Math.round(avg * 10) / 10;
         });
+        repoCountData = subGroups.map(subGroup => {
+            const subGroupData = data.filter(d => d.subGroup === subGroup);
+            return subGroupData.length;
+        });
+        maxScoreData = subGroups.map(() => maxScores[standardType]);
     } else {
         // Show groups
         const groups = [...new Set(data.map(d => d.group))];
         labels = groups;
-        chartData = groups.map(group => {
+        scoreData = groups.map(group => {
             const groupData = data.filter(d => d.group === group);
             const avg = groupData.reduce((sum, d) => sum + d[standardType], 0) / groupData.length;
             return Math.round(avg * 10) / 10;
         });
+        repoCountData = groups.map(group => {
+            const groupData = data.filter(d => d.group === group);
+            return groupData.length;
+        });
+        maxScoreData = groups.map(() => maxScores[standardType]);
     }
     
-    return { labels, chartData };
+    return { labels, scoreData, repoCountData, maxScoreData };
 }
+
 // Load standardization data from JSON
 async function loadStandardizationData() {
     console.log('Loading automation standardization data from JSON...');
     
     try {
-        // Load from JSON file (converted from Excel)
         const response = await fetch('data/AutomationMaturity.json');
         const jsonData = await response.json();
         
-        // Handle both array and object formats
         const flatData = Array.isArray(jsonData) ? jsonData : Object.values(jsonData).flat();
         
         standardizationData = flatData.map(row => ({
@@ -150,40 +496,25 @@ function generateStandardizationSampleData() {
         "London UAT": ["Trading", "Compliance"]
     };
     
-    const areasOfFocus = [
-        "Code reviews", "Gradle migration", "Latest version of Snapshots",
-        "Automated Code reviews", "Test framework standardization",
-        "CI/CD pipeline optimization", "Security scanning", "Performance testing"
-    ];
-    
     const data = [];
     
     groups.forEach(group => {
         subGroups[group].forEach(subGroup => {
             for (let i = 1; i <= Math.floor(Math.random() * 4) + 2; i++) {
-                const codingScore = Math.floor(Math.random() * 6) + 3; // 3-8
-                const wafScore = Math.floor(Math.random() * 8) + 6; // 6-13
-                const executionScore = Math.floor(Math.random() * 5) + 4; // 4-8
-                const maintenanceScore = Math.floor(Math.random() * 6) + 3; // 3-8
-                
-                const focusAreas = areasOfFocus
-                    .sort(() => 0.5 - Math.random())
-                    .slice(0, Math.floor(Math.random() * 4) + 1);
-                
                 data.push({
                     group,
                     subGroup,
                     repoName: `${subGroup}${i}`,
-                    codingStandards: codingScore,
-                    wafStandards: wafScore,
-                    executionStandards: executionScore,
-                    maintenanceStandards: maintenanceScore,
-                    areaOfFocus1: focusAreas[0] || '',
-                    areaOfFocus2: focusAreas[1] || '',
-                    areaOfFocus3: focusAreas[2] || '',
-                    areaOfFocus4: focusAreas[3] || '',
-                    areaOfFocus5: focusAreas[4] || '',
-                    overallMaturity: Math.floor((codingScore + wafScore + executionScore + maintenanceScore) / 4),
+                    codingStandards: Math.floor(Math.random() * 6) + 3,
+                    wafStandards: Math.floor(Math.random() * 8) + 6,
+                    executionStandards: Math.floor(Math.random() * 5) + 4,
+                    maintenanceStandards: Math.floor(Math.random() * 6) + 3,
+                    areaOfFocus1: 'Code reviews',
+                    areaOfFocus2: 'Gradle migration',
+                    areaOfFocus3: '',
+                    areaOfFocus4: '',
+                    areaOfFocus5: '',
+                    overallMaturity: Math.floor(Math.random() * 6) + 3,
                     month: 'August'
                 });
             }
@@ -203,6 +534,202 @@ function getFilteredStandardizationData() {
         });
     }
     return standardizationData;
+}
+
+// 1. Coding Standards Chart with grouped bars
+function renderCodingStandardsChart() {
+    const canvas = document.getElementById('codingStandardsChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    safeDestroyStandardizationChart('codingStandards');
+    
+    const data = getFilteredStandardizationData();
+    const { labels, scoreData, repoCountData, maxScoreData } = getGroupedChartData(data, 'codingStandards');
+    
+    standardizationCharts.codingStandards = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Repositories Audited',
+                    data: repoCountData,
+                    backgroundColor: '#1abc9c',
+                    borderColor: '#16a085',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                },
+                {
+                    label: 'Coding Standards Score',
+                    data: scoreData,
+                    backgroundColor: '#3498db',
+                    borderColor: '#2980b9',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                },
+                {
+                    label: 'Maximum Possible',
+                    data: maxScoreData,
+                    backgroundColor: '#ecf0f1',
+                    borderColor: '#bdc3c7',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                }
+            ]
+        },
+        options: groupedBarOptions
+    });
+}
+
+// 2. WAF Standards Chart with grouped bars
+function renderWafStandardsChart() {
+    const canvas = document.getElementById('wafStandardsChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    safeDestroyStandardizationChart('wafStandards');
+    
+    const data = getFilteredStandardizationData();
+    const { labels, scoreData, repoCountData, maxScoreData } = getGroupedChartData(data, 'wafStandards');
+    
+    standardizationCharts.wafStandards = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Repositories Audited',
+                    data: repoCountData,
+                    backgroundColor: '#1abc9c',
+                    borderColor: '#16a085',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                },
+                {
+                    label: 'WAF Standards Score',
+                    data: scoreData,
+                    backgroundColor: '#e74c3c',
+                    borderColor: '#c0392b',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                },
+                {
+                    label: 'Maximum Possible',
+                    data: maxScoreData,
+                    backgroundColor: '#ecf0f1',
+                    borderColor: '#bdc3c7',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                }
+            ]
+        },
+        options: groupedBarOptions
+    });
+}
+
+// 3. Execution Standards Chart with grouped bars
+function renderExecutionStandardsChart() {
+    const canvas = document.getElementById('executionStandardsChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    safeDestroyStandardizationChart('executionStandards');
+    
+    const data = getFilteredStandardizationData();
+    const { labels, scoreData, repoCountData, maxScoreData } = getGroupedChartData(data, 'executionStandards');
+    
+    standardizationCharts.executionStandards = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Repositories Audited',
+                    data: repoCountData,
+                    backgroundColor: '#1abc9c',
+                    borderColor: '#16a085',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                },
+                {
+                    label: 'Execution Standards Score',
+                    data: scoreData,
+                    backgroundColor: '#2ecc71',
+                    borderColor: '#27ae60',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                },
+                {
+                    label: 'Maximum Possible',
+                    data: maxScoreData,
+                    backgroundColor: '#ecf0f1',
+                    borderColor: '#bdc3c7',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                }
+            ]
+        },
+        options: groupedBarOptions
+    });
+}
+
+// 4. Maintenance Standards Chart with grouped bars
+function renderMaintenanceStandardsChart() {
+    const canvas = document.getElementById('maintenanceStandardsChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    safeDestroyStandardizationChart('maintenanceStandards');
+    
+    const data = getFilteredStandardizationData();
+    const { labels, scoreData, repoCountData, maxScoreData } = getGroupedChartData(data, 'maintenanceStandards');
+    
+    standardizationCharts.maintenanceStandards = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Repositories Audited',
+                    data: repoCountData,
+                    backgroundColor: '#1abc9c',
+                    borderColor: '#16a085',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                },
+                {
+                    label: 'Maintenance Standards Score',
+                    data: scoreData,
+                    backgroundColor: '#f39c12',
+                    borderColor: '#e67e22',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                },
+                {
+                    label: 'Maximum Possible',
+                    data: maxScoreData,
+                    backgroundColor: '#ecf0f1',
+                    borderColor: '#bdc3c7',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                }
+            ]
+        },
+        options: groupedBarOptions
+    });
 }
 
 // Update standardization KPIs
@@ -236,119 +763,17 @@ function updateStandardizationKPIs(data) {
     });
 }
 
-// 1. Standards Overview - Radar Chart
-//1. Coding Standards Bar Chart
-function renderCodingStandardsChart() {
-    const canvas = document.getElementById('codingStandardsChart');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    safeDestroyStandardizationChart('codingStandards');
-    
-    const data = getFilteredStandardizationData();
-    const { labels, chartData } = getChartData(data, 'codingStandards');
-    
-    standardizationCharts.codingStandards = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: chartData,
-                backgroundColor: '#3498db',
-                borderColor: '#2980b9',
-                borderWidth: 1,
-                borderRadius: 4,
-                borderSkipped: false
-            }]
-        },
-        options: cleanBarOptions
-    });
+// Utility function to safely destroy charts
+function safeDestroyStandardizationChart(chartKey) {
+    if (standardizationCharts[chartKey]) {
+        try {
+            standardizationCharts[chartKey].destroy();
+        } catch (error) {
+            console.warn(`Error destroying standardization chart ${chartKey}:`, error);
+        }
+        delete standardizationCharts[chartKey];
+    }
 }
-
-// 2. WAF Standards Chart
-function renderWafStandardsChart() {
-    const canvas = document.getElementById('wafStandardsChart');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    safeDestroyStandardizationChart('wafStandards');
-    
-    const data = getFilteredStandardizationData();
-    const { labels, chartData } = getChartData(data, 'wafStandards');
-    
-    standardizationCharts.wafStandards = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: chartData,
-                backgroundColor: '#e74c3c',
-                borderColor: '#c0392b',
-                borderWidth: 1,
-                borderRadius: 4,
-                borderSkipped: false
-            }]
-        },
-        options: cleanBarOptions
-    });
-}
-
-// 3. Execution Standards Chart
-function renderExecutionStandardsChart() {
-    const canvas = document.getElementById('executionStandardsChart');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    safeDestroyStandardizationChart('executionStandards');
-    
-    const data = getFilteredStandardizationData();
-    const { labels, chartData } = getChartData(data, 'executionStandards');
-    
-    standardizationCharts.executionStandards = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: chartData,
-                backgroundColor: '#2ecc71',
-                borderColor: '#27ae60',
-                borderWidth: 1,
-                borderRadius: 4,
-                borderSkipped: false
-            }]
-        },
-        options: cleanBarOptions
-    });
-}
-
-// 4. Maintenance Standards Chart
-function renderMaintenanceStandardsChart() {
-    const canvas = document.getElementById('maintenanceStandardsChart');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    safeDestroyStandardizationChart('maintenanceStandards');
-    
-    const data = getFilteredStandardizationData();
-    const { labels, chartData } = getChartData(data, 'maintenanceStandards');
-    
-    standardizationCharts.maintenanceStandards = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: chartData,
-                backgroundColor: '#f39c12',
-                borderColor: '#e67e22',
-                borderWidth: 1,
-                borderRadius: 4,
-                borderSkipped: false
-            }]
-        },
-        options: cleanBarOptions
-    });
-}
-
 
 // Updated render function for overview charts
 function renderStandardizationOverviewCharts() {
@@ -358,10 +783,68 @@ function renderStandardizationOverviewCharts() {
     setTimeout(() => renderExecutionStandardsChart(), 300);
     setTimeout(() => renderMaintenanceStandardsChart(), 400);
 }
-// 4. Area of Focus Analysis
+
+// Global tooltip functions (fixes hover functionality)
+function showFocusTooltip(event, tooltipId, content) {
+    const tooltip = document.getElementById(tooltipId);
+    if (tooltip) {
+        tooltip.innerHTML = content;
+        tooltip.style.opacity = '1';
+        moveFocusTooltip(event, tooltipId);
+    }
+}
+
+function hideFocusTooltip(tooltipId) {
+    const tooltip = document.getElementById(tooltipId);
+    if (tooltip) {
+        tooltip.style.opacity = '0';
+    }
+}
+
+function moveFocusTooltip(event, tooltipId) {
+    const tooltip = document.getElementById(tooltipId);
+    if (tooltip) {
+        const x = event.clientX + 15;
+        const y = event.clientY - 10;
+        
+        // Adjust position if tooltip would go off screen
+        const rect = tooltip.getBoundingClientRect();
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        let adjustedX = x;
+        let adjustedY = y;
+        
+        if (x + rect.width > windowWidth) {
+            adjustedX = event.clientX - rect.width - 15;
+        }
+        
+        if (y + rect.height > windowHeight) {
+            adjustedY = event.clientY - rect.height - 15;
+        }
+        
+        tooltip.style.left = adjustedX + 'px';
+        tooltip.style.top = adjustedY + 'px';
+    }
+}
+
+// Clean up tooltips when switching tabs or pages
+function cleanupFocusTooltips() {
+    const tooltips = document.querySelectorAll('[id^="focus-tooltip-"]');
+    tooltips.forEach(tooltip => {
+        if (tooltip.parentNode) {
+            tooltip.parentNode.removeChild(tooltip);
+        }
+    });
+}
+
+// Area of Focus Analysis (Fixed hover functionality)
 function renderAreaOfFocusChart() {
     const container = document.getElementById('areaOfFocusChart');
     if (!container) return;
+    
+    // Clean up any existing tooltips
+    cleanupFocusTooltips();
     
     const data = getFilteredStandardizationData();
     
@@ -379,16 +862,12 @@ function renderAreaOfFocusChart() {
                 }
                 focusDetails[focus].count++;
                 
-                // Add repository details based on filter level
                 let repoDetail = '';
                 if (filters.group && filters.subGroup) {
-                    // Show just repo name when both filters are applied
                     repoDetail = item.repoName;
                 } else if (filters.group) {
-                    // Show subgroup and repo name when only group filter is applied
                     repoDetail = `${item.subGroup} - ${item.repoName}`;
                 } else {
-                    // Show full hierarchy when no filters are applied
                     repoDetail = `${item.group} → ${item.subGroup} → ${item.repoName}`;
                 }
                 
@@ -396,7 +875,6 @@ function renderAreaOfFocusChart() {
             });
     });
     
-    // Sort by count and show ALL focus areas (not just top 8)
     const allFocusAreas = Object.entries(focusDetails)
         .sort(([,a], [,b]) => b.count - a.count);
     
@@ -430,11 +908,10 @@ function renderAreaOfFocusChart() {
     `;
     document.body.appendChild(tooltip);
     
-    // Render ALL focus areas as cards
+    // Create cards for focus areas
     let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">';
     
     allFocusAreas.forEach(([focus, details], index) => {
-        // Color coding based on frequency (high frequency = higher priority)
         const maxCount = Math.max(...allFocusAreas.map(([, d]) => d.count));
         const intensity = details.count / maxCount;
         
@@ -469,13 +946,12 @@ function renderAreaOfFocusChart() {
                 min-height: 160px;
                 height: auto;
             "
-            onmouseenter="showFocusTooltip(event, '${tooltipId}', \`${focus}<br><br><strong>Repositories:</strong><br>${repoList}\`);"
+            onmouseenter="showFocusTooltip(event, '${tooltipId}', '${focus}<br><br><strong>Repositories:</strong><br>${repoList}');"
             onmouseleave="hideFocusTooltip('${tooltipId}');"
             onmousemove="moveFocusTooltip(event, '${tooltipId}');"
             onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)';"
             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)';">
                 
-                <!-- Count Badge -->
                 <div style="
                     background: ${cardColor};
                     color: white;
@@ -490,12 +966,10 @@ function renderAreaOfFocusChart() {
                     margin: 0 auto 15px auto;
                 ">${details.count}</div>
                 
-                <!-- Focus Area Title -->
                 <h5 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 700; color: #2c3e50; line-height: 1.3;">
                     ${focus}
                 </h5>
                 
-                <!-- Priority Badge -->
                 <div style="
                     background: ${cardColor}20;
                     color: ${cardColor};
@@ -509,12 +983,10 @@ function renderAreaOfFocusChart() {
                     display: inline-block;
                 ">${priorityLabel}</div>
                 
-                <!-- Repository Count -->
                 <div style="margin-bottom: 8px; font-size: 12px; color: #666;">
                     ${details.count} ${details.count === 1 ? 'repository' : 'repositories'}
                 </div>
                 
-                <!-- Progress Bar showing relative frequency -->
                 <div style="margin-bottom: 8px;">
                     <div style="background: #f0f0f0; border-radius: 6px; height: 6px; overflow: hidden;">
                         <div style="
@@ -527,7 +999,6 @@ function renderAreaOfFocusChart() {
                     </div>
                 </div>
                 
-                <!-- Hover Instruction -->
                 <div style="font-size: 11px; color: #999; font-style: italic;">
                     Hover for details
                 </div>
@@ -539,69 +1010,13 @@ function renderAreaOfFocusChart() {
     container.innerHTML = html;
 }
 
-// Keep the existing global tooltip functions
-window.showFocusTooltip = function(event, tooltipId, content) {
-    const tooltip = document.getElementById(tooltipId);
-    if (tooltip) {
-        tooltip.innerHTML = content;
-        tooltip.style.opacity = '1';
-        moveFocusTooltip(event, tooltipId);
-    }
-};
-
-window.hideFocusTooltip = function(tooltipId) {
-    const tooltip = document.getElementById(tooltipId);
-    if (tooltip) {
-        tooltip.style.opacity = '0';
-    }
-};
-
-window.moveFocusTooltip = function(event, tooltipId) {
-    const tooltip = document.getElementById(tooltipId);
-    if (tooltip) {
-        const x = event.clientX + 15;
-        const y = event.clientY - 10;
-        
-        // Adjust position if tooltip would go off screen
-        const rect = tooltip.getBoundingClientRect();
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
-        
-        let adjustedX = x;
-        let adjustedY = y;
-        
-        if (x + rect.width > windowWidth) {
-            adjustedX = event.clientX - rect.width - 15;
-        }
-        
-        if (y + rect.height > windowHeight) {
-            adjustedY = event.clientY - rect.height - 15;
-        }
-        
-        tooltip.style.left = adjustedX + 'px';
-        tooltip.style.top = adjustedY + 'px';
-    }
-};
-
-// Clean up tooltips when switching tabs or pages (keep existing function)
-function cleanupFocusTooltips() {
-    const tooltips = document.querySelectorAll('[id^="focus-tooltip-"]');
-    tooltips.forEach(tooltip => {
-        if (tooltip.parentNode) {
-            tooltip.parentNode.removeChild(tooltip);
-        }
-    });
-}
-
-
-// 5. What They Did Well Analysis (using inline styles like the opportunity matrix)
+// What They Did Well Analysis
 function renderWhatTheyDidWellChart() {
     const container = document.getElementById('whatTheyDidWellChart');
     if (!container) return;
     
     const data = getFilteredStandardizationData();
     
-    // Analyze what each group/subgroup does well
     let analysisLevel = [];
     
     if (filters.group && filters.subGroup) {
@@ -638,7 +1053,6 @@ function renderWhatTheyDidWellChart() {
         });
     }
     
-    // Find strengths for each item
     const strengthAnalysis = analysisLevel.map(item => {
         const scores = {
             'Coding Standards': item.coding,
@@ -658,7 +1072,7 @@ function renderWhatTheyDidWellChart() {
             maxScore,
             allScores: scores
         };
-    }).sort((a, b) => b.maxScore - a.maxScore); // Sort by highest score first
+    }).sort((a, b) => b.maxScore - a.maxScore);
     
     if (strengthAnalysis.length === 0) {
         container.innerHTML = `
@@ -670,21 +1084,10 @@ function renderWhatTheyDidWellChart() {
         return;
     }
     
-    // Render ALL items as cards with inline CSS
     let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">';
     
     strengthAnalysis.forEach(item => {
         const strengthColor = item.maxScore >= 12 ? '#27ae60' : item.maxScore >= 9 ? '#f39c12' : item.maxScore >= 6 ? '#3498db' : '#e74c3c';
-        
-        // Determine display context based on filter level
-        let displayContext = '';
-        if (filters.group && filters.subGroup) {
-            displayContext = `Repository in ${filters.group} → ${filters.subGroup}`;
-        } else if (filters.group) {
-            displayContext = `Sub-group in ${filters.group}`;
-        } else {
-            displayContext = `Business Group`;
-        }
         
         html += `
             <div style="
@@ -700,14 +1103,8 @@ function renderWhatTheyDidWellChart() {
             onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)';"
             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)';">
                 
-                <!-- Header -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div>
-                        <h4 style="margin: 0; font-size: 16px; font-weight: 700; color: #2c3e50;">${item.name}</h4>
-                        <div style="font-size: 11px; color: #666; background: #f8f9fa; padding: 3px 8px; border-radius: 8px; display: inline-block; margin-top: 4px;">
-                            ${displayContext}
-                        </div>
-                    </div>
+                    <h4 style="margin: 0; font-size: 16px; font-weight: 700; color: #2c3e50;">${item.name}</h4>
                     <div style="
                         background: ${strengthColor};
                         color: white;
@@ -720,7 +1117,6 @@ function renderWhatTheyDidWellChart() {
                     ">${item.maxScore}</div>
                 </div>
                 
-                <!-- Strengths Section -->
                 <div style="margin-bottom: 15px;">
                     <div style="font-size: 12px; color: #666; font-weight: 600; margin-bottom: 8px;">STRONGEST AREAS</div>
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">
@@ -737,14 +1133,13 @@ function renderWhatTheyDidWellChart() {
                     </div>
                 </div>
                 
-                <!-- All Scores Section -->
                 <div style="margin-bottom: 15px;">
                     <div style="font-size: 12px; color: #666; font-weight: 600; margin-bottom: 8px;">ALL SCORES</div>
                     ${Object.entries(item.allScores).map(([standard, score]) => {
                         const isHighest = score === item.maxScore;
                         const barColor = isHighest ? strengthColor : '#e0e0e0';
                         const textColor = isHighest ? '#2c3e50' : '#666';
-                        const barWidth = Math.max(10, (score / 15) * 100); // Assuming max score is 15
+                        const barWidth = Math.max(10, (score / 15) * 100);
                         
                         return `
                             <div style="margin-bottom: 8px;">
@@ -765,93 +1160,12 @@ function renderWhatTheyDidWellChart() {
                         `;
                     }).join('')}
                 </div>
-                
-
             </div>
         `;
     });
     
     html += '</div>';
     container.innerHTML = html;
-}
-
-// Utility function to safely destroy charts
-function safeDestroyStandardizationChart(chartKey) {
-    if (standardizationCharts[chartKey]) {
-        try {
-            standardizationCharts[chartKey].destroy();
-        } catch (error) {
-            console.warn(`Error destroying standardization chart ${chartKey}:`, error);
-        }
-        delete standardizationCharts[chartKey];
-    }
-}
-
-
-function renderStandardizationInsightsCharts() {
-    cleanupFocusTooltips();
-    console.log('Rendering standardization insights charts...');
-    setTimeout(() => renderAreaOfFocusChart(), 100);
-    setTimeout(() => renderWhatTheyDidWellChart(), 200);
-}
-
-// Update standardization metrics
-function updateStandardizationMetrics() {
-    console.log('Updating standardization metrics...');
-    
-    const filteredData = getFilteredStandardizationData();
-    console.log('Filtered standardization data count:', filteredData.length);
-    
-    updateStandardizationKPIs(filteredData);
-    
-    // Re-render charts for active tab
-    const activeTab = document.querySelector('#standardizationPage .tab.active');
-    if (activeTab) {
-        const tabName = activeTab.getAttribute('data-tab');
-        setTimeout(() => {
-            if (tabName === 'standardization-overview') {
-                renderStandardizationOverviewCharts();
-            } else if (tabName === 'standardization-insights') {
-                renderStandardizationInsightsCharts();
-            }
-        }, 200);
-    }
-}
-
-// Initialize standardization page
-function initializeStandardizationPage() {
-    console.log('Initializing Standardization Page...');
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            setupStandardizationPage();
-        });
-    } else {
-        setupStandardizationPage();
-    }
-}
-
-function setupStandardizationPage() {
-    initializeStandardizationTabs();
-    loadStandardizationData();
-    setupStandardizationFilterListeners();
-    populateStandardizationFilters();
-}
-
-function initializeStandardizationTabs() {
-    const standardizationTabs = document.querySelectorAll('#standardizationPage .tab');
-    
-    standardizationTabs.forEach(tab => {
-        tab.replaceWith(tab.cloneNode(true));
-    });
-    
-    document.querySelectorAll('#standardizationPage .tab').forEach(tab => {
-        tab.addEventListener('click', function(e) {
-            e.preventDefault();
-            const tabName = this.getAttribute('data-tab');
-            switchStandardizationTab(tabName);
-        });
-    });
 }
 
 function switchStandardizationTab(tabName) {
@@ -879,19 +1193,347 @@ function switchStandardizationTab(tabName) {
         activeContent.style.display = 'block';
     }
     
+    // Clean up tooltips when switching tabs
+    cleanupFocusTooltips();
+    
     // Render appropriate charts
     setTimeout(() => {
-        if (tabName === 'standardization-overview') {
-            renderStandardsOverviewChart();
-            renderStandardsDistributionChart();
-            renderMaturityCorrelationChart();
-        } else if (tabName === 'standardization-insights') {
+        if (tabName === 'standardization-audit-process') {
+            renderAuditProcessInfo();
+        } else if (tabName === 'standardization-overview') {
+            renderStandardizationOverviewCharts();
+        } else if (tabName === 'standardization-focus') {
             renderAreaOfFocusChart();
+        } else if (tabName === 'standardization-excellence') {
             renderWhatTheyDidWellChart();
         }
     }, 300);
 }
 
+// New function to render audit process information
+function renderAuditProcessInfo() {
+    const container = document.getElementById('auditProcessInfo');
+    if (!container) return;
+    
+    const html = `
+        <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+            <!-- Main Introduction -->
+            <div style="
+                background: linear-gradient(135deg,#c41e3a 0%, #8b0000 100%);
+                color: white;
+                padding: 40px;
+                border-radius: 16px;
+                margin-bottom: 30px;
+                text-align: center;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            ">
+                <h2 style="margin: 0 0 25px 0; font-size: 28px; font-weight: 700;">
+                    How Audit is Done?
+                </h2>
+                <div style="text-align: left; max-width: 800px; margin: 0 auto;">
+                    <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;">
+                        <strong>1.</strong> Each Test automation project will be assessed against 4 types of standards - (Coding standards, WAF Standards, Execution Standards, Maintenance Standards).
+                    </p>
+                    <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;">
+                        <strong>2.</strong> Each standard will have again defined check points on which the project/Repo will be assessed.
+                    </p>
+                    <p style="margin: 0; font-size: 16px; line-height: 1.6;">
+                        <strong>3.</strong> At end of audit maturity will be calculated based on points project got divided by Total points.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Standards Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-bottom: 40px;">
+                
+                <!-- Coding Standards -->
+                <div style="
+                    background: white;
+                    border-radius: 16px;
+                    padding: 30px;
+                    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+                    border-left: 6px solid #3498db;
+                    transition: transform 0.3s ease, box-shadow 0.3s ease;
+                "
+                onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 12px 30px rgba(0,0,0,0.15)';"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)';">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <div style="
+                            background: #3498db;
+                            color: white;
+                            width: 50px;
+                            height: 50px;
+                            border-radius: 12px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin-right: 15px;
+                            font-weight: 700;
+                            font-size: 18px;
+                        ">1</div>
+                        <h3 style="margin: 0; color: #2c3e50; font-size: 20px; font-weight: 700;">
+                            Coding Standards
+                        </h3>
+                    </div>
+                    <div style="
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        color: #666;
+                        line-height: 1.6;
+                    ">
+                        <strong style="color: #3498db;">Maximum Score: 5 points</strong><br>
+                        Assesses code quality, naming conventions, structure, and adherence to programming best practices.
+                    </div>
+                </div>
+
+                <!-- WAF Standards -->
+                <div style="
+                    background: white;
+                    border-radius: 16px;
+                    padding: 30px;
+                    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+                    border-left: 6px solid #e74c3c;
+                    transition: transform 0.3s ease, box-shadow 0.3s ease;
+                "
+                onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 12px 30px rgba(0,0,0,0.15)';"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)';">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <div style="
+                            background: #e74c3c;
+                            color: white;
+                            width: 50px;
+                            height: 50px;
+                            border-radius: 12px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin-right: 15px;
+                            font-weight: 700;
+                            font-size: 18px;
+                        ">2</div>
+                        <h3 style="margin: 0; color: #2c3e50; font-size: 20px; font-weight: 700;">
+                            WAF Standards
+                        </h3>
+                    </div>
+                    <div style="
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        color: #666;
+                        line-height: 1.6;
+                    ">
+                        <strong style="color: #e74c3c;">Maximum Score: 16 points</strong><br>
+                        Evaluates Web Application Framework compliance, architecture patterns, and framework-specific best practices.
+                    </div>
+                </div>
+
+                <!-- Execution Standards -->
+                <div style="
+                    background: white;
+                    border-radius: 16px;
+                    padding: 30px;
+                    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+                    border-left: 6px solid #2ecc71;
+                    transition: transform 0.3s ease, box-shadow 0.3s ease;
+                "
+                onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 12px 30px rgba(0,0,0,0.15)';"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)';">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <div style="
+                            background: #2ecc71;
+                            color: white;
+                            width: 50px;
+                            height: 50px;
+                            border-radius: 12px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin-right: 15px;
+                            font-weight: 700;
+                            font-size: 18px;
+                        ">3</div>
+                        <h3 style="margin: 0; color: #2c3e50; font-size: 20px; font-weight: 700;">
+                            Execution Standards
+                        </h3>
+                    </div>
+                    <div style="
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        color: #666;
+                        line-height: 1.6;
+                    ">
+                        <strong style="color: #2ecc71;">Maximum Score: 5 points</strong><br>
+                        Reviews test execution efficiency, parallel execution capabilities, and runtime optimization practices.
+                    </div>
+                </div>
+
+                <!-- Maintenance Standards -->
+                <div style="
+                    background: white;
+                    border-radius: 16px;
+                    padding: 30px;
+                    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+                    border-left: 6px solid #f39c12;
+                    transition: transform 0.3s ease, box-shadow 0.3s ease;
+                "
+                onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 12px 30px rgba(0,0,0,0.15)';"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)';">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <div style="
+                            background: #f39c12;
+                            color: white;
+                            width: 50px;
+                            height: 50px;
+                            border-radius: 12px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin-right: 15px;
+                            font-weight: 700;
+                            font-size: 18px;
+                        ">4</div>
+                        <h3 style="margin: 0; color: #2c3e50; font-size: 20px; font-weight: 700;">
+                            Maintenance Standards
+                        </h3>
+                    </div>
+                    <div style="
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        color: #666;
+                        line-height: 1.6;
+                    ">
+                        <strong style="color: #f39c12;">Maximum Score: 6 points</strong><br>
+                        Assesses code maintainability, documentation quality, version control practices, and long-term sustainability.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maturity Calculation Section -->
+            <div style="
+                background: white;
+                border-radius: 16px;
+                padding: 40px;
+                box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+                border-top: 4px solid #9b59b6;
+                margin-bottom: 30px;
+            ">
+                <h3 style="
+                    margin: 0 0 25px 0;
+                    color: #2c3e50;
+                    font-size: 24px;
+                    font-weight: 700;
+                    text-align: center;
+                ">Maturity Level Calculation</h3>
+                
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <div style="
+                        background: #f8f9fa;
+                        padding: 20px;
+                        border-radius: 12px;
+                        font-size: 16px;
+                        color: #2c3e50;
+                        display: inline-block;
+                        font-weight: 600;
+                    ">
+                        Maturity Level = (Points Earned ÷ Total Points) × 100
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <!-- Level 1 -->
+                    <div style="
+                        background: #e74c3c;
+                        color: white;
+                        padding: 25px;
+                        border-radius: 12px;
+                        text-align: center;
+                        transition: transform 0.3s ease;
+                    "
+                    onmouseover="this.style.transform='scale(1.05)';"
+                    onmouseout="this.style.transform='scale(1)';">
+                        <div style="font-size: 32px; font-weight: 700; margin-bottom: 10px;">1</div>
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">BASIC LEVEL</div>
+                        <div style="font-size: 12px; opacity: 0.9;">< 25%</div>
+                    </div>
+                    
+                    <!-- Level 2 -->
+                    <div style="
+                        background: #f39c12;
+                        color: white;
+                        padding: 25px;
+                        border-radius: 12px;
+                        text-align: center;
+                        transition: transform 0.3s ease;
+                    "
+                    onmouseover="this.style.transform='scale(1.05)';"
+                    onmouseout="this.style.transform='scale(1)';">
+                        <div style="font-size: 32px; font-weight: 700; margin-bottom: 10px;">2</div>
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">DEVELOPING</div>
+                        <div style="font-size: 12px; opacity: 0.9;">25% - 50%</div>
+                    </div>
+                    
+                    <!-- Level 3 -->
+                    <div style="
+                        background: #3498db;
+                        color: white;
+                        padding: 25px;
+                        border-radius: 12px;
+                        text-align: center;
+                        transition: transform 0.3s ease;
+                    "
+                    onmouseover="this.style.transform='scale(1.05)';"
+                    onmouseout="this.style.transform='scale(1)';">
+                        <div style="font-size: 32px; font-weight: 700; margin-bottom: 10px;">3</div>
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">PROFICIENT</div>
+                        <div style="font-size: 12px; opacity: 0.9;">50% - 75%</div>
+                    </div>
+                    
+                    <!-- Level 4 -->
+                    <div style="
+                        background: #2ecc71;
+                        color: white;
+                        padding: 25px;
+                        border-radius: 12px;
+                        text-align: center;
+                        transition: transform 0.3s ease;
+                    "
+                    onmouseover="this.style.transform='scale(1.05)';"
+                    onmouseout="this.style.transform='scale(1)';">
+                        <div style="font-size: 32px; font-weight: 700; margin-bottom: 10px;">4</div>
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">ADVANCED</div>
+                        <div style="font-size: 12px; opacity: 0.9;">75% - < 100%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Score Information -->
+            <div style="
+                background: linear-gradient(135deg,#c41e3a 0%, #8b0000 100%);
+                color: white;
+                padding: 30px;
+                border-radius: 16px;
+                text-align: center;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            ">
+                <h3 style="margin: 0 0 15px 0; font-size: 22px; font-weight: 700;">
+                    Total Maximum Score: 32 Points
+                </h3>
+                <p style="margin: 0; font-size: 16px; opacity: 0.9; line-height: 1.6;">
+                    Coding (5) + WAF (16) + Execution (5) + Maintenance (6) = 32 Total Points
+                </p>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
 // Setup filter listeners for standardization
 function setupStandardizationFilterListeners() {
     const groupFilter = document.getElementById('groupFilter');
@@ -966,6 +1608,66 @@ function updateStandardizationSubAreaFilter() {
     if (filters.group && !subGroupFilter.value) {
         filters.subGroup = '';
     }
+}
+
+// Update standardization metrics
+function updateStandardizationMetrics() {
+    console.log('Updating standardization metrics...');
+    
+    const filteredData = getFilteredStandardizationData();
+    console.log('Filtered standardization data count:', filteredData.length);
+    
+    updateStandardizationKPIs(filteredData);
+    
+    const activeTab = document.querySelector('#standardizationPage .tab.active');
+    if (activeTab) {
+        const tabName = activeTab.getAttribute('data-tab');
+        setTimeout(() => {
+            if (tabName === 'standardization-overview') {
+                renderStandardizationOverviewCharts();
+            } else if (tabName === 'standardization-focus') {
+                renderAreaOfFocusChart();
+            } else if (tabName === 'standardization-excellence') {
+                renderWhatTheyDidWellChart();
+            }
+        }, 200);
+    }
+}
+
+// Initialize standardization page
+function initializeStandardizationPage() {
+    console.log('Initializing Standardization Page...');
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setupStandardizationPage();
+        });
+    } else {
+        setupStandardizationPage();
+    }
+}
+
+function setupStandardizationPage() {
+    initializeStandardizationTabs();
+    loadStandardizationData();
+    setupStandardizationFilterListeners();
+    populateStandardizationFilters();
+}
+
+function initializeStandardizationTabs() {
+    const standardizationTabs = document.querySelectorAll('#standardizationPage .tab');
+    
+    standardizationTabs.forEach(tab => {
+        tab.replaceWith(tab.cloneNode(true));
+    });
+    
+    document.querySelectorAll('#standardizationPage .tab').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            const tabName = this.getAttribute('data-tab');
+            switchStandardizationTab(tabName);
+        });
+    });
 }
 
 // Export functions for integration

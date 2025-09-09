@@ -408,10 +408,14 @@
 <div id="standardizationPage" class="page-content" style="display: none;">
     <div class="tabs-container">
         <div class="tabs">
-            <button class="tab active" data-tab="standardization-overview">Standards Overview</button>
-            <button class="tab" data-tab="standardization-insights">Areas of Focus & Excellence</button>
+            <button class="tab active" data-tab="standardization-audit-process">How Audit is done?</button>
+            <button class="tab" data-tab="standardization-overview">Standards Overview</button>
+            <button class="tab" data-tab="standardization-focus">Areas of Focus</button>
+            <button class="tab" data-tab="standardization-excellence">Excellence Analysis</button>
         </div>
-
+        <div class="tab-content active" id="standardization-audit-process">
+                <div id="auditProcessInfo"></div>
+        </div>
         <!-- Tab 1: Standards Overview -->
        <div class="tab-content active" id="standardization-overview">
     <!-- KPI Cards remain the same -->
@@ -527,25 +531,28 @@
         </div>
     </div>
 </div>
-        <!-- Tab 2: Areas of Focus & Excellence -->
-        <div class="tab-content" id="standardization-insights">
-            <div class="insights-grid">
-        <div class="insight-card">
+        <div class="tab-content" id="standardization-focus">
+    <div class="insights-grid">
+        <div class="insight-card full-width">
             <h3 class="insight-header">Priority Areas of Focus</h3>
             <div class="chart-wrapper">
-                <!-- This will now contain cards instead of a canvas -->
                 <div id="areaOfFocusChart"></div>
             </div>
         </div>
-                
-                <div class="insight-card full-width">
-                    <h3 class="insight-header">What They Did Well</h3>
-                    <div class="chart-wrapper">
-                        <div id="whatTheyDidWellChart"></div>
-                    </div>
-                </div>
+    </div>
+</div>
+
+<!-- Tab 3: Excellence Analysis (new separate tab) -->
+<div class="tab-content" id="standardization-excellence">
+    <div class="insights-grid">
+        <div class="insight-card full-width">
+            <h3 class="insight-header">What They Did Well</h3>
+            <div class="chart-wrapper">
+                <div id="whatTheyDidWellChart"></div>
             </div>
         </div>
+    </div>
+</div>
     </div>
 </div>
 <div id="initiativesPage" class="page-content" style="display: none;">

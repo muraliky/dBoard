@@ -1002,13 +1002,212 @@ function renderAutomationOpportunityMatrix() {
     if (!container) return;
     
     const data = getFilteredAutomationData();
+    let groupedData = getGroupedAutomationData(data);
     
-    // Group data based on current filter level
-    let groupedData = [];
+    if (groupedData.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #666;">No data available for selected filters.</p>';
+        return;
+    }
     
+    let html = `
+        <div style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
+            <!-- Table Controls -->
+            <div style="padding: 20px; border-bottom: 1px solid #e0e0e0; background: #f8f9fa;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+                    <h4 style="margin: 0; color: #2c3e50;">Analysis</h4>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="sortBy" onchange="sortAutomationTable(this.value)" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="gap">Sort by Gap</option>
+                            <option value="coverage">Sort by Coverage</option>
+                            <option value="totalManual">Sort by Test Count</option>
+                            <option value="saveInHours">Sort by Hours Saved</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Table Content with Scrolling -->
+            <div style="overflow-x: auto; max-height: 600px; overflow-y: auto;">
+                <table id="automationOpportunityTable" style="width: 100%; border-collapse: collapse; min-width: 800px;">
+                    <thead style="position: sticky; top: 0; background: #f1f3f4; z-index: 10;">
+                        <tr>
+                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd; font-weight: 600; background: #f1f3f4;">Area/Application</th>
+                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid #ddd; font-weight: 600; background: #f1f3f4;">Coverage</th>
+                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid #ddd; font-weight: 600; background: #f1f3f4;">Gap to 90%</th>
+                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid #ddd; font-weight: 600; background: #f1f3f4;">Priority Tests</th>
+                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid #ddd; font-weight: 600; background: #f1f3f4;">Total Manual</th>
+                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid #ddd; font-weight: 600; background: #f1f3f4;">Hours Saved</th>
+                            <th style="text-align: center; padding: 12px; border-bottom: 2px solid #ddd; font-weight: 600; background: #f1f3f4;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="automationTableBody">
+    `;
+    
+    // Sort data by gap (highest first)
+    groupedData.sort((a, b) => b.gap - a.gap);
+    
+    groupedData.forEach((item, index) => {
+        const statusColor = item.coverage >= 90 ? '#27ae60' : 
+                           item.coverage >= 50 ? '#f39c12' : '#e74c3c';
+        
+        const statusText = item.coverage >= 90 ? 'Excellent' : 
+                          item.coverage >= 50 ? 'Moderate' : 'Needs Focus';
+        
+        const rowBg = index % 2 === 0 ? '#ffffff' : '#f9f9f9';
+        
+        html += `
+            <tr style="background: ${rowBg};" onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='${rowBg}'">
+                <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                    <div style="font-weight: 600; color: #2c3e50;">${item.name}</div>
+                    <div style="font-size: 12px; color: #666; margin-top: 2px;">${getContextInfo(item)}</div>
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <div style="width: 60px; height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden;">
+                            <div style="width: ${item.coverage}%; height: 100%; background: ${statusColor}; border-radius: 4px;"></div>
+                        </div>
+                        <span style="font-weight: 600; color: ${statusColor};">${item.coverage}%</span>
+                    </div>
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">
+                    <span style="font-weight: 600; color: ${item.gap > 20 ? '#e74c3c' : item.gap > 10 ? '#f39c12' : '#27ae60'};">
+                        ${item.gap}%
+                    </span>
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; font-weight: 600;">
+                    ${item.highPriorityTests.toLocaleString()}
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; font-weight: 600;">
+                    ${item.totalManual.toLocaleString()}
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; font-weight: 600;">
+                    ${item.saveInHours.toLocaleString()}
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">
+                    <span style="
+                        padding: 4px 12px; 
+                        border-radius: 12px; 
+                        font-size: 12px; 
+                        font-weight: 600; 
+                        background: ${statusColor}20; 
+                        color: ${statusColor};
+                        border: 1px solid ${statusColor}40;
+                    ">
+                        ${statusText}
+                    </span>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Summary Footer -->
+            <div style="padding: 15px 20px; background: #f8f9fa; border-top: 1px solid #e0e0e0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: #666;">
+                    <span>Total Items: ${groupedData.length}</span>
+                    <span>Average Coverage: ${Math.round(groupedData.reduce((sum, d) => sum + d.coverage, 0) / groupedData.length)}%</span>
+                    <span>Items Below Target: ${groupedData.filter(d => d.coverage < 90).length}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Store data for sorting
+    window.currentAutomationData = groupedData;
+}
+
+// Sorting function for the table
+function sortAutomationTable(sortBy) {
+    const data = window.currentAutomationData;
+    if (!data) return;
+    
+    // Sort the data
+    data.sort((a, b) => {
+        switch(sortBy) {
+            case 'coverage':
+                return b.coverage - a.coverage;
+            case 'totalManual':
+                return b.totalManual - a.totalManual;
+            case 'saveInHours':
+                return b.saveInHours - a.saveInHours;
+            case 'gap':
+            default:
+                return b.gap - a.gap;
+        }
+    });
+    
+    // Re-render table body
+    const tbody = document.getElementById('automationTableBody');
+    if (!tbody) return;
+    
+    let html = '';
+    data.forEach((item, index) => {
+        const statusColor = item.coverage >= 90 ? '#27ae60' : 
+                           item.coverage >= 50 ? '#f39c12' : '#e74c3c';
+        
+        const statusText = item.coverage >= 90 ? 'Excellent' : 
+                          item.coverage >= 50 ? 'Moderate' : 'Needs Focus';
+        
+        const rowBg = index % 2 === 0 ? '#ffffff' : '#f9f9f9';
+        
+        html += `
+            <tr style="background: ${rowBg};" onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='${rowBg}'">
+                <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                    <div style="font-weight: 600; color: #2c3e50;">${item.name}</div>
+                    <div style="font-size: 12px; color: #666; margin-top: 2px;">${getContextInfo(item)}</div>
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <div style="width: 60px; height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden;">
+                            <div style="width: ${item.coverage}%; height: 100%; background: ${statusColor}; border-radius: 4px;"></div>
+                        </div>
+                        <span style="font-weight: 600; color: ${statusColor};">${item.coverage}%</span>
+                    </div>
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">
+                    <span style="font-weight: 600; color: ${item.gap > 20 ? '#e74c3c' : item.gap > 10 ? '#f39c12' : '#27ae60'};">
+                        ${item.gap}%
+                    </span>
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; font-weight: 600;">
+                    ${item.highPriorityTests.toLocaleString()}
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; font-weight: 600;">
+                    ${item.totalManual.toLocaleString()}
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; font-weight: 600;">
+                    ${item.saveInHours.toLocaleString()}
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">
+                    <span style="
+                        padding: 4px 12px; 
+                        border-radius: 12px; 
+                        font-size: 12px; 
+                        font-weight: 600; 
+                        background: ${statusColor}20; 
+                        color: ${statusColor};
+                        border: 1px solid ${statusColor}40;
+                    ">
+                        ${statusText}
+                    </span>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+// Helper function to get grouped data based on current filters
+function getGroupedAutomationData(data) {
     if (filters.group && filters.subGroup) {
-        // Show individual applications when both area and sub-area are selected
-        groupedData = data
+        return data
             .filter(d => d.area === filters.group && d.subArea === filters.subGroup)
             .map(d => ({
                 name: d.applicationName,
@@ -1020,23 +1219,15 @@ function renderAutomationOpportunityMatrix() {
                 totalManual: d.totalManualCases,
                 totalAutomated: d.totalAutomatedTillDate,
                 readiness: d.regressionSuiteAvailable === 'Yes' ? 'Ready' : 'Not Ready',
-                saveInHours: d.saveInHours,
-                potentialSavings: d.saveInHours * 50,
-                regressionSuiteAvailable: d.regressionSuiteAvailable,
-                automationStarted: d.automationStarted
+                saveInHours: d.saveInHours
             }));
     } else if (filters.group) {
-        // Show sub-areas when only area is selected
         const subAreas = [...new Set(data.filter(d => d.area === filters.group).map(d => d.subArea))];
-        
-        groupedData = subAreas.map(subArea => {
+        return subAreas.map(subArea => {
             const subAreaData = data.filter(d => d.area === filters.group && d.subArea === subArea);
             const totalManual = subAreaData.reduce((sum, d) => sum + d.totalManualCases, 0);
             const totalAutomated = subAreaData.reduce((sum, d) => sum + d.totalAutomatedTillDate, 0);
             const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-            const highPriorityTests = subAreaData.reduce((sum, d) => sum + d.manualCritical + d.manualHigh, 0);
-            const readyCount = subAreaData.filter(d => d.regressionSuiteAvailable === 'Yes').length;
-            const totalApps = subAreaData.length;
             
             return {
                 name: subArea,
@@ -1044,27 +1235,21 @@ function renderAutomationOpportunityMatrix() {
                 subArea: subArea,
                 coverage,
                 gap: Math.max(0, 90 - coverage),
-                highPriorityTests,
+                highPriorityTests: subAreaData.reduce((sum, d) => sum + d.manualCritical + d.manualHigh, 0),
                 totalManual,
                 totalAutomated,
-                readiness: readyCount === totalApps ? 'Ready' : readyCount > 0 ? 'Partial' : 'Not Ready',
+                readiness: subAreaData.every(d => d.regressionSuiteAvailable === 'Yes') ? 'Ready' : 'Partial',
                 saveInHours: subAreaData.reduce((sum, d) => sum + d.saveInHours, 0),
-                potentialSavings: subAreaData.reduce((sum, d) => sum + d.saveInHours, 0) * 50,
-                applicationsCount: totalApps
+                applicationsCount: subAreaData.length
             };
         });
     } else {
-        // Show areas when no filters are selected
         const areas = [...new Set(data.map(d => d.area))];
-        
-        groupedData = areas.map(area => {
+        return areas.map(area => {
             const areaData = data.filter(d => d.area === area);
             const totalManual = areaData.reduce((sum, d) => sum + d.totalManualCases, 0);
             const totalAutomated = areaData.reduce((sum, d) => sum + d.totalAutomatedTillDate, 0);
             const coverage = totalManual > 0 ? Math.round((totalAutomated / totalManual) * 100) : 0;
-            const highPriorityTests = areaData.reduce((sum, d) => sum + d.manualCritical + d.manualHigh, 0);
-            const readyCount = areaData.filter(d => d.regressionSuiteAvailable === 'Yes').length;
-            const totalApps = areaData.length;
             
             return {
                 name: area,
@@ -1072,204 +1257,25 @@ function renderAutomationOpportunityMatrix() {
                 subArea: '',
                 coverage,
                 gap: Math.max(0, 90 - coverage),
-                highPriorityTests,
+                highPriorityTests: areaData.reduce((sum, d) => sum + d.manualCritical + d.manualHigh, 0),
                 totalManual,
                 totalAutomated,
-                readiness: readyCount === totalApps ? 'Ready' : readyCount > 0 ? 'Partial' : 'Not Ready',
+                readiness: areaData.every(d => d.regressionSuiteAvailable === 'Yes') ? 'Ready' : 'Partial',
                 saveInHours: areaData.reduce((sum, d) => sum + d.saveInHours, 0),
-                potentialSavings: areaData.reduce((sum, d) => sum + d.saveInHours, 0) * 50,
-                applicationsCount: totalApps
+                applicationsCount: areaData.length
             };
         });
     }
-    
-    // Sort by coverage gap (highest gaps first)
-    const allOpportunities = groupedData.sort((a, b) => b.gap - a.gap);
-    
-    if (allOpportunities.length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 60px 20px; color: #27ae60;">
-                <h4 style="font-size: 20px; margin-bottom: 10px; color: #27ae60;">No data available!</h4>
-                <p style="color: #666; font-size: 14px;">No automation data found for the selected filters.</p>
-            </div>
-        `;
-        return;
-    }
-    
-    // Simple responsive grid - no pagination, no header
-    let html = `
-        <div style="
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
-            gap: 20px;
-            padding: 10px 0;
-        ">
-    `;
-    
-    allOpportunities.forEach((opp, index) => {
-        const priorityColor = opp.gap >= 30 ? '#e74c3c' : opp.gap >= 15 ? '#f39c12' : '#27ae60';
-        const priorityBg = opp.gap >= 30 ? 'linear-gradient(135deg, #fff5f5, #ffffff)' : 
-                          opp.gap >= 15 ? 'linear-gradient(135deg, #fffbf0, #ffffff)' : 
-                          'linear-gradient(135deg, #f0fff0, #ffffff)';
-        
-        // Determine display context based on filter level
-        let displayContext = '';
-        if (filters.group && filters.subGroup) {
-            displayContext = `Application in ${opp.area} → ${opp.subArea}`;
-        } else if (filters.group) {
-            displayContext = `Sub-area in ${opp.area} (${opp.applicationsCount || 1} apps)`;
-        } else {
-            displayContext = `Business Area (${opp.applicationsCount || 1} apps)`;
-        }
-        
-        html += `
-            <div style="
-                background: ${priorityBg};
-                border-radius: 12px;
-                padding: 25px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-                border-left: 5px solid ${priorityColor};
-                transition: all 0.3s ease;
-                position: relative;
-                cursor: pointer;
-                min-height: 320px;
-                height: auto;
-            " 
-            onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)';"
-            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.08)';">
-                
-                <!-- Header -->
-                <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0;">
-                    <h4 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 700; color: #2c3e50;">${opp.name}</h4>
-                    <div style="font-size: 11px; color: #666; background: #f8f9fa; padding: 4px 8px; border-radius: 12px; display: inline-block;">
-                        ${displayContext}
-                    </div>
-                </div>
-                
-                <!-- Coverage Progress Bar -->
-                <div style="margin-bottom: 15px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 12px; font-weight: 600; color: #555;">Coverage Progress</span>
-                        <span style="font-size: 12px; font-weight: 700; color: #2c3e50;">${opp.coverage}% / 90%</span>
-                    </div>
-                    <div style="background: #e0e0e0; border-radius: 10px; height: 12px; overflow: hidden;">
-                        <div style="
-                            height: 100%;
-                            width: ${Math.max(5, opp.coverage)}%;
-                            background: linear-gradient(90deg, ${opp.coverage >= 70 ? '#27ae60' : opp.coverage >= 50 ? '#f39c12' : '#e74c3c'}, ${opp.coverage >= 70 ? '#2ecc71' : opp.coverage >= 50 ? '#f1c40f' : '#ff6b6b'});
-                            border-radius: 10px;
-                            transition: width 1s ease;
-                        "></div>
-                    </div>
-                </div>
-                
-                <!-- Key Metrics Grid -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 15px;">
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                        <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">High Priority</div>
-                        <div style="font-size: 15px; font-weight: 700; color: #2c3e50;">${opp.highPriorityTests}</div>
-                    </div>
-                    
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                        <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Manual</div>
-                        <div style="font-size: 15px; font-weight: 700; color: #2c3e50;">${opp.totalManual}</div>
-                    </div>
-                    
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                        <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Readiness</div>
-                        <div style="font-size: 15px; font-weight: 700; color: ${opp.readiness === 'Ready' ? '#27ae60' : opp.readiness === 'Partial' ? '#f39c12' : '#e74c3c'};">${opp.readiness}</div>
-                    </div>
-                </div>
-                
-                <!-- Gap Visualization -->
-                <div style="background: linear-gradient(135deg, #f8f9fa, #ffffff); border-radius: 8px; padding: 15px; border: 1px solid #e0e0e0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <span style="font-weight: 700; color: #2c3e50;">Gap to Target</span>
-                        <span style="font-size: 16px; color: ${opp.gap > 30 ? '#e74c3c' : opp.gap > 15 ? '#f39c12' : '#27ae60'}; font-weight: 700;">${opp.gap}%</span>
-                    </div>
-                    <div style="display: flex; height: 20px; border-radius: 10px; overflow: hidden; border: 2px solid #e0e0e0;">
-                        <div style="
-                            width: ${opp.coverage}%;
-                            background: linear-gradient(90deg, #27ae60, #2ecc71);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                        ">
-                            <span style="font-size: 11px; font-weight: 600; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
-                                ${opp.coverage > 15 ? opp.coverage + '%' : ''}
-                            </span>
-                        </div>
-                        <div style="
-                            width: ${opp.gap}%;
-                            background: linear-gradient(90deg, #e74c3c, #ff6b6b);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                        ">
-                            <span style="font-size: 11px; font-weight: 600; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
-                                ${opp.gap > 15 ? opp.gap + '%' : ''}
-                            </span>
-                        </div>
-                    </div>
-                    <div style="font-size: 12px; color: #666; text-align: center; margin-top: 8px; font-style: italic;">
-                        ${opp.gap > 0 ? `Need to automate ~${Math.round(opp.totalManual * (opp.gap / 100))} more cases` : 'Target achieved!'}
-                    </div>
-                </div>
-                
-                <!-- Status Summary -->
-                <div style="
-                    background: ${opp.gap > 30 ? 'linear-gradient(135deg, rgba(231, 76, 60, 0.05), rgba(255, 107, 107, 0.02))' : 
-                                 opp.gap > 15 ? 'linear-gradient(135deg, rgba(243, 156, 18, 0.05), rgba(241, 196, 15, 0.02))' :
-                                 'linear-gradient(135deg, rgba(39, 174, 96, 0.05), rgba(46, 204, 113, 0.02))'};
-                    border-radius: 8px;
-                    padding: 12px;
-                    border-left: 4px solid ${priorityColor};
-                    margin-top: 15px;
-                ">
-                    <div style="font-size: 13px; color: #2c3e50; line-height: 1.5;">
-                        <strong>Status:</strong> 
-                        ${opp.gap === 0 ? 'Target achieved - maintain current automation' :
-                          opp.gap <= 10 ? 'Close to target - minor improvements needed' :
-                          opp.gap <= 30 ? 'Moderate gap - focus on critical test cases' :
-                          'Significant gap - priority for automation initiative'}
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    html += '</div>';
-    container.innerHTML = html;
 }
 
-// Pagination handler function
-function changeOpportunityPage(newPage) {
-    const urlParams = new URLSearchParams(window.location.search);
-    urlParams.set('opportunityPage', newPage);
-    
-    // Update URL without page reload
-    const newUrl = window.location.pathname + '?' + urlParams.toString();
-    window.history.pushState({}, '', newUrl);
-    
-    // Re-render the opportunities
-    renderAutomationOpportunityMatrix();
-    
-    // Scroll to top of opportunities section
-    const container = document.getElementById('priorityAreasList');
-    if (container) {
-        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-}
-// Helper function to get recommendation text (simplified for all items)
-function getRecommendationText(opp) {
-    if (opp.gap === 0) {
-        return `Target achieved! Focus on maintaining current automation coverage and optimizing execution times.`;
-    } else if (opp.gap <= 10) {
-        return `Close to target. Minor automation improvements needed for ${opp.highPriorityTests} critical/high priority tests.`;
-    } else if (opp.gap <= 30) {
-        return `Moderate gap. Focus on automating critical test cases first. ${opp.readiness === 'Ready' ? 'Infrastructure ready.' : 'Setup regression suite first.'}`;
+// Helper function to get context info for display
+function getContextInfo(item) {
+    if (filters.group && filters.subGroup) {
+        return `Application in ${item.area} → ${item.subArea}`;
+    } else if (filters.group) {
+        return `Sub-area in ${item.area} (${item.applicationsCount || 1} apps)`;
     } else {
-        return `Significant opportunity. High priority for automation initiative with ${opp.highPriorityTests} critical/high priority tests waiting.`;
+        return `Business Area (${item.applicationsCount || 1} apps)`;
     }
 }
 // 8. ROI Summary
