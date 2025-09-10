@@ -1,11 +1,10 @@
-# Copilot Playwright Refactor — Minimal Instructions (Grouped Assertions)
+# Copilot Playwright Refactor — Minimal Instructions (Grouped + ID-safe)
 
 ## Goals (for Copilot to follow)
-- Replace attribute-based selectors (e.g. `[data-id="..."]`, `[data-test-id="..."]`, `[data-testid="..."]`) with Playwright semantic locators where possible (`getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`).
+- Replace attribute-based selectors (e.g. `[data-id="..."]`, `[data-test-id="..."]`, `[data-testid="..."]`, `[data-qa="..."]`, `[data-automation-id="..."]`) with Playwright semantic locators where possible (`getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`).
 - Convert attribute selectors used via `page.locator(...)`, `locator(...)`, `page.fill(...)`, `page.click(...)`, and chained locator usages into semantic locators or `chooseLocator` fallbacks.
 - Extract Page Objects into `/pages/<PageName>.ts` with `constructor(page: Page)` and action methods (e.g., `goto()`, `login()`).
-- Extract UI verification logic from recorded `expect(...)` calls into Page Object assertion helpers.
-- If multiple expect classes validate different UI pieces on the same page, group those validations into a single, composable POM method that accepts a structured parameter describing the checks to run.
+- Extract UI verification logic from recorded `expect(...)` calls into Page Object assertion helpers and group multiple expect-classes into a single grouped POM method when they target the same page.
 - Do not add fixed waits. Rely on Playwright auto-waiting.
 
 ---
@@ -29,23 +28,43 @@ export function chooseLocator(page: Page, hints: {
   label?: string,
   placeholder?: string,
   text?: string | RegExp,
+  id?: string, // optional hint for id-based fallback
 }, fallbackSelector: string): Locator {
   if (hints.role) {
     try {
       return page.getByRole(hints.role.role as any, hints.role.name ? { name: hints.role.name as any } : undefined);
     } catch {}
   }
-  if (hints.label) return page.getByLabel(hints.label);
-  if (hints.placeholder) return page.getByPlaceholder(hints.placeholder);
-  if (hints.text) return page.getByText(hints.text as any);
+  if (hints.label) {
+    try { return page.getByLabel(hints.label); } catch {}
+  }
+  if (hints.placeholder) {
+    try { return page.getByPlaceholder(hints.placeholder); } catch {}
+  }
+  if (hints.text) {
+    try { return page.getByText(hints.text as any); } catch {}
+  }
+  // id hint: if present and fallbackSelector is not ideal, still use fallbackSelector
   return page.locator(fallbackSelector);
 }
 ```
 
 ---
 
-## Grouped assertion method pattern
-When several expect-classes target the same page, Copilot should create a single grouped assertion method on the Page Object with a signature like:
+## Locator conversion guidance (explicit)
+- Always prefer semantic locators in this order: `getByRole` → `getByLabel` → `getByPlaceholder` → `getByText`.
+- **ID-safety rule (important):** if the recorded selector is an `#id` (e.g., `#identifierInput`) or Copilot cannot confirm a matching label/placeholder/role exists, **do not** convert it into `getByLabel` blindly. Instead create a `chooseLocator(...)` that includes semantic hints **and** uses the `#id` as the `fallbackSelector`:
+  ```ts
+  this.identifier = chooseLocator(page, { label: 'Identifier', placeholder: 'Identifier', id: 'identifierInput' }, '#identifierInput');
+  ```
+  This ensures the POM will use semantic locators when they actually exist, but will reliably fall back to the original `#id` when they don't.
+- For attribute selectors (`data-*`) follow the same pattern but prefer semantic locators if visible text/labels exist; otherwise use `chooseLocator` fallback.
+- Preserve template literals and variable interpolation in fallback selectors (e.g., `` `[data-test-id="submit-${env}"]` ``) when migrating to `chooseLocator`.
+
+---
+
+## Grouped assertion method pattern (when multiple expect-classes target the same page)
+Create a single grouped POM method `verifyManyChecks(checks: Check[])` with a compact `Check` type:
 
 ```ts
 type Check = {
@@ -57,73 +76,45 @@ type Check = {
   count?: number;               // expected count of matching elements
   custom?: (page: Page) => Promise<boolean>; // optional ad-hoc check
 };
-
-async verifyManyChecks(checks: Check[]): Promise<void> { /* ... */ }
 ```
 
-Implementation guidance for Copilot:
-- For each `Check` in `checks`, prefer semantic locators constructed from `locatorHints` or infer from recorded text. Fall back to the original recorded selector using `chooseLocator`.
-- Use Playwright `expect(locator).toHaveText(...)`, `expect(locator).toBeVisible()`, `expect(locator).toHaveCount(...)` as appropriate. `expect` assertions should be inside POM helper methods.
-- Support `custom` for edge-cases — call it with `await check.custom(this.page)` and assert its boolean result.
-- Keep the method deterministic and quick; if a particular check is expensive or flaky, mark it optional via `present?: false` or handle with retries in POM only if necessary.
+Implementation notes:
+- Map check `name` values to locators declared in the POM (declare locators in constructor using `chooseLocator` or semantic locators).
+- For `id`-based locators include `id` in `locatorHints` to ensure safe fallback.
+- Use `await expect(locator).toHaveText(...)`, `toBeVisible()`, or `toHaveCount(...)` inside the POM.
+- Support `custom` callbacks for complex checks.
 
 ---
 
-## Example (Before -> After)
-**Before (many expect classes used in a test):**
+## Examples (Before -> After)
+
+**Before (recorded with id selector):**
 ```ts
-// recorded test
-ExpectA.validateWelcome(page);
-ExpectB.validateBanner(page);
-ExpectC.validateUserInfo(page);
-ExpectD.validateFooter(page);
+await page.locator('#identifierInput').fill('12345');
+await page.locator('[data-test-id="welcome"]').textContent();
 ```
 
-**After (single grouped POM method):**
+**After (POM constructor):**
 ```ts
-// pages/DashboardPage.ts (excerpt)
-type Check = { name: string; expected?: string | RegExp; present?: boolean; };
-
-export default class DashboardPage {
-  // locators declared in constructor using chooseLocator or getByRole/getByLabel
-  async verifyManyChecks(checks: Check[]) {
-    for (const c of checks) {
-      const locator = /* infer or use chooseLocator for c.name or c.locatorHints */;
-      if (c.expected) {
-        await expect(locator).toHaveText(new RegExp(String(c.expected), 'i'));
-      } else if (c.present === false) {
-        await expect(locator).toHaveCount(0);
-      } else {
-        await expect(locator).toBeVisible();
-      }
-    }
-  }
-}
+// pages/SomePage.ts constructor (excerpt)
+this.identifier = chooseLocator(page, { label: 'Identifier', placeholder: 'Identifier', id: 'identifierInput' }, '#identifierInput');
+this.welcome = chooseLocator(page, { text: /welcome/i }, '[data-test-id="welcome"]');
 ```
 
-**Test usage:**
+**Usage in grouped assertion method:**
 ```ts
-await dashboardPage.verifyManyChecks([
+await this.verifyManyChecks([
   { name: 'welcome', expected: 'Welcome, Alice' },
-  { name: 'banner', present: true },
-  { name: 'userinfo', expected: /Alice/ },
+  { name: 'identifier', present: true }
 ]);
 ```
-
----
-
-## Guidance for Copilot when grouping
-- Map expect-class names to check `name` values and to locators in the POM (e.g., `expectWelcome` → `welcome` locator).
-- If recorded expect-class methods include different locators, combine those locators into the POM and reference them inside `verifyManyChecks` by `name` or `locatorHints`.
-- Keep `verifyManyChecks` flexible: accept regex/string for expected text, presence flags, count checks, and custom callbacks.
-- Favor readability: tests should pass concise arrays of checks instead of calling many expect-classes.
 
 ---
 
 ## Final prompt to send to Copilot
 ```
 Refactor the recorded test below according to the rules in the instructions above.
-Convert attribute selectors to semantic locators or chooseLocator fallbacks.
+Convert attribute selectors to semantic locators or chooseLocator fallbacks. For #id selectors do not force conversion to getByLabel; instead wrap them in chooseLocator with the id as fallback.
 Extract expect(...) logic into POM assertion helpers. If multiple expect-classes validate the same page, group them into a single POM method verifyManyChecks(checks: Check[]).
 Create and save files directly in the repo: /utilities/locatorHelper.ts, /pages/<PageName>.ts, /tests/<refactored>.spec.ts
 Use TypeScript and @playwright/test. Do not introduce fixed waits.
