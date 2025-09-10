@@ -1,18 +1,19 @@
-# Copilot Playwright Refactor — Minimal Instructions (Revised)
+# Copilot Playwright Refactor — Minimal Instructions (Updated with Assertions)
 
 ## Goals (for Copilot to follow)
-- Replace `[data-id="..."]` selectors with Playwright semantic locators where possible: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`.
-- If no semantic locator can be inferred, use `chooseLocator(page, {}, '[data-id="..."]')` as a fallback.
-- Extract Page Objects into `/pom/<PageName>.ts` with a constructor `constructor(page: Page)` and small methods (e.g., `goto()`, `login()`).
-- Keep assertions in the test files, not in the Page Objects.
+- Replace attribute-based selectors (e.g. `[data-id="..."]`, `[data-test-id="..."]`, `[data-testid="..."]`, `[data-qa="..."]`, `[data-automation-id="..."]`) with Playwright semantic locators where possible: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`.
+- Detect and convert **all** occurrences of attribute selectors used via `page.locator(...)`, `locator(...)`, `page.fill(...)`, `page.click(...)`, and chained locator usages (e.g., `page.locator(...).fill()` / `page.locator(...).click()`).
+- If no semantic locator can be inferred, use `chooseLocator(page, {}, '...')` as a safe fallback that preserves the recorded selector.
+- Extract Page Objects into `/pages/<PageName>.ts` with a constructor `constructor(page: Page)` and small action methods (e.g., `goto()`, `login()`).
+- Extract UI verification logic from recorded `expect(...)` calls into Page Object assertion/verification methods (e.g. `async expectWelcomeToContain(expected: string)`, `async isErrorVisible(): Promise<boolean>`, or `async getWelcomeText(): Promise<string>`). Tests should call these POM methods rather than duplicating locator logic inline.
 - Do not add fixed waits (`page.waitForTimeout`, hard sleeps). Rely on Playwright auto-waiting.
 
 ---
 
 ## Files to generate
 ```
-/test-utils/locatorHelper.ts
-/pom/<PageName>.ts
+/utilities/locatorHelper.ts
+/pages/<PageName>.ts
 /tests/<refactored>.spec.ts
 ```
 
@@ -20,7 +21,7 @@
 
 ## chooseLocator helper (must be generated exactly)
 ```ts
-// /test-utils/locatorHelper.ts
+// /utilities/locatorHelper.ts
 import type { Page, Locator } from '@playwright/test';
 
 export function chooseLocator(page: Page, hints: {
@@ -43,54 +44,84 @@ export function chooseLocator(page: Page, hints: {
 
 ---
 
-## Page Object template
+## Locator conversion requirements (explicit)
+Copilot must handle and convert **all** of these patterns when they reference attribute selectors (data-*, id, aria-*):
+
+1. `page.locator('<selector>')` where `<selector>` is an attribute selector (single/double quotes or backticks). Example:
+   - `page.locator('[data-test-id="login-username"]')`
+   - `page.locator("[data-testid='submit']")`
+   - ``page.locator(`[data-qa="item-${i}"]`)``
+2. `locator('<selector>')` (unprefixed locator variable in the same file/context).
+3. Chained usage: `await page.locator('[data-test-id="x"]').fill('value')` or `.click()` or `.textContent()`.
+4. `page.fill('<selector>', 'value')` and `page.click('<selector>')` when selector is an attribute selector.
+5. Stored locator variable: `const el = page.locator('[data-test-id="x"]'); await el.click();` — Copilot must replace the declaration with `const el = chooseLocator(page, {...}, '[data-test-id="x"]');` or a semantic locator.
+
+**Attribute names to treat as high-priority automation hints:**
+- `data-test-id`, `data-testid`, `data-qa`, `data-automation-id`, `data-test`, `data-attr`, `data-id`.
+
+**Quotation styles to support:** single quotes `'...'`, double quotes `"..."`, template literals `` `...` `` (with interpolation). Copilot must handle all of these.
+
+---
+
+## Replacement rules (priority)
+When converting a selector, Copilot must try these in order and pick the highest-priority semantic locator that fits:
+1. **Role + name**: `page.getByRole('button', { name: /Sign in/i })`
+2. **Label**: `page.getByLabel('Email')`
+3. **Placeholder**: `page.getByPlaceholder('Search...')`
+4. **Visible text**: `page.getByText(/Welcome/i)`
+5. **Fallback**: `chooseLocator(page, {}, '[data-test-id="..."]')`
+
+If the attribute selector sits on a button/link, prefer `getByRole` with a `name` regex built from the recorded visible text (if present).
+
+---
+
+## Assertions conversion rules
+- When the recorded test contains `expect(...)` calls, Copilot must move the locator + assertion logic into the relevant Page Object.
+- Create descriptive assertion/verification methods in the POM (e.g. `async expectWelcomeToContain(expected: string)`).
+- Tests should call these POM methods, not directly reference locators.
+- For complex multi-element assertions, split into smaller POM methods and orchestrate them in the test.
+
+---
+
+## Examples (Before → After)
+**Before (recorded):**
 ```ts
-// Example: /pom/LoginPage.ts
-import type { Page } from '@playwright/test';
-import { chooseLocator } from '../test-utils/locatorHelper';
+await page.locator('[data-test-id="username-input"]').fill('alice');
+await page.locator("[data-test-id='password-input']").fill('password');
+await page.locator(`[data-test-id="submit-${env}"]`).click();
+await expect(page.locator('[data-test-id="welcome"]')).toContainText('Welcome, Alice');
+```
 
-export default class LoginPage {
-  readonly page: Page;
-  readonly username;
-  readonly password;
-  readonly submit;
+**After (refactored):**
+```ts
+// inside pages/LoginPage.ts constructor
+this.username = chooseLocator(page, { label: 'Username', placeholder: 'Username' }, '[data-test-id="username-input"]');
+this.password = chooseLocator(page, { label: 'Password' }, "[data-test-id='password-input']");
+this.submit = chooseLocator(page, { role: { role: 'button', name: /sign in|submit/i } }, `[data-test-id="submit-${env}"]`);
+this.welcome = chooseLocator(page, { text: /welcome/i }, '[data-test-id="welcome"]');
 
-  constructor(page: Page) {
-    this.page = page;
-    this.username = chooseLocator(page, { label: 'Username' }, '[data-id="REPLACE_ME_USERNAME"]');
-    this.password = chooseLocator(page, { label: 'Password' }, '[data-id="REPLACE_ME_PASSWORD"]');
-    this.submit = chooseLocator(page, { role: { role: 'button', name: /sign in|log in|submit/i } }, '[data-id="REPLACE_ME_BTN"]');
-  }
-
-  async goto() { await this.page.goto('/login'); }
-  async login(user: string, pass: string) {
-    await this.username.fill(user);
-    await this.password.fill(pass);
-    await this.submit.click();
-  }
+async expectWelcomeToContain(expected: string) {
+  await expect(this.welcome).toContainText(expected);
 }
+
+// usage in test
+await loginPage.login('alice', 'password');
+await loginPage.expectWelcomeToContain('Welcome, Alice');
 ```
 
 ---
 
-## Locator replacement rules
-1. Role + name → `page.getByRole('button', { name: /Sign in/i })`
-2. Label → `page.getByLabel('Email')`
-3. Placeholder → `page.getByPlaceholder('Search...')`
-4. Visible text → `page.getByText(/Welcome/i)`
-5. Fallback → `chooseLocator(page, {}, '[data-id="..."]')`
-
-Do not generate XPath or brittle CSS chains. Do not chain locators with `||`.
-
----
-
-## Prompt to send to Copilot
+## Final prompt to send to Copilot (copy exactly)
 ```
-Refactor the current selected recorded test according to the rules in the instructions above. 
-Create and save the following files directly in the repo (do not paste file contents in chat): 
-- /test-utils/locatorHelper.ts 
-- /pom/<PageName>.ts 
-- /tests/<refactored>.spec.ts 
-
+Refactor the recorded test below according to the rules in the instructions above.
+Convert all attribute selectors and expect(...) calls into semantic locators and Page Object methods (action + assertion helpers).
+Create and save these files directly in the repo (do not paste file contents in chat):
+- /utilities/locatorHelper.ts
+- /pages/<PageName>.ts
+- /tests/<refactored>.spec.ts
 Use TypeScript and @playwright/test. Do not introduce fixed waits.
 ```
+
+---
+
+End of updated instructions (Minimal + explicit attribute-locator + assertion handling).
