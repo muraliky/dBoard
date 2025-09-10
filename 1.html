@@ -1,19 +1,96 @@
-import type { Reporter, FullConfig, Suite, TestCase, TestResult, FullResult } from '@playwright/test/reporter';
+# Copilot Playwright Refactor — Minimal Instructions (Revised)
 
-class CustomReporter implements Reporter {
-  onBegin(config: FullConfig, suite: Suite) {
-    console.log(`Starting tests: ${suite.allTests().length} tests`);
+## Goals (for Copilot to follow)
+- Replace `[data-id="..."]` selectors with Playwright semantic locators where possible: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`.
+- If no semantic locator can be inferred, use `chooseLocator(page, {}, '[data-id="..."]')` as a fallback.
+- Extract Page Objects into `/pom/<PageName>.ts` with a constructor `constructor(page: Page)` and small methods (e.g., `goto()`, `login()`).
+- Keep assertions in the test files, not in the Page Objects.
+- Do not add fixed waits (`page.waitForTimeout`, hard sleeps). Rely on Playwright auto-waiting.
+
+---
+
+## Files to generate
+```
+/test-utils/locatorHelper.ts
+/pom/<PageName>.ts
+/tests/<refactored>.spec.ts
+```
+
+---
+
+## chooseLocator helper (must be generated exactly)
+```ts
+// /test-utils/locatorHelper.ts
+import type { Page, Locator } from '@playwright/test';
+
+export function chooseLocator(page: Page, hints: {
+  role?: { role: string, name?: string | RegExp },
+  label?: string,
+  placeholder?: string,
+  text?: string | RegExp,
+}, fallbackSelector: string): Locator {
+  if (hints.role) {
+    try {
+      return page.getByRole(hints.role.role as any, hints.role.name ? { name: hints.role.name as any } : undefined);
+    } catch {}
   }
-
-  onTestEnd(test: TestCase, result: TestResult) {
-    console.log(`${test.title}: ${result.status}`);
-  }
-
-  onEnd(result: FullResult) {
-    console.log('All tests completed!');
-  }
-
-  // Optional: Implement other methods as needed, such as onStdOut, onStdErr, onError
+  if (hints.label) return page.getByLabel(hints.label);
+  if (hints.placeholder) return page.getByPlaceholder(hints.placeholder);
+  if (hints.text) return page.getByText(hints.text as any);
+  return page.locator(fallbackSelector);
 }
+```
 
-export default CustomReporter;
+---
+
+## Page Object template
+```ts
+// Example: /pom/LoginPage.ts
+import type { Page } from '@playwright/test';
+import { chooseLocator } from '../test-utils/locatorHelper';
+
+export default class LoginPage {
+  readonly page: Page;
+  readonly username;
+  readonly password;
+  readonly submit;
+
+  constructor(page: Page) {
+    this.page = page;
+    this.username = chooseLocator(page, { label: 'Username' }, '[data-id="REPLACE_ME_USERNAME"]');
+    this.password = chooseLocator(page, { label: 'Password' }, '[data-id="REPLACE_ME_PASSWORD"]');
+    this.submit = chooseLocator(page, { role: { role: 'button', name: /sign in|log in|submit/i } }, '[data-id="REPLACE_ME_BTN"]');
+  }
+
+  async goto() { await this.page.goto('/login'); }
+  async login(user: string, pass: string) {
+    await this.username.fill(user);
+    await this.password.fill(pass);
+    await this.submit.click();
+  }
+}
+```
+
+---
+
+## Locator replacement rules
+1. Role + name → `page.getByRole('button', { name: /Sign in/i })`
+2. Label → `page.getByLabel('Email')`
+3. Placeholder → `page.getByPlaceholder('Search...')`
+4. Visible text → `page.getByText(/Welcome/i)`
+5. Fallback → `chooseLocator(page, {}, '[data-id="..."]')`
+
+Do not generate XPath or brittle CSS chains. Do not chain locators with `||`.
+
+---
+
+## Prompt to send to Copilot
+```
+Refactor the current selected recorded test according to the rules in the instructions above. 
+Create and save the following files directly in the repo (do not paste file contents in chat): 
+- /test-utils/locatorHelper.ts 
+- /pom/<PageName>.ts 
+- /tests/<refactored>.spec.ts 
+
+Use TypeScript and @playwright/test. Do not introduce fixed waits.
+```
