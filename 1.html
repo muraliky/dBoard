@@ -1,193 +1,25 @@
-# Copilot Playwright Refactor — ID/Class-safe + Expect-Param Minimal Instructions
-
-## Summary of changes (apply these rules exactly)
-1. **CSS selector safety (strict):** If the recorded selector is a CSS id/class selector (starts with `#` or `.`) or an `id`/`class` attribute selector (e.g., `[id="x"]`, `[class="y"]`), **do not attempt** any semantic conversion (`getByLabel`, `getByRole`, etc.). Instead declare the locator in the Page Object **using the original selector** (i.e. `page.locator('#identifier')`). Do **not** use `chooseLocator` for CSS id/class selectors. This guarantees the recorded CSS selector is used unchanged.
-2. **Expect-class -> POM parameterized assertions:** If the recording contains an *expect class* that performs assertions using locators and constant expected values, Copilot must:
-   - Move locators into the appropriate Page Object(s) as `readonly` Locator members (using `chooseLocator` only for non-CSS selectors or when semantic locator evidence exists).
-   - Convert expect-class methods into POM assertion methods that accept expected values as parameters (e.g. `async expectWelcomeToContain(expected: string)`), and update tests to call those POM methods passing the expected value from the test data (e.g., `await dashboardPage.expectWelcomeToContain(row.expectWelcome)`).
-   - If multiple expect-classes target the same page, it is acceptable to group related checks into a single POM method (e.g. `verifyManyChecks(checks: Check[])`) — but each assertion that originally had a constant expected value must become a parameter passed from the test to the POM method.
-
----
-
-## Files to generate
-```
-/utilities/locatorHelper.ts
-/pages/<PageName>.ts
-/tests/<refactored>.spec.ts
-```
-
----
-
-## chooseLocator helper (generate as before, but **do not** use it for CSS id/class selectors)
-```ts
-// /utilities/locatorHelper.ts
-import type { Page, Locator } from '@playwright/test';
-
-export function chooseLocator(page: Page, hints: {
-  role?: { role: string, name?: string | RegExp },
-  label?: string,
-  placeholder?: string,
-  text?: string | RegExp,
-  id?: string,
-  css?: string,
-}, fallbackSelector: string): Locator {
-  // Try role first
-  if (hints.role) {
-    try {
-      return page.getByRole(hints.role.role as any, hints.role.name ? { name: hints.role.name as any } : undefined);
-    } catch {}
-  }
-  // Try label / placeholder / text (guarded)
-  if (hints.label) {
-    try { return page.getByLabel(hints.label); } catch {}
-  }
-  if (hints.placeholder) {
-    try { return page.getByPlaceholder(hints.placeholder); } catch {}
-  }
-  if (hints.text) {
-    try { return page.getByText(hints.text as any); } catch {}
-  }
-  // Last resort: use the original selector (id/class/css)
-  return page.locator(fallbackSelector);
-}
-```
-
-> **Important:** The `chooseLocator` helper remains for non-CSS selectors and for attribute (`data-*`) based fallbacks. **However, when the original selector is a CSS id/class (e.g., `#identifier` or `.workitem`) Copilot must declare the locator in the POM as `page.locator('<original selector>')` directly, not via `chooseLocator` and not converted to `getByLabel`.**
-
----
-
-## CSS id/class selector rule — exact behavior for Copilot
-- If the original selector string matches any of:
-  - `^#[-_A-Za-z0-9]+` (simple id)
-  - `^\.[-_A-Za-z0-9]+` (simple class)
-  - contains `[id=` or `[class=` or other CSS id/class attribute selectors
-then Copilot **must**:
-1. Declare the locator in the Page Object constructor like:
-   ```ts
-   // pages/SomePage.ts (constructor)
-   this.identifier = page.locator('#identifier'); // use the original selector exactly
-   ```
-2. **Do not** attempt `page.getByLabel('...')`, `chooseLocator(...)`, or other semantic conversion for that selector.
-3. If you also detect an associated label/aria in the recording and you want to provide an additional semantic locator, place it as an *optional* second locator variable (commented) — but the active `readonly` locator used by POM methods must be the `page.locator(...)` created from the original CSS selector.
-
----
-
-## Expect-class handling — parameterize expected values (must-follow)
-When an expect-class contains assertion(s) like:
-```ts
-const el = page.locator('[data-testid="welcome"]');
-await expect(el).toHaveText('Welcome, Alice');
-```
-Copilot must perform these exact steps:
-
-1. **Move the locator into the appropriate Page Object**:
-   - If the locator is CSS id/class — use `page.locator('<original>')`.
-   - If the locator is attribute-based (`data-*`) and semantic evidence exists, POM may use `chooseLocator(...)` with hints; otherwise fall back to `chooseLocator(..., '<original>')`.
-
-2. **Create a parameterized POM assertion method** that accepts the expected value:
-```ts
-// pages/DashboardPage.ts
-export default class DashboardPage {
-  readonly page: Page;
-  readonly welcome: Locator;
-
-  constructor(page: Page) {
-    this.page = page;
-    // If original selector was data-* then chooseLocator can be used; if CSS id/class then use page.locator direct.
-    this.welcome = chooseLocator(page, { text: /welcome/i }, '[data-testid="welcome"]');
-  }
-
-  async expectWelcomeToContain(expected: string) {
-    await expect(this.welcome).toHaveText(new RegExp(expected, 'i'));
-  }
-}
-```
-
-3. **Update tests to pass the expected value** from their data source into the POM method:
-```ts
-// tests/login.spec.ts (data-driven)
-await dashboardPage.expectWelcomeToContain(row.expectWelcome);
-```
-
-4. **If the original expect-class method contained multiple assertions with literals**, create a single grouped POM method that accepts a structured parameter or split into multiple parameterized methods. Example grouped method signature:
-```ts
-type Check = { name: string; expected?: string | RegExp; present?: boolean; count?: number };
-async verifyManyChecks(checks: Check[]) { ... }
-```
-All literal expected values from the original expect-class must become values passed from the test into one of these POM methods.
-
----
-
-## Examples (Before -> After) — CSS id and expect param
-
-**Before (recorded):**
-```ts
-// recorded test (codegen)
-await page.locator('#identifierInput').fill('12345');
-const welcome = page.locator('[data-testid="welcome"]');
-await expect(welcome).toHaveText('Welcome, Alice');
-```
-
-**After (pages/SomePage.ts and pages/DashboardPage.ts):**
-```ts
-// pages/SomePage.ts (constructor excerpt)
-export default class SomePage {
-  readonly page: Page;
-  readonly identifier: Locator;
-
-  constructor(page: Page) {
-    this.page = page;
-    // CSS id => use original selector directly
-    this.identifier = page.locator('#identifierInput');
-  }
-
-  async fillIdentifier(value: string) {
-    await this.identifier.fill(value);
-  }
-}
-
-// pages/DashboardPage.ts
-export default class DashboardPage {
-  readonly page: Page;
-  readonly welcome: Locator;
-
-  constructor(page: Page) {
-    this.page = page;
-    // data-* selector: chooseLocator or fallback
-    this.welcome = chooseLocator(page, { text: /welcome/i }, '[data-testid="welcome"]');
-  }
-
-  async expectWelcomeToContain(expected: string) {
-    await expect(this.welcome).toHaveText(new RegExp(expected, 'i'));
-  }
-}
-```
-
-**Test usage (data-driven):**
-```ts
-// tests/login.spec.ts
-await somePage.fillIdentifier('12345');
-await dashboardPage.expectWelcomeToContain(row.expectWelcome);
-```
-
----
-
-## Conversion rules summary for Copilot (copy exactly)
-- Detect CSS id/class selectors (regex for `^#...`, `^\. ...`, presence of `[id=` or `[class=`). For these **always** use `page.locator('<original-selector>')` in the POM and do not attempt semantic conversion.
-- For attribute selectors (`data-*`) try semantic locators via `chooseLocator`, but still provide a fallback to the original selector.
-- When converting expect-classes, move locators into POM constructors and turn literal expected values into parameters in POM assertion methods. Update tests to call these methods with the expected values from test data.
-
----
-
-## Final prompt to Copilot (paste at the end when refactoring)
-```
-Refactor the recorded test below according to the rules in the instructions above.
-IMPORTANT: If a selector is a CSS id/class (starts with '#' or '.' or contains [id=] or [class=]) do NOT convert it to getByLabel or other semantic locators; declare it in the POM using page.locator('<original selector>') directly. For data-* selectors use chooseLocator with hints + fallback.
-Convert expect(...) calls into POM assertion methods that take expected values as parameters; update tests to pass expected values (e.g., row.expectWelcome) into POM methods.
-Create and save files directly: /utilities/locatorHelper.ts, /pages/<PageName>.ts, /tests/<refactored>.spec.ts
-Use TypeScript and @playwright/test. Do not introduce fixed waits.
-```
-
----
-
-End of updated instructions.
+<!-- Add these 3 new navigation items after the existing "Initiatives" nav item -->
+<li class="nav-item">
+    <a href="#" class="nav-link" data-page="training">
+        <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"></path>
+        </svg>
+        Training
+    </a>
+</li>
+<li class="nav-item">
+    <a href="#" class="nav-link" data-page="rto">
+        <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm2 3a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
+        </svg>
+        Return To Office
+    </a>
+</li>
+<li class="nav-item">
+    <a href="#" class="nav-link" data-page="engagement">
+        <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path>
+        </svg>
+        People & Engagement
+    </a>
+</li>
