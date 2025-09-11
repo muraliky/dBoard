@@ -1,82 +1,173 @@
-import path from "path";
-import fs from "fs";
-import ExcelJS from "exceljs";
+<!-- Training Page (Hidden by default) -->
+<div id="trainingPage" class="page-content" style="display: none;">
+    <div style="
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60vh;
+        text-align: center;
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 16px;
+        margin: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    ">
+        <div style="max-width: 500px; padding: 40px;">
+            <div style="
+                width: 120px;
+                height: 120px;
+                background: linear-gradient(135deg, #c41e3a, #8b0000);
+                border-radius: 50%;
+                margin: 0 auto 30px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 8px 25px rgba(196, 30, 58, 0.3);
+            ">
+                <svg width="60" height="60" fill="white" viewBox="0 0 20 20">
+                    <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"></path>
+                </svg>
+            </div>
+            <h2 style="
+                color: #2c3e50;
+                font-size: 32px;
+                font-weight: 700;
+                margin: 0 0 15px 0;
+                line-height: 1.2;
+            ">Training Metrics</h2>
+            <p style="
+                color: #666;
+                font-size: 18px;
+                margin: 0 0 25px 0;
+                line-height: 1.5;
+            ">Comprehensive training analytics and employee development insights</p>
+            <div style="
+                background: linear-gradient(135deg, #c41e3a, #8b0000);
+                color: white;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-size: 16px;
+                font-weight: 600;
+                display: inline-block;
+                box-shadow: 0 4px 15px rgba(196, 30, 58, 0.3);
+            ">
+                Data Coming Soon
+            </div>
+        </div>
+    </div>
+</div>
 
-export type Row = Record<string, string>;
+<!-- Return To Office Page (Hidden by default) -->
+<div id="rtoPage" class="page-content" style="display: none;">
+    <div style="
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60vh;
+        text-align: center;
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 16px;
+        margin: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    ">
+        <div style="max-width: 500px; padding: 40px;">
+            <div style="
+                width: 120px;
+                height: 120px;
+                background: linear-gradient(135deg, #3498db, #2980b9);
+                border-radius: 50%;
+                margin: 0 auto 30px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 8px 25px rgba(52, 152, 219, 0.3);
+            ">
+                <svg width="60" height="60" fill="white" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm2 3a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
+                </svg>
+            </div>
+            <h2 style="
+                color: #2c3e50;
+                font-size: 32px;
+                font-weight: 700;
+                margin: 0 0 15px 0;
+                line-height: 1.2;
+            ">Return To Office</h2>
+            <p style="
+                color: #666;
+                font-size: 18px;
+                margin: 0 0 25px 0;
+                line-height: 1.5;
+            ">Office occupancy trends, hybrid work patterns, and workspace utilization</p>
+            <div style="
+                background: linear-gradient(135deg, #3498db, #2980b9);
+                color: white;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-size: 16px;
+                font-weight: 600;
+                display: inline-block;
+                box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+            ">
+                Data Coming Soon
+            </div>
+        </div>
+    </div>
+</div>
 
-type LoadOptions = {
-  filePath: string;              // e.g. data/TestData.xlsx
-  sheetName?: string;            // optional; first sheet if omitted
-  yesValues?: string[];          // which values mean "run"
-  trimHeaders?: boolean;         // default true
-  normalizeHeaders?: boolean;    // default false (preserve Excel headers)
-};
-
-/** Convert any ExcelJS cell value to a string (empty when nullish). */
-function toStringValue(v: unknown): string {
-  if (v == null) return "";
-  if (typeof v === "object" && "text" in (v as any)) return String((v as any).text ?? "").trim();
-  return String(v).trim();
-}
-
-/** Optionally normalize header names (if you prefer stable keys). */
-function normalize(h: string): string {
-  return h.toLowerCase().replace(/\s+|[_-]+/g, "").trim();
-}
-
-export async function loadEnabledRows(opts: LoadOptions): Promise<Row[]> {
-  const {
-    filePath,
-    sheetName,
-    yesValues = ["yes", "y", "true", "1"],
-    trimHeaders = true,
-    normalizeHeaders = false,
-  } = opts;
-
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(path.resolve(filePath));
-
-  const sheet = sheetName ? workbook.getWorksheet(sheetName) : workbook.worksheets[0];
-  if (!sheet) throw new Error(`Worksheet "${sheetName ?? "<first>"}" not found`);
-
-  // 1) Read headers from row 1
-  const headersRaw: string[] = [];
-  sheet.getRow(1).eachCell((cell, col) => {
-    const raw = String(cell.value ?? "");
-    headersRaw[col - 1] = trimHeaders ? raw.trim() : raw;
-  });
-
-  const headers = headersRaw.map(h => (normalizeHeaders ? normalize(h) : h));
-
-  const enabled: Row[] = [];
-
-  // 2) Iterate rows
-  sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-    if (rowNumber === 1) return; // skip header
-
-    const obj: Row = {};
-    // Fill with empty strings by default for ALL headers
-    for (const h of headers) obj[h] = "";
-
-    headers.forEach((h, idx) => {
-      const v = row.getCell(idx + 1).value;
-      obj[h] = toStringValue(v);
-    });
-
-    // Default RunMode = "No" if absent/blank
-    const runModeKey = headers.find(h => h.toLowerCase() === "runmode");
-    const run = toStringValue(runModeKey ? obj[runModeKey] : "").toLowerCase() || "no";
-    if (runModeKey) obj[runModeKey] = run; // keep what we computed
-
-    if (yesValues.includes(run)) {
-      enabled.push(obj);
-    }
-  });
-
-  return enabled;
-}
-
-export function writeRowsJson(rows: Row[], outPath: string) {
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, JSON.stringify(rows, null, 2), "utf8");
-}
+<!-- People & Engagement Page (Hidden by default) -->
+<div id="engagementPage" class="page-content" style="display: none;">
+    <div style="
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60vh;
+        text-align: center;
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 16px;
+        margin: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    ">
+        <div style="max-width: 500px; padding: 40px;">
+            <div style="
+                width: 120px;
+                height: 120px;
+                background: linear-gradient(135deg, #27ae60, #229954);
+                border-radius: 50%;
+                margin: 0 auto 30px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 8px 25px rgba(39, 174, 96, 0.3);
+            ">
+                <svg width="60" height="60" fill="white" viewBox="0 0 20 20">
+                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path>
+                </svg>
+            </div>
+            <h2 style="
+                color: #2c3e50;
+                font-size: 32px;
+                font-weight: 700;
+                margin: 0 0 15px 0;
+                line-height: 1.2;
+            ">People & Engagement</h2>
+            <p style="
+                color: #666;
+                font-size: 18px;
+                margin: 0 0 25px 0;
+                line-height: 1.5;
+            ">Employee satisfaction, engagement surveys, and team wellness insights</p>
+            <div style="
+                background: linear-gradient(135deg, #27ae60, #229954);
+                color: white;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-size: 16px;
+                font-weight: 600;
+                display: inline-block;
+                box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+            ">
+                Data Coming Soon
+            </div>
+        </div>
+    </div>
+</div>
