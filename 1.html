@@ -13,3 +13,34 @@ function updateMonthFilterState() {
         monthFilter.style.cursor = 'pointer';
     }
 }
+
+// Update data based on page
+setTimeout(() => {
+    if (page === 'quality') {
+        updateQualityMetrics();
+    } else if (page === 'automation') {
+        if (typeof updateAutomationMetrics === 'function') {
+            updateAutomationMetrics();
+        }
+    } else if (page === 'standardization') {
+        if (typeof updateStandardizationMetrics === 'function') {
+            updateStandardizationMetrics();
+        }
+    } else if (page === 'initiatives') {
+        if (typeof updateInitiativesMetrics === 'function') {
+            updateInitiativesMetrics();
+        }
+    } else if (page === 'training' || page === 'rto' || page === 'engagement') {
+        console.log(`Switched to ${page} page - showing coming soon message`);
+    }
+    
+    // Update month filter state based on current page
+    updateMonthFilterState();
+}, 100);
+
+async function loadData() {
+    await loadQualityData();
+    populateFilters();
+    updateQualityMetrics();
+    updateMonthFilterState(); // Add this line
+}
