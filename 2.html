@@ -81,11 +81,36 @@ export function chooseLocator(page: Page, hints: {
 
 ---
 
+## Frame locator handling (new rule)
+When an expect-class or recorded test validates a locator inside a frame, such as:
+```ts
+await expect(this.frame.locator('[data-test-id="platform"]')).toBeVisible();
+```
+Copilot must:
+1. Move the inner locator (`[data-test-id="platform"]`) into the relevant Page Object as a `readonly` Locator, created via `frameLocator` or using the frame reference stored in the POM.
+   ```ts
+   // inside POM constructor
+   this.platform = this.page.frameLocator('iframe[name="platform-frame"]').locator('[data-test-id="platform"]');
+   ```
+2. Create an assertion method on the POM that uses this locator:
+   ```ts
+   /**
+    * Assert that the platform element inside the frame is visible.
+    */
+   async expectPlatformVisible() {
+     await expect(this.platform).toBeVisible();
+   }
+   ```
+3. Update tests to call the POM method (`await pageObject.expectPlatformVisible()`) instead of inlining `expect(this.frame.locator(...))`.
+
+**Important:** Always encapsulate frame locators in the POM. Do not leave raw `this.frame.locator(...)` calls inside tests or expect-classes.
+
 ## Final prompt to Copilot (paste at the end when refactoring)
 ```
 Refactor the recorded test below according to the rules in the instructions above.
 IMPORTANT: If a selector is a CSS id/class (starts with '#' or '.' or contains [id=] or [class=]) do NOT convert it to getByLabel or other semantic locators; declare it in the POM using page.locator('<original selector>') directly. For data-* selectors use chooseLocator with hints + fallback.
 Convert expect(...) calls into POM assertion methods that take expected values as parameters; update tests to pass expected values (e.g., row.expectWelcome) into POM methods.
+Always encapsulate frame locators in the POM. Do not leave raw `this.frame.locator(...)` calls inside tests or expect-classes.
 When performing bulk refactor: reuse existing POM classes, locators and methods where possible. Do not create duplicate POMs or methods; add commented alternatives or TODOs if uncertain. Generate a refactor-report.md summarizing reused/updated/new POMs.
 Add JSDoc comments for every generated POM class, locator, and public method.
 Create and save files directly: /src/utilities/locatorHelper.ts, /src/pages/<PageName>.ts, /src/tests/e2e/<refactored>.spec.ts
@@ -95,3 +120,8 @@ Use TypeScript and @playwright/test. Do not introduce fixed waits.
 ---
 
 End of file.
+
+
+---
+
+
