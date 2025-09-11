@@ -1,127 +1,16 @@
-# Copilot Playwright Refactor
+// Update the pageTitles object:
+const pageTitles = {
+    'quality': 'Quality Metrics',
+    'automation': 'Automation Metrics',
+    'standardization': 'Automation Standardization',
+    'initiatives': 'Initiatives 2025',
+    'training': 'Training Metrics',
+    'rto': 'Return To Office',
+    'engagement': 'People & Engagement'
+};
 
-## Summary of changes (apply these rules exactly)
-1. **CSS selector safety (strict):** If the recorded selector is a CSS id/class selector (starts with `#` or `.`) or an `id`/`class` attribute selector (e.g., `[id="x"]`, `[class="y"]`), **do not attempt** any semantic conversion (`getByLabel`, `getByRole`, etc.). Instead declare the locator in the Page Object **using the original selector** (i.e. `page.locator('#identifier')`). Do **not** use `chooseLocator` for CSS id/class selectors. This guarantees the recorded CSS selector is used unchanged.
-2. **Expect-class -> POM parameterized assertions:** If the recording contains an *expect class* that performs assertions using locators and constant expected values, Copilot must:
-   - Move locators into the appropriate Page Object(s) as `readonly` Locator members (using `chooseLocator` only for non-CSS selectors or when semantic locator evidence exists).
-   - Convert expect-class methods into POM assertion methods that accept expected values as parameters (e.g. `async expectWelcomeToContain(expected: string)`), and update tests to call those POM methods passing the expected value from the test data (e.g., `await dashboardPage.expectWelcomeToContain(row.expectWelcome)`).
-   - If multiple expect-classes target the same page, it is acceptable to group related checks into a single POM method (e.g. `verifyManyChecks(checks: Check[])`) — but each assertion that originally had a constant expected value must become a parameter passed from the test to the POM method.
-3. **Bulk-refactor idempotency & reuse (new):** During bulk refactoring of many recorded tests, Copilot must **reuse existing Page Objects and methods** if they already exist in the repo. Do not create duplicate POMs, locators, or methods. Instead:
-   - Detect existing Page Object files under `/pages` by class name or filename (case-insensitive).
-   - If a locator or method with the same logical purpose already exists (e.g., `LoginPage.login`, `DashboardPage.expectWelcomeToContain`, or a locator named `username` / `submit`), reuse it by updating tests to call the existing method or, if necessary, add a missing locator to the existing POM rather than creating a new POM class.
-   - If a locator exists but uses a different selector, add a commented alternative locator (suggesting `chooseLocator` or the original selector) and avoid creating a second locator with the same name.
-   - When creating new locators or methods because none exist, follow the naming conventions in this file.
-4. **Documentation & comments (new):** All generated Page Object classes and methods must include clear JSDoc-style comments explaining purpose, parameters, and return types. Example:
-   ```ts
-   /**
-    * LoginPage - Page Object for the login screen.
-    * @param {Page} page - Playwright Page instance
-    */
-   export default class LoginPage {
-     /**
-      * Locator for the username input
-      */
-     readonly username: Locator;
-
-     /**
-      * Logs in using provided credentials.
-      * @param {string} user - username to login with
-      * @param {string} pass - password to login with
-      */
-     async login(user: string, pass: string) { ... }
-   }
-   ```
-
----
-
-## Files to generate
-```
-/src/utilities/locatorHelper.ts
-/src/pages/<PageName>.ts
-/src/tests/e2e<refactored>.spec.ts
-```
-
----
-
-## chooseLocator helper (generate as before, but **do not** use it for CSS id/class selectors)
-```ts
-// /utilities/locatorHelper.ts
-import type { Page, Locator } from '@playwright/test';
-
-export function chooseLocator(page: Page, hints: {
-  role?: { role: string, name?: string | RegExp },
-  label?: string,
-  placeholder?: string,
-  text?: string | RegExp,
-  id?: string,
-  css?: string,
-}, fallbackSelector: string): Locator {
-  // Try role first
-  if (hints.role) {
-    try {
-      return page.getByRole(hints.role.role as any, hints.role.name ? { name: hints.role.name as any } : undefined);
-    } catch {}
-  }
-  // Try label / placeholder / text (guarded)
-  if (hints.label) {
-    try { return page.getByLabel(hints.label); } catch {}
-  }
-  if (hints.placeholder) {
-    try { return page.getByPlaceholder(hints.placeholder); } catch {}
-  }
-  if (hints.text) {
-    try { return page.getByText(hints.text as any); } catch {}
-  }
-  // Last resort: use the original selector (id/class/css)
-  return page.locator(fallbackSelector);
+// Add this to the switchPage function after the initiatives block:
+} else if (page === 'training' || page === 'rto' || page === 'engagement') {
+    // For new pages, just show the coming soon message - no additional logic needed
+    console.log(`Switched to ${page} page - showing coming soon message`);
 }
-```
-
-> **Important:** The `chooseLocator` helper remains for non-CSS selectors and for attribute (`data-*`) based fallbacks. **However, when the original selector is a CSS id/class (e.g., `#identifier` or `.workitem`) Copilot must declare the locator in the POM as `page.locator('<original selector>')` directly, not via `chooseLocator` and not converted to `getByLabel`.**
-
----
-
-## Frame locator handling (new rule)
-When an expect-class or recorded test validates a locator inside a frame, such as:
-```ts
-await expect(this.frame.locator('[data-test-id="platform"]')).toBeVisible();
-```
-Copilot must:
-1. Move the inner locator (`[data-test-id="platform"]`) into the relevant Page Object as a `readonly` Locator, created via `frameLocator` or using the frame reference stored in the POM.
-   ```ts
-   // inside POM constructor
-   this.platform = this.page.frameLocator('iframe[name="platform-frame"]').locator('[data-test-id="platform"]');
-   ```
-2. Create an assertion method on the POM that uses this locator:
-   ```ts
-   /**
-    * Assert that the platform element inside the frame is visible.
-    */
-   async expectPlatformVisible() {
-     await expect(this.platform).toBeVisible();
-   }
-   ```
-3. Update tests to call the POM method (`await pageObject.expectPlatformVisible()`) instead of inlining `expect(this.frame.locator(...))`.
-
-**Important:** Always encapsulate frame locators in the POM. Do not leave raw `this.frame.locator(...)` calls inside tests or expect-classes.
-
-## Final prompt to Copilot (paste at the end when refactoring)
-```
-Refactor the recorded test below according to the rules in the instructions above.
-IMPORTANT: If a selector is a CSS id/class (starts with '#' or '.' or contains [id=] or [class=]) do NOT convert it to getByLabel or other semantic locators; declare it in the POM using page.locator('<original selector>') directly. For data-* selectors use chooseLocator with hints + fallback.
-Convert expect(...) calls into POM assertion methods that take expected values as parameters; update tests to pass expected values (e.g., row.expectWelcome) into POM methods.
-Always encapsulate frame locators in the POM. Do not leave raw `this.frame.locator(...)` calls inside tests or expect-classes.
-When performing bulk refactor: reuse existing POM classes, locators and methods where possible. Do not create duplicate POMs or methods; add commented alternatives or TODOs if uncertain. Generate a refactor-report.md summarizing reused/updated/new POMs.
-Add JSDoc comments for every generated POM class, locator, and public method.
-Create and save files directly: /src/utilities/locatorHelper.ts, /src/pages/<PageName>.ts, /src/tests/e2e/<refactored>.spec.ts
-Use TypeScript and @playwright/test. Do not introduce fixed waits.
-```
-
----
-
-End of file.
-
-
----
-
-
