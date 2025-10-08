@@ -1,64 +1,19 @@
-/* CSS: replace existing .progress > i rule with this */
-.progress { height:10px; background:#e9eefb; border-radius:999px; overflow:hidden; }
-.progress > i {
-  display:block;
-  height:100%;
-  width:0%;
-  /* neutral fallback so we always see something if JS doesn't run */
-  background: linear-gradient(90deg, #cbd5e1, #94a3b8);
-  transition: width .6s ease, background .3s ease;
-  will-change: width, background;
-}
-.progress-label { font-size:12px; margin-top:6px; color:#374151; text-align:center; }
-
-// JS: run after DOM is available (paste inside your <script> block)
-(function setProgressBar(){
-  try {
-    // Ensure DOM ready if script inserted early
-    const run = () => {
-      console.log('[report] report.summary', report && report.summary ? report.summary : null);
-      const total = (report.summary && report.summary.total) || 0;
-      const passed = (report.summary && report.summary.passed) || 0;
-      const percent = total ? Math.round((passed / total) * 100) : 0;
-
-      const prog = document.querySelector('.progress > i');
-      if (!prog) { console.warn('[report] progress element not found'); return; }
-
-      // Set width (always set so 0% is visible)
-      prog.style.width = percent + '%';
-
-      // Choose color by thresholds
-      let bg;
-      if (percent >= 90) {
-        bg = 'linear-gradient(90deg,#0b8a4a,#34d399)'; // green
-      } else if (percent >= 60) {
-        bg = 'linear-gradient(90deg,#f59e0b,#f97316)'; // amber
-      } else {
-        bg = 'linear-gradient(90deg,#ef4444,#be123c)'; // red
-      }
-      prog.style.background = bg;
-
-      // Add/update percent label
-      const wrapper = document.querySelector('.progress-wrap');
-      if (wrapper) {
-        let label = wrapper.querySelector('.progress-label');
-        if (!label) {
-          label = document.createElement('div');
-          label.className = 'progress-label';
-          wrapper.appendChild(label);
-        }
-        label.textContent = percent + '%';
-      }
-
-      console.log('[report] progress percent set to', percent, '%');
-    };
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', run);
-    } else {
-      run();
-    }
-  } catch (err) {
-    console.error('[report] setProgressBar error', err);
+// Normalize open package to a callable function
+let opener = null;
+try {
+  const openPkg = require('open');
+  if (typeof openPkg === 'function') {
+    // CommonJS export is the function itself
+    opener = (p) => openPkg(p);
+  } else if (openPkg && typeof openPkg.default === 'function') {
+    // ESM default export wrapped in an object
+    opener = (p) => openPkg.default(p);
+  } else if (openPkg && typeof openPkg.open === 'function') {
+    // some versions export an object with open()
+    opener = (p) => openPkg.open(p);
+  } else {
+    opener = null;
   }
-})();
+} catch (e) {
+  opener = null;
+}
