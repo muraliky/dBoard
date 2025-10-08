@@ -1,195 +1,57 @@
-// reporter/custom-ts-reporter.js
-// Fixed CommonJS reporter (compareHtml bug fixed). Drop in and use directly.
-
-const fs = require('fs');
-const path = require('path');
-
-let opener = null;
-try {
-  opener = require('open');
-} catch (e) {
-  opener = null;
-}
-
-const HISTORY_FILENAME = 'history.json';
-const LAST_RESULTS_FILENAME = 'last-results.json';
-const RESULTS_FILENAME = 'results.json';
-const REPORT_FILENAME = 'custom-report.html';
-
-class CustomTsReporter {
-  constructor(options = {}) {
-    this.options = options || {};
-    this.outDir = path.resolve(process.cwd(), this.options.outputDir || 'playwright-report');
-    if (!fs.existsSync(this.outDir)) fs.mkdirSync(this.outDir, { recursive: true });
-    this.results = [];
-    this.startTime = null;
-    this.config = undefined;
-  }
-
-  onBegin(config, suite) {
-    this.startTime = new Date();
-    this.config = config;
-    const resultsPath = path.join(this.outDir, RESULTS_FILENAME);
-    const lastPath = path.join(this.outDir, LAST_RESULTS_FILENAME);
-    try {
-      if (fs.existsSync(resultsPath)) {
-        fs.copyFileSync(resultsPath, lastPath);
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
-
-  async onTestEnd(test, result) {
-    const fullTitle = this._getFullTitle(test);
-    const id = this._makeId(test, fullTitle);
-
-    const attachments = (result.attachments || []).map((a) => {
-      const attachment = { name: a.name, contentType: a.contentType || null, path: null, dataUri: null };
-      try {
-        if (a.path && fs.existsSync(a.path)) {
-          const raw = fs.readFileSync(a.path);
-          const mime = a.contentType || this._guessMime(a.name || '');
-          if (mime && mime.startsWith('image/')) {
-            attachment.dataUri = `data:${mime};base64,${raw.toString('base64')}`;
-          } else {
-            const outName = `${Date.now()}-${path.basename(a.path)}`;
-            const outPath = path.join(this.outDir, outName);
-            fs.writeFileSync(outPath, raw);
-            attachment.path = outName;
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
-      return attachment;
-    });
-
-    const ct = {
-      id,
-      title: test.title,
-      fullTitle,
-      file: (test.location && test.location.file) || test._file || undefined,
-      location: test.location || null,
-      status: result.status,
-      durationMs: result.duration,
-      error: result.error ? (result.error.message || String(result.error)) : null,
-      attachments,
-    };
-
-    this.results.push(ct);
-  }
-
-  async onEnd() {
-    const endTime = new Date();
-    const summary = {
-      startTime: this.startTime ? this.startTime.toISOString() : new Date().toISOString(),
-      endTime: endTime.toISOString(),
-      durationMs: this.startTime ? endTime.getTime() - this.startTime.getTime() : 0,
-      total: this.results.length,
-      passed: this.results.filter(r => r.status === 'passed').length,
-      failed: this.results.filter(r => r.status === 'failed').length,
-      skipped: this.results.filter(r => r.status === 'skipped').length,
-    };
-
-    const historyPath = path.join(this.outDir, HISTORY_FILENAME);
-    const lastResultsPath = path.join(this.outDir, LAST_RESULTS_FILENAME);
-    let history = {};
-    try {
-      if (fs.existsSync(historyPath)) {
-        history = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
-      }
-    } catch (e) { history = {}; }
-
-    let lastResults = null;
-    try {
-      if (fs.existsSync(lastResultsPath)) {
-        lastResults = JSON.parse(fs.readFileSync(lastResultsPath, 'utf8'));
-      }
-    } catch (e) { lastResults = null; }
-
-    for (const t of this.results) {
-      const prev = history[t.id] || 0;
-      if (t.status === 'failed') history[t.id] = prev + 1;
-      else history[t.id] = prev;
-    }
-    try { fs.writeFileSync(historyPath, JSON.stringify(history, null, 2), 'utf8'); } catch (e) {}
-
-    const fullReport = { summary, tests: this.results, meta: { commit: process.env.GIT_COMMIT || process.env.GITHUB_SHA || undefined, ci: !!process.env.CI } };
-    try { fs.writeFileSync(path.join(this.outDir, RESULTS_FILENAME), JSON.stringify(fullReport, null, 2), 'utf8'); } catch (e) {}
-
-    try {
-      const html = this._renderHtml(fullReport, history, lastResults);
-      const outPath = path.join(this.outDir, REPORT_FILENAME);
-      fs.writeFileSync(outPath, html, 'utf8');
-      console.log(`\nCustom TypeScript report generated: ${outPath}`);
-
-      const openRequested = process.env.OPEN_REPORT === '1' || process.env.OPEN_REPORT === 'true';
-      const inCi = !!process.env.CI;
-      if ((openRequested || !inCi) && opener) {
-        try {
-          if (process.env.OPEN_REPORT === '0' || process.env.OPEN_REPORT === 'false') {
-            // explicitly disabled
-          } else if (openRequested || !inCi) {
-            await opener(outPath);
-          }
-        } catch (e) {
-          console.error('Failed to open report automatically:', e);
-        }
-      } else if ((openRequested || !inCi) && !opener) {
-        console.log('Note: report auto-open requested but `open` package is not installed. Run `npm i -D open` to enable.');
-      }
-
-    } catch (e) {
-      console.error('Failed to write HTML report', e);
-    }
-  }
-
-  _getFullTitle(test) {
-    if (!test) return '';
-    const names = [];
-    let p = test.parent;
-    while (p && p.title) {
-      names.unshift(p.title);
-      p = p.parent;
-    }
-    return names.concat([test.title]).join(' > ');
-  }
-
-  _makeId(test, fullTitle) {
-    const file = (test.location && test.location.file) || test._file || 'unknown-file';
-    return `${path.relative(process.cwd(), file)}::${fullTitle}`;
-  }
-
-  _guessMime(name = '') {
-    const n = (name || '').toLowerCase();
-    if (n.endsWith('.png')) return 'image/png';
-    if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'image/jpeg';
-    if (n.endsWith('.webp')) return 'image/webp';
-    if (n.endsWith('.html')) return 'text/html';
-    if (n.endsWith('.txt') || n.endsWith('.log')) return 'text/plain';
-    return 'application/octet-stream';
-  }
-
   _renderHtml(report, history, lastReport) {
+    // Modern, nicer UI for the report
     const css = `
-    body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; padding:18px; background:#f4f6fb}
-    .header{display:flex;align-items:center;justify-content:space-between;gap:12px}
-    .title{font-size:20px;font-weight:700}
-    .controls{display:flex;gap:8px;align-items:center}
-    .search{padding:8px 10px;border-radius:8px;border:1px solid #e3e6ee;background:#fff}
-    .chip{padding:6px 10px;border-radius:999px;background:#fff;border:1px solid #e7e9f1}
-    .tests{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px}
-    .card{background:#fff;padding:12px;border-radius:10px;box-shadow:0 4px 14px rgba(20,30,60,0.04)}
-    .status-passed{color:#116530;font-weight:600}
-    .status-failed{color:#a61e4d;font-weight:700}
-    .status-skipped{color:#6b7280;font-weight:600}
-    .meta{font-size:12px;color:#6b7280}
-    .attachments img{max-width:100%;border-radius:6px;margin-top:8px}
-    details summary{cursor:pointer}
+      :root{
+        --bg: #f6f8fb;
+        --card: #ffffff;
+        --muted: #6b7280;
+        --accent: #0f62fe;
+        --success: #0b8a4a;
+        --danger: #be123c;
+        --glass: rgba(255,255,255,0.6);
+      }
+      html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;background:var(--bg);color:#0b1220}
+      .wrap{max-width:1200px;margin:18px auto;padding:18px}
+      .top{display:flex;gap:12px;align-items:center;justify-content:space-between;position:sticky;top:0;background:linear-gradient(180deg, rgba(246,248,251,0.95), rgba(246,248,251,0.8));backdrop-filter: blur(4px);padding:10px 0;z-index:40}
+      .title{font-size:20px;font-weight:700}
+      .meta{font-size:13px;color:var(--muted)}
+      .badges{display:flex;gap:8px;align-items:center}
+      .badge{background:var(--card);padding:6px 10px;border-radius:999px;border:1px solid rgba(15,18,32,0.04);font-weight:600;display:inline-flex;gap:8px;align-items:center}
+      .progress-wrap{width:220px}
+      .progress{height:10px;background:#e9eefb;border-radius:999px;overflow:hidden}
+      .progress > i{display:block;height:100%;background:linear-gradient(90deg,#0f62fe,#7c3aed);width:0%}
+      .controls{display:flex;gap:8px;align-items:center}
+      .search{padding:8px 12px;border-radius:10px;border:1px solid #e7ecff;background:#fff;min-width:260px}
+      .select{padding:8px 10px;border-radius:8px;border:1px solid #e7ecff;background:#fff}
+      .btn{padding:8px 10px;border-radius:8px;border:0;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
+      .grid{display:grid;grid-template-columns:1fr 420px;gap:12px;margin-top:14px}
+      @media (max-width:900px){ .grid{grid-template-columns:1fr} .right-panel{order:2} }
+      .panel{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(12,20,60,0.06)}
+      .group{margin-bottom:10px;border-radius:8px;overflow:hidden;border:1px solid rgba(10,20,30,0.04)}
+      .group-header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.3));cursor:pointer}
+      .group-header strong{font-size:14px}
+      .test-row{display:flex;gap:12px;padding:12px;border-top:1px solid rgba(10,20,30,0.03);align-items:flex-start}
+      .test-left{flex:1}
+      .test-title{font-weight:700}
+      .test-meta{font-size:12px;color:var(--muted);margin-top:6px}
+      .status-pill{padding:6px 8px;border-radius:999px;font-weight:700;min-width:70px;text-align:center}
+      .status-passed{background:#ecfdf3;color:var(--success);border:1px solid rgba(11,138,74,0.08)}
+      .status-failed{background:#fff1f2;color:var(--danger);border:1px solid rgba(190,18,60,0.06)}
+      .status-skipped{background:#f3f4f6;color:var(--muted);border:1px solid rgba(107,114,128,0.06)}
+      .attachments img{max-width:140px;border-radius:8px;margin-top:8px;border:1px solid rgba(0,0,0,0.06)}
+      pre.err{background:#0b1220;color:#e6eef8;padding:12px;border-radius:8px;overflow:auto;margin-top:8px}
+      .small{font-size:12px;color:var(--muted)}
+      .right-panel .panel + .panel{margin-top:12px}
+      .compact .test-row{padding:8px}
+      .kpi{display:flex;gap:8px;align-items:center}
+      .kpi strong{font-size:16px}
+      .muted{color:var(--muted)}
+      .controls-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+      .download{background:#fff;border:1px solid rgba(10,20,30,0.06);padding:8px;border-radius:8px;cursor:pointer}
+      .highlight{background:linear-gradient(90deg,#fff6db,#fff3d6);padding:2px 4px;border-radius:4px}
     `;
 
-    const escaped = (s) => {
+    const escapeHtml = (s) => {
       if (s === undefined || s === null) return '';
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     };
@@ -200,118 +62,263 @@ class CustomTsReporter {
     const html = `<!doctype html>
 <html>
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Playwright Custom Report (TS)</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Playwright Report</title>
 <style>${css}</style>
 </head>
 <body>
-  <div class="header">
-    <div>
-      <div class="title">Playwright Custom Report</div>
-      <div class="meta">Start: ${escaped(report.summary.startTime)} • Duration: ${Math.round(report.summary.durationMs/1000)}s • Tests: ${report.summary.total} • Failed: ${report.summary.failed}</div>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <div class="title">Playwright — Custom Report</div>
+        <div class="meta">Started: ${escapeHtml(report.summary.startTime || '')} • Duration: ${Math.round((report.summary.durationMs||0)/1000)}s</div>
+      </div>
+
+      <div class="badges">
+        <div class="badge"><span class="small">Total</span><strong>${report.summary.total||0}</strong></div>
+        <div class="badge" style="border-color:rgba(11,138,74,0.12)"><span class="small">Passed</span><strong style="color:var(--success)">${report.summary.passed||0}</strong></div>
+        <div class="badge" style="border-color:rgba(190,18,60,0.12)"><span class="small">Failed</span><strong style="color:var(--danger)">${report.summary.failed||0}</strong></div>
+        <div class="badge"><span class="small">Skipped</span><strong>${report.summary.skipped||0}</strong></div>
+        <div class="progress-wrap" title="Pass ratio">
+          <div class="progress"><i style="width:${report.summary.total? Math.round(((report.summary.passed||0)/report.summary.total)*100) : 0 }%"></i></div>
+        </div>
+      </div>
     </div>
-    <div class="controls">
-      <input id="search" class="search" placeholder="Search tests... (title, file)" />
-      <select id="statusFilter" class="chip">
-        <option value="all">All</option>
-        <option value="failed">Failed</option>
-        <option value="passed">Passed</option>
-        <option value="skipped">Skipped</option>
-      </select>
-      <select id="sortBy" class="chip">
-        <option value="none">Sort</option>
-        <option value="duration">Longest</option>
-        <option value="failures">Most historical failures</option>
-      </select>
-      <button id="toggleCompare" class="chip">${lastReport ? 'Toggle Compare' : 'No last run'}</button>
+
+    <div class="controls-row">
+      <div class="controls">
+        <input id="search" class="search" placeholder="Search title, file or error..." />
+        <select id="statusFilter" class="select">
+          <option value="all">All statuses</option>
+          <option value="failed">Failed</option>
+          <option value="passed">Passed</option>
+          <option value="skipped">Skipped</option>
+        </select>
+        <select id="sortBy" class="select">
+          <option value="none">Sort</option>
+          <option value="duration">Longest</option>
+          <option value="failures">Most historical failures</option>
+        </select>
+        <label title="Compact view" style="display:flex;align-items:center;gap:6px"><input id="compact" type="checkbox"/> Compact</label>
+      </div>
+
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <button id="downloadJson" class="download">Download JSON</button>
+        <button id="openRaw" class="download">Open results.json</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <div id="groups" class="panel"></div>
+      </div>
+
+      <div class="right-panel">
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong>Quick Filters</strong><div class="small muted">Click a file to expand</div></div>
+            <div class="kpi"><div class="muted small">Historical flaky</div><strong>${Object.keys(history||{}).filter(k=>history[k]>0).length}</strong></div>
+          </div>
+          <hr style="margin:10px 0;border:none;border-top:1px solid rgba(0,0,0,0.04)"/>
+          <div id="summaryList" class="small"></div>
+        </div>
+
+        <div class="panel" style="margin-top:12px">
+          <strong>Last run comparison</strong>
+          <div class="small muted" style="margin-top:8px">${ lastReport ? 'Showing compare against previous run' : 'No previous run available' }</div>
+          <div id="compareList" style="margin-top:8px"></div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div id="tests" class="tests"></div>
-
   <script>
-    const payload = ${payloadJson};
-    const report = payload.report || { tests: [], summary: {} };
-    const history = payload.history || {};
-    const lastReport = payload.lastReport || null;
+  const payload = ${payloadJson};
+  const report = payload.report || { tests: [], summary: {} };
+  const history = payload.history || {};
+  const lastReport = payload.lastReport || null;
 
-    function escapeHtml(s){ if(s==null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-    function shorten(s,n){ if(!s) return ''; return s.length>n? s.slice(0,n)+'…':s; }
+  // utilities
+  const byFile = {};
+  (report.tests || []).forEach(t => {
+    const file = t.file || 'Unknown';
+    byFile[file] = byFile[file] || [];
+    byFile[file].push(t);
+  });
 
-    function makeTestCard(t){
-      const el = document.createElement('div'); el.className='card';
-      const statusClass = t.status==='passed' ? 'status-passed' : t.status==='failed' ? 'status-failed' : 'status-skipped';
+  // create groups (file-level)
+  const groupsEl = document.getElementById('groups');
+  function createGroupEl(file, tests){
+    const grp = document.createElement('div');
+    grp.className = 'group';
+    const header = document.createElement('div');
+    header.className = 'group-header';
+    header.innerHTML = '<strong>' + escapeHtml(file) + '</strong><div class="small muted">' + tests.length + ' tests</div>';
+    grp.appendChild(header);
+
+    const list = document.createElement('div');
+    list.style.display = 'none';
+    tests.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'test-row';
+      row.dataset.title = (t.fullTitle || t.title || '').toLowerCase();
+      const left = document.createElement('div'); left.className = 'test-left';
+      const right = document.createElement('div');
+      right.style.minWidth = '120px';
+
       const failures = history[t.id] || 0;
+      const last = lastReport && (lastReport.tests || []).find(x=>x && x.id === t.id);
+      const compareNote = last ? (last.status !== t.status ? '<div class="small" style="color:var(--danger)"><strong>Changed: ' + escapeHtml(last.status) + ' → ' + escapeHtml(t.status) + '</strong></div>' : '<div class="small muted">Unchanged vs last</div>') : '';
 
-      let compareHtml = '';
-      if (lastReport && Array.isArray(lastReport.tests)) {
-        const last = lastReport.tests.find(x => x && x.id === t.id);
-        if (last) {
-          if (last.status !== t.status) {
-            compareHtml = '<div class=\"meta\">Compared to last run: <strong>' + escapeHtml(last.status) + '</strong></div>';
-          } else {
-            compareHtml = '<div class=\"meta\">Status unchanged vs last run</div>';
-          }
-        }
-      }
+      left.innerHTML = '<div class="test-title">' + highlight(t.fullTitle) + '</div>' +
+                        '<div class="test-meta">' + escapeHtml(t.file || '') + ' • ' + (t.durationMs ? (t.durationMs + 'ms') : '') + '</div>' +
+                        (t.error ? '<div class="small" style="margin-top:6px;color:var(--danger)">' + highlight(t.error) + '</div>' : '') +
+                        (t.attachments && t.attachments.length ? ('<div class="attachments">' + t.attachments.map(a => a && a.dataUri ? '<a href="' + a.dataUri + '" target="_blank"><img src="' + a.dataUri + '"/></a>' : a && a.path ? '<a href="./' + encodeURI(a.path) + '" target="_blank">' + escapeHtml(a.name || a.path) + '</a>' : '').join(' ') + '</div>') : '');
+      
+      const statusCls = t.status === 'passed' ? 'status-passed' : t.status === 'failed' ? 'status-failed' : 'status-skipped';
+      right.innerHTML = '<div class="status-pill ' + statusCls + '">' + escapeHtml(t.status) + '</div>' +
+                        '<div class="small muted" style="margin-top:8px">Historical: <strong>' + failures + '</strong></div>' +
+                        compareNote;
+      row.appendChild(left);
+      row.appendChild(right);
+      list.appendChild(row);
+    });
 
-      const attachmentsHtml = (t.attachments || []).map(a => {
-        if (a && a.dataUri) return '<a href=\"' + a.dataUri + '\" target=\"_blank\"><img src=\"' + a.dataUri + '\"/></a>';
-        if (a && a.path) return '<a href=\"./' + encodeURI(a.path) + '\" target=\"_blank\">' + escapeHtml(a.name || a.path) + '</a>';
-        return escapeHtml(a && a.name ? a.name : '');
-      }).join(' ');
+    header.addEventListener('click', () => {
+      list.style.display = list.style.display === 'none' ? 'block' : 'none';
+    });
 
-      const errorSection = t.error ? '<details><summary style=\"color:#a61e4d\">Error: ' + escapeHtml(shorten(t.error,120)) + '</summary><pre>' + escapeHtml(t.error) + '</pre></details>' : '';
+    grp.appendChild(list);
+    return grp;
+  }
 
-      el.innerHTML = ''
-        + '<div style="display:flex;justify-content:space-between;align-items:center">'
-        + '<div style="flex:1"><div style="font-weight:700">' + escapeHtml(t.fullTitle) + '</div><div class="meta">' + escapeHtml(t.file||'') + ' • ' + (t.durationMs? (t.durationMs + 'ms') : '') + '</div></div>'
-        + '<div style="margin-left:12px;text-align:right"><div class="' + statusClass + '">' + escapeHtml(t.status) + '</div><div class="meta">Historical failures: <strong>' + failures + '</strong></div></div>'
-        + '</div>'
-        + compareHtml
-        + errorSection
-        + (attachmentsHtml ? ('<div class="attachments">' + attachmentsHtml + '</div>') : '');
-
-      return el;
+  function buildGroups(){
+    groupsEl.innerHTML = '';
+    const files = Object.keys(byFile).sort((a,b)=> byFile[b].length - byFile[a].length);
+    for (const f of files) {
+      groupsEl.appendChild(createGroupEl(f, byFile[f]));
     }
+  }
 
-    const container = document.getElementById('tests');
-    const search = document.getElementById('search');
-    const statusFilter = document.getElementById('statusFilter');
-    const sortBy = document.getElementById('sortBy');
-    const toggleCompare = document.getElementById('toggleCompare');
+  // search / filters
+  const searchEl = document.getElementById('search');
+  const statusFilter = document.getElementById('statusFilter');
+  const sortBy = document.getElementById('sortBy');
+  const compact = document.getElementById('compact');
 
-    function render(){
-      container.innerHTML = '';
-      let tests = (report.tests || []).slice();
-      const q = (search.value||'').toLowerCase().trim();
-      const status = statusFilter.value;
-      if (q){ tests = tests.filter(t => ((t.fullTitle||'') + ' ' + (t.file||'')).toLowerCase().includes(q)); }
-      if (status && status !== 'all') tests = tests.filter(t => t.status === status);
+  function renderFiltered(){
+    const q = (searchEl.value || '').toLowerCase().trim();
+    const status = statusFilter.value;
+    const sort = sortBy.value;
+    const compactMode = compact.checked;
 
-      const sort = sortBy.value;
-      if (sort === 'duration') tests.sort((a,b)=> (b.durationMs||0) - (a.durationMs||0));
-      else if (sort === 'failures') tests.sort((a,b)=> (history[b.id]||0) - (history[a.id]||0));
+    // flatten all tests
+    let tests = (report.tests || []).slice();
 
-      for (const t of tests){
-        const card = makeTestCard(t);
-        container.appendChild(card);
-      }
+    if (q) {
+      tests = tests.filter(t => ((t.fullTitle||'') + ' ' + (t.file||'') + ' ' + (t.error||'')).toLowerCase().includes(q));
     }
+    if (status && status !== 'all') tests = tests.filter(t => t.status === status);
 
-    search.addEventListener('input', render);
-    statusFilter.addEventListener('change', render);
-    sortBy.addEventListener('change', render);
-    toggleCompare && toggleCompare.addEventListener('click', ()=>{ alert('Compare toggled (note: UI currently highlights changes vs last run if present)'); });
+    if (sort === 'duration') tests.sort((a,b) => (b.durationMs||0) - (a.durationMs||0));
+    else if (sort === 'failures') tests.sort((a,b) => (history[b.id]||0) - (history[a.id]||0));
 
-    render();
+    // rebuild a single "All results" group to replace groups
+    groupsEl.innerHTML = '';
+    const group = document.createElement('div');
+    group.className = 'group';
+    const header = document.createElement('div');
+    header.className = 'group-header';
+    header.innerHTML = '<strong>Results ('+tests.length+')</strong><div class="small muted">Filtered view</div>';
+    group.appendChild(header);
+    const list = document.createElement('div');
+    list.style.display = 'block';
+    list.style.maxHeight = '70vh';
+    list.style.overflow = 'auto';
+
+    tests.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'test-row' + (compactMode ? ' compact' : '');
+      const left = document.createElement('div'); left.className = 'test-left';
+      const right = document.createElement('div'); right.style.minWidth = '120px';
+
+      const failures = history[t.id] || 0;
+      const last = lastReport && (lastReport.tests || []).find(x=>x && x.id === t.id);
+      const compareNote = last ? (last.status !== t.status ? '<div class="small" style="color:var(--danger)"><strong>Changed: ' + escapeHtml(last.status) + ' → ' + escapeHtml(t.status) + '</strong></div>' : '<div class="small muted">Unchanged vs last</div>') : '';
+
+      left.innerHTML = '<div class="test-title">' + highlight(t.fullTitle) + '</div>' +
+                       '<div class="test-meta">' + escapeHtml(t.file || '') + ' • ' + (t.durationMs ? (t.durationMs + 'ms') : '') + '</div>' +
+                       (t.error ? '<pre class="err">' + escapeHtml(t.error) + '</pre>' : '') +
+                       (t.attachments && t.attachments.length ? ('<div class="attachments">' + t.attachments.map(a => a && a.dataUri ? '<a href="' + a.dataUri + '" target="_blank"><img src="' + a.dataUri + '"/></a>' : a && a.path ? '<a href="./' + encodeURI(a.path) + '" target="_blank">' + escapeHtml(a.name || a.path) + '</a>' : '').join(' ') + '</div>') : '');
+
+      const statusCls = t.status === 'passed' ? 'status-passed' : t.status === 'failed' ? 'status-failed' : 'status-skipped';
+      right.innerHTML = '<div class="status-pill ' + statusCls + '">' + escapeHtml(t.status) + '</div>' +
+                        '<div class="small muted" style="margin-top:8px">Historical: <strong>' + failures + '</strong></div>' +
+                        compareNote;
+
+      row.appendChild(left); row.appendChild(right); list.appendChild(row);
+    });
+
+    group.appendChild(list);
+    groupsEl.appendChild(group);
+  }
+
+  // helpers
+  function escapeHtml(s){ if(s==null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function highlight(s){ const q = (searchEl.value||'').trim(); if(!q) return escapeHtml(s); try{ const re = new RegExp('('+q.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\\\$&") +')','ig'); return escapeHtml(String(s)).replace(re, '<span class="highlight">$1</span>'); }catch(e){ return escapeHtml(s); } }
+
+  // summary list
+  const summaryList = document.getElementById('summaryList');
+  (function buildSummary(){
+    const counts = {};
+    (report.tests||[]).forEach(t => { counts[t.status] = (counts[t.status]||0) + 1; });
+    summaryList.innerHTML = '<div>Passed: ' + (counts.passed||0) + '</div><div>Failed: ' + (counts.failed||0) + '</div><div>Skipped: ' + (counts.skipped||0) + '</div>';
+  })();
+
+  // compare list
+  const compareList = document.getElementById('compareList');
+  (function buildCompare(){
+    if(!lastReport){ compareList.innerHTML = '<div class="small muted">No last run to compare</div>'; return; }
+    const diffs = [];
+    (report.tests||[]).forEach(t => {
+      const last = (lastReport.tests||[]).find(x=>x && x.id === t.id);
+      if(last && last.status !== t.status){
+        diffs.push({ id: t.id, title: t.fullTitle, from: last.status, to: t.status });
+      }
+    });
+    if(!diffs.length){ compareList.innerHTML = '<div class="small muted">No status changes vs last run</div>'; return; }
+    compareList.innerHTML = diffs.slice(0,20).map(d => '<div><strong>' + escapeHtml(d.title) + '</strong><div class="small"> ' + escapeHtml(d.from) + ' → ' + escapeHtml(d.to) + '</div></div>').join('');
+  })();
+
+  // initial build
+  buildGroups();
+
+  // wire events
+  searchEl.addEventListener('input', () => {
+    if(!searchEl.value) buildGroups();
+    renderFiltered();
+  });
+  statusFilter.addEventListener('change', renderFiltered);
+  sortBy.addEventListener('change', renderFiltered);
+  compact.addEventListener('change', renderFiltered);
+
+  document.getElementById('downloadJson').addEventListener('click', () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
+    const a = document.createElement('a'); a.setAttribute('href', dataStr); a.setAttribute('download', 'report-export.json'); document.body.appendChild(a); a.click(); a.remove();
+  });
+
+  document.getElementById('openRaw').addEventListener('click', () => {
+    // open results.json in new tab if present in same folder
+    window.open('./${RESULTS_FILENAME}', '_blank');
+  });
+
+  // initial filtered render (empty search => will show grouped view)
+  renderFiltered();
+
   </script>
 </body>
 </html>`;
 
     return html;
   }
-}
-
-module.exports = CustomTsReporter;
