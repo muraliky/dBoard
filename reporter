@@ -1,19 +1,42 @@
-function highlight(s){
-  const q = (searchEl.value || '').trim();
-  const escapedText = escapeHtml(s || '');
-  if (!q) return escapedText;
-
-  try {
-    // Escape regex metacharacters in the user's query.
-    // This character class does NOT include the problematic sequence `${`.
-    const escapedQuery = q.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-
-    // Build a case-insensitive RegExp from the escaped query
-    const re = new RegExp('(' + escapedQuery + ')', 'ig');
-
-    // Replace matches in the escaped text with a highlight span
-    return escapedText.replace(re, '<span class="highlight">$1</span>');
-  } catch (e) {
-    return escapedText;
-  }
+.progress > i{
+  display:block;
+  height:100%;
+  background: linear-gradient(90deg,#cbd5e1,#94a3b8); /* neutral fallback */
+  width:0%;
+  transition:width .6s ease, background .3s ease;
 }
+// set progress width and color based on pass ratio
+(function(){
+  const total = (report.summary && report.summary.total) || 0;
+  const passed = (report.summary && report.summary.passed) || 0;
+  const percent = total ? Math.round((passed / total) * 100) : 0;
+  // set width
+  const prog = document.querySelector('.progress > i');
+  if (prog) prog.style.width = percent + '%';
+
+  // choose color stops: green (good), amber (ok), red (bad)
+  let bg;
+  if (percent >= 90) {
+    bg = 'linear-gradient(90deg,#0b8a4a,#34d399)'; // green
+  } else if (percent >= 60) {
+    bg = 'linear-gradient(90deg,#f59e0b,#f97316)'; // orange/amber
+  } else {
+    bg = 'linear-gradient(90deg,#ef4444,#be123c)'; // red
+  }
+  if (prog) prog.style.background = bg;
+
+  // optionally show the percent visually
+  const progWrap = document.querySelector('.progress-wrap');
+  if (progWrap) {
+    let label = progWrap.querySelector('.progress-label');
+    if (!label) {
+      label = document.createElement('div');
+      label.className = 'progress-label';
+      label.style.fontSize = '12px';
+      label.style.marginTop = '6px';
+      progWrap.appendChild(label);
+    }
+    label.textContent = percent + '%';
+  }
+})();
+
