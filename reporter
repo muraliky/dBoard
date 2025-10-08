@@ -1,5 +1,5 @@
 // reporter/custom-ts-reporter.js
-// CommonJS version — drop in and use directly (no tsc required).
+// Fixed CommonJS reporter (compareHtml bug fixed). Drop in and use directly.
 
 const fs = require('fs');
 const path = require('path');
@@ -129,7 +129,7 @@ class CustomTsReporter {
       if ((openRequested || !inCi) && opener) {
         try {
           if (process.env.OPEN_REPORT === '0' || process.env.OPEN_REPORT === 'false') {
-            // don't open
+            // explicitly disabled
           } else if (openRequested || !inCi) {
             await opener(outPath);
           }
@@ -232,9 +232,12 @@ class CustomTsReporter {
 
   <script>
     const payload = ${payloadJson};
-    const report = payload.report;
+    const report = payload.report || { tests: [], summary: {} };
     const history = payload.history || {};
     const lastReport = payload.lastReport || null;
+
+    function escapeHtml(s){ if(s==null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function shorten(s,n){ if(!s) return ''; return s.length>n? s.slice(0,n)+'…':s; }
 
     function makeTestCard(t){
       const el = document.createElement('div'); el.className='card';
@@ -242,50 +245,49 @@ class CustomTsReporter {
       const failures = history[t.id] || 0;
 
       let compareHtml = '';
-      if (lastReport){
-        const last = (lastReport.tests || []).find(x => x.id === t.id);
-        if (last){
-          if (last.status !== t.status){
-            compareHtml = `<div class="meta">Compared to last run: <strong>${escapeHtml(last.status)}</strong></div>`;
+      if (lastReport && Array.isArray(lastReport.tests)) {
+        const last = lastReport.tests.find(x => x && x.id === t.id);
+        if (last) {
+          if (last.status !== t.status) {
+            compareHtml = '<div class=\"meta\">Compared to last run: <strong>' + escapeHtml(last.status) + '</strong></div>';
           } else {
-            compareHtml = `<div class="meta">Status unchanged vs last run</div>`;
+            compareHtml = '<div class=\"meta\">Status unchanged vs last run</div>';
           }
         }
       }
 
-      el.innerHTML = \`
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div style="flex:1">
-            <div style="font-weight:700">\${escapeHtml(t.fullTitle)}</div>
-            <div class="meta">\${escapeHtml(t.file||'')} • \${t.durationMs? t.durationMs+'ms':''}</div>
-          </div>
-          <div style="margin-left:12px;text-align:right">
-            <div class="\${statusClass}">\${escapeHtml(t.status)}</div>
-            <div class="meta">Historical failures: <strong>\${failures}</strong></div>
-          </div>
-        </div>
-        \${t.error ? \`<details><summary style="color:#a61e4d">Error: \${escapeHtml(shorten(t.error,120))}</summary><pre>\${escapeHtml(t.error)}</pre></details>\` : ''}
-        \${t.attachments && t.attachments.length ? \`<div class="attachments">\${t.attachments.map(a=> a.dataUri ? \`<a href="\${a.dataUri}" target="_blank"><img src="\${a.dataUri}"/></a>\` : a.path? \`<a href="./\${encodeURI(a.path)}" target="_blank">\${escapeHtml(a.name||a.path)}</a>\`:escapeHtml(a.name)).join(' ')}</div>\` : ''}
-      \`;
+      const attachmentsHtml = (t.attachments || []).map(a => {
+        if (a && a.dataUri) return '<a href=\"' + a.dataUri + '\" target=\"_blank\"><img src=\"' + a.dataUri + '\"/></a>';
+        if (a && a.path) return '<a href=\"./' + encodeURI(a.path) + '\" target=\"_blank\">' + escapeHtml(a.name || a.path) + '</a>';
+        return escapeHtml(a && a.name ? a.name : '');
+      }).join(' ');
+
+      const errorSection = t.error ? '<details><summary style=\"color:#a61e4d\">Error: ' + escapeHtml(shorten(t.error,120)) + '</summary><pre>' + escapeHtml(t.error) + '</pre></details>' : '';
+
+      el.innerHTML = ''
+        + '<div style="display:flex;justify-content:space-between;align-items:center">'
+        + '<div style="flex:1"><div style="font-weight:700">' + escapeHtml(t.fullTitle) + '</div><div class="meta">' + escapeHtml(t.file||'') + ' • ' + (t.durationMs? (t.durationMs + 'ms') : '') + '</div></div>'
+        + '<div style="margin-left:12px;text-align:right"><div class="' + statusClass + '">' + escapeHtml(t.status) + '</div><div class="meta">Historical failures: <strong>' + failures + '</strong></div></div>'
+        + '</div>'
+        + compareHtml
+        + errorSection
+        + (attachmentsHtml ? ('<div class="attachments">' + attachmentsHtml + '</div>') : '');
+
       return el;
     }
-
-    function escapeHtml(s){ if(s==null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-    function shorten(s,n){ if(!s) return ''; return s.length>n? s.slice(0,n)+'…':s; }
 
     const container = document.getElementById('tests');
     const search = document.getElementById('search');
     const statusFilter = document.getElementById('statusFilter');
     const sortBy = document.getElementById('sortBy');
     const toggleCompare = document.getElementById('toggleCompare');
-    let showCompare = !!lastReport;
 
     function render(){
       container.innerHTML = '';
       let tests = (report.tests || []).slice();
       const q = (search.value||'').toLowerCase().trim();
       const status = statusFilter.value;
-      if (q){ tests = tests.filter(t => (t.fullTitle||'').toLowerCase().includes(q) || (t.file||'').toLowerCase().includes(q)); }
+      if (q){ tests = tests.filter(t => ((t.fullTitle||'') + ' ' + (t.file||'')).toLowerCase().includes(q)); }
       if (status && status !== 'all') tests = tests.filter(t => t.status === status);
 
       const sort = sortBy.value;
@@ -301,7 +303,7 @@ class CustomTsReporter {
     search.addEventListener('input', render);
     statusFilter.addEventListener('change', render);
     sortBy.addEventListener('change', render);
-    toggleCompare.addEventListener('click', ()=>{ showCompare = !showCompare; alert('Compare toggled (note: UI currently highlights changes vs last run if present)'); });
+    toggleCompare && toggleCompare.addEventListener('click', ()=>{ alert('Compare toggled (note: UI currently highlights changes vs last run if present)'); });
 
     render();
   </script>
