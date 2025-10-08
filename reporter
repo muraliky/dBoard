@@ -1,14 +1,12 @@
 function highlight(s){
   const q = (searchEl.value || '').trim();
-  // always operate on an escaped HTML string so we don't inject markup
   const escapedText = escapeHtml(s || '');
-
   if (!q) return escapedText;
 
   try {
-    // Properly escape regex metacharacters in the user's query.
-    // Note the character class: [.*+?^${}()|[\]\\]
-    const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Escape regex metacharacters in the user's query.
+    // This character class does NOT include the problematic sequence `${`.
+    const escapedQuery = q.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 
     // Build a case-insensitive RegExp from the escaped query
     const re = new RegExp('(' + escapedQuery + ')', 'ig');
@@ -16,7 +14,6 @@ function highlight(s){
     // Replace matches in the escaped text with a highlight span
     return escapedText.replace(re, '<span class="highlight">$1</span>');
   } catch (e) {
-    // Fallback to the escaped text if anything goes wrong
     return escapedText;
   }
 }
