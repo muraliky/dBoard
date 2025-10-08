@@ -1,50 +1,14 @@
-// reporter/custom-ts-reporter.ts
-// TypeScript Playwright Reporter + Embedded interactive HTML UI
-// Updated: now supports automatically opening the generated HTML report after the run
-// with a CI-safe toggle via environment variable OPEN_REPORT=1
+// reporter/custom-ts-reporter.js
+// CommonJS version — drop in and use directly (no tsc required).
 
-import fs from 'fs';
-import path from 'path';
-import { Reporter, TestCase, TestResult, FullConfig, Suite } from '@playwright/test/reporter';
-// Optional runtime opener. We conditionally require it (so CI without the package won't crash).
-let opener: ((p: string) => Promise<void>) | null = null;
+const fs = require('fs');
+const path = require('path');
+
+let opener = null;
 try {
-  // Use dynamic import so tsc doesn't force it if not installed
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const openPkg = require('open');
-  opener = (p: string) => openPkg(p);
+  opener = require('open');
 } catch (e) {
   opener = null;
-}
-
-type Attach = { name?: string; contentType?: string; path?: string | undefined; }
-
-interface CollectedTest {
-  id: string; // deterministic id (file + title)
-  title: string;
-  fullTitle: string;
-  file?: string;
-  location?: any;
-  status: string; // passed | failed | skipped | timedOut
-  durationMs?: number;
-  error?: string | null;
-  attachments: { name?: string; contentType?: string | null; path?: string | null; dataUri?: string | null }[];
-}
-
-interface Summary {
-  startTime: string;
-  endTime: string;
-  durationMs: number;
-  total: number;
-  passed: number;
-  failed: number;
-  skipped: number;
-}
-
-interface FullReport {
-  summary: Summary;
-  tests: CollectedTest[];
-  meta?: { commit?: string; ci?: boolean };
 }
 
 const HISTORY_FILENAME = 'history.json';
@@ -52,21 +16,19 @@ const LAST_RESULTS_FILENAME = 'last-results.json';
 const RESULTS_FILENAME = 'results.json';
 const REPORT_FILENAME = 'custom-report.html';
 
-export default class CustomTsReporter implements Reporter {
-  private outDir: string;
-  private results: CollectedTest[] = [];
-  private startTime: Date | null = null;
-  private config: FullConfig | undefined;
-
-  constructor(private options: { outputDir?: string } = {}) {
-    this.outDir = path.resolve(process.cwd(), options.outputDir || 'playwright-report');
+class CustomTsReporter {
+  constructor(options = {}) {
+    this.options = options || {};
+    this.outDir = path.resolve(process.cwd(), this.options.outputDir || 'playwright-report');
     if (!fs.existsSync(this.outDir)) fs.mkdirSync(this.outDir, { recursive: true });
+    this.results = [];
+    this.startTime = null;
+    this.config = undefined;
   }
 
-  onBegin(config: FullConfig, suite: Suite) {
+  onBegin(config, suite) {
     this.startTime = new Date();
     this.config = config;
-    // rotate previous results to last-results.json (if exists)
     const resultsPath = path.join(this.outDir, RESULTS_FILENAME);
     const lastPath = path.join(this.outDir, LAST_RESULTS_FILENAME);
     try {
@@ -78,21 +40,19 @@ export default class CustomTsReporter implements Reporter {
     }
   }
 
-  async onTestEnd(test: TestCase, result: TestResult) {
-    const fullTitle = this._getFullTitle(test as any);
-    const id = this._makeId(test as any, fullTitle);
+  async onTestEnd(test, result) {
+    const fullTitle = this._getFullTitle(test);
+    const id = this._makeId(test, fullTitle);
 
-    const attachments = (result.attachments || []).map((a: Attach) => {
-      const attachment: any = { name: a.name, contentType: a.contentType || null, path: null, dataUri: null };
+    const attachments = (result.attachments || []).map((a) => {
+      const attachment = { name: a.name, contentType: a.contentType || null, path: null, dataUri: null };
       try {
         if (a.path && fs.existsSync(a.path)) {
           const raw = fs.readFileSync(a.path);
           const mime = a.contentType || this._guessMime(a.name || '');
-          // embed images as data uris when small
           if (mime && mime.startsWith('image/')) {
             attachment.dataUri = `data:${mime};base64,${raw.toString('base64')}`;
           } else {
-            // copy file into outDir
             const outName = `${Date.now()}-${path.basename(a.path)}`;
             const outPath = path.join(this.outDir, outName);
             fs.writeFileSync(outPath, raw);
@@ -105,11 +65,11 @@ export default class CustomTsReporter implements Reporter {
       return attachment;
     });
 
-    const ct: CollectedTest = {
+    const ct = {
       id,
       title: test.title,
       fullTitle,
-      file: (test.location && (test.location as any).file) || (test as any)._file || undefined,
+      file: (test.location && test.location.file) || test._file || undefined,
       location: test.location || null,
       status: result.status,
       durationMs: result.duration,
@@ -122,63 +82,52 @@ export default class CustomTsReporter implements Reporter {
 
   async onEnd() {
     const endTime = new Date();
-    const summary: Summary = {
+    const summary = {
       startTime: this.startTime ? this.startTime.toISOString() : new Date().toISOString(),
       endTime: endTime.toISOString(),
-      durationMs: this.startTime ? (endTime.getTime() - this.startTime.getTime()) : 0,
+      durationMs: this.startTime ? endTime.getTime() - this.startTime.getTime() : 0,
       total: this.results.length,
       passed: this.results.filter(r => r.status === 'passed').length,
       failed: this.results.filter(r => r.status === 'failed').length,
       skipped: this.results.filter(r => r.status === 'skipped').length,
     };
 
-    // read previous history and last results
     const historyPath = path.join(this.outDir, HISTORY_FILENAME);
     const lastResultsPath = path.join(this.outDir, LAST_RESULTS_FILENAME);
-    let history: Record<string, number> = {};
+    let history = {};
     try {
       if (fs.existsSync(historyPath)) {
-        history = JSON.parse(fs.readFileSync(historyPath, 'utf8')) as Record<string, number>;
+        history = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
       }
     } catch (e) { history = {}; }
 
-    let lastResults: FullReport | null = null;
+    let lastResults = null;
     try {
       if (fs.existsSync(lastResultsPath)) {
-        lastResults = JSON.parse(fs.readFileSync(lastResultsPath, 'utf8')) as FullReport;
+        lastResults = JSON.parse(fs.readFileSync(lastResultsPath, 'utf8'));
       }
     } catch (e) { lastResults = null; }
 
-    // update history: increment failure counts for tests that failed this run
     for (const t of this.results) {
       const prev = history[t.id] || 0;
       if (t.status === 'failed') history[t.id] = prev + 1;
-      else history[t.id] = prev; // ensure presence for UI
+      else history[t.id] = prev;
     }
-    // persist history
-    try { fs.writeFileSync(historyPath, JSON.stringify(history, null, 2), 'utf8'); } catch(e){}
+    try { fs.writeFileSync(historyPath, JSON.stringify(history, null, 2), 'utf8'); } catch (e) {}
 
-    const fullReport: FullReport = { summary, tests: this.results, meta: { commit: process.env.GIT_COMMIT || process.env.GITHUB_SHA || undefined, ci: !!process.env.CI } };
-
-    // write results.json
+    const fullReport = { summary, tests: this.results, meta: { commit: process.env.GIT_COMMIT || process.env.GITHUB_SHA || undefined, ci: !!process.env.CI } };
     try { fs.writeFileSync(path.join(this.outDir, RESULTS_FILENAME), JSON.stringify(fullReport, null, 2), 'utf8'); } catch (e) {}
 
-    // write the HTML report (self-contained)
     try {
       const html = this._renderHtml(fullReport, history, lastResults);
       const outPath = path.join(this.outDir, REPORT_FILENAME);
       fs.writeFileSync(outPath, html, 'utf8');
-      console.log(`
-Custom TypeScript report generated: ${outPath}`);
+      console.log(`\nCustom TypeScript report generated: ${outPath}`);
 
-      // AUTO-OPEN: Only open when explicitly requested or if not in CI.
-      // Use environment variable OPEN_REPORT=1 to force open locally.
-      // If OPEN_REPORT is not set, we'll open only when not running in CI and opener is available.
       const openRequested = process.env.OPEN_REPORT === '1' || process.env.OPEN_REPORT === 'true';
       const inCi = !!process.env.CI;
       if ((openRequested || !inCi) && opener) {
         try {
-          // Respect explicit negative env var OPEN_REPORT=0
           if (process.env.OPEN_REPORT === '0' || process.env.OPEN_REPORT === 'false') {
             // don't open
           } else if (openRequested || !inCi) {
@@ -196,10 +145,9 @@ Custom TypeScript report generated: ${outPath}`);
     }
   }
 
-  // Helpers
-  _getFullTitle(test: any) {
+  _getFullTitle(test) {
     if (!test) return '';
-    const names: string[] = [];
+    const names = [];
     let p = test.parent;
     while (p && p.title) {
       names.unshift(p.title);
@@ -208,9 +156,8 @@ Custom TypeScript report generated: ${outPath}`);
     return names.concat([test.title]).join(' > ');
   }
 
-  _makeId(test: any, fullTitle: string) {
-    // deterministic id: file + fullTitle
-    const file = (test.location && (test.location as any).file) || (test as any)._file || 'unknown-file';
+  _makeId(test, fullTitle) {
+    const file = (test.location && test.location.file) || test._file || 'unknown-file';
     return `${path.relative(process.cwd(), file)}::${fullTitle}`;
   }
 
@@ -224,14 +171,7 @@ Custom TypeScript report generated: ${outPath}`);
     return 'application/octet-stream';
   }
 
-  _renderHtml(report: FullReport, history: Record<string, number>, lastReport: FullReport | null) {
-    // Create a self-contained HTML file with embedded JS that provides:
-    // - search box
-    // - filters (status)
-    // - sort (duration, failures)
-    // - compare with last run (if lastReport present)
-    // - show failure count from history
-
+  _renderHtml(report, history, lastReport) {
     const css = `
     body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; padding:18px; background:#f4f6fb}
     .header{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -249,13 +189,13 @@ Custom TypeScript report generated: ${outPath}`);
     details summary{cursor:pointer}
     `;
 
-    const escaped = (s: any) => {
+    const escaped = (s) => {
       if (s === undefined || s === null) return '';
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     };
 
     const payload = { report, history, lastReport };
-    const payloadJson = JSON.stringify(payload).replace(/</g, '\u003c'); // avoid HTML break
+    const payloadJson = JSON.stringify(payload).replace(/</g, '\\u003c');
 
     const html = `<!doctype html>
 <html>
@@ -303,7 +243,7 @@ Custom TypeScript report generated: ${outPath}`);
 
       let compareHtml = '';
       if (lastReport){
-        const last = lastReport.tests.find(x => x.id === t.id);
+        const last = (lastReport.tests || []).find(x => x.id === t.id);
         if (last){
           if (last.status !== t.status){
             compareHtml = `<div class="meta">Compared to last run: <strong>${escapeHtml(last.status)}</strong></div>`;
@@ -313,20 +253,20 @@ Custom TypeScript report generated: ${outPath}`);
         }
       }
 
-      el.innerHTML = `
+      el.innerHTML = \`
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div style="flex:1">
-            <div style="font-weight:700">${escapeHtml(t.fullTitle)}</div>
-            <div class="meta">${escapeHtml(t.file||'')} • ${t.durationMs? t.durationMs+'ms':''}</div>
+            <div style="font-weight:700">\${escapeHtml(t.fullTitle)}</div>
+            <div class="meta">\${escapeHtml(t.file||'')} • \${t.durationMs? t.durationMs+'ms':''}</div>
           </div>
           <div style="margin-left:12px;text-align:right">
-            <div class="${statusClass}">${escapeHtml(t.status)}</div>
-            <div class="meta">Historical failures: <strong>${failures}</strong></div>
+            <div class="\${statusClass}">\${escapeHtml(t.status)}</div>
+            <div class="meta">Historical failures: <strong>\${failures}</strong></div>
           </div>
         </div>
-        ${t.error ? `<details><summary style="color:#a61e4d">Error: ${escapeHtml(shorten(t.error,120))}</summary><pre>${escapeHtml(t.error)}</pre></details>` : ''}
-        ${t.attachments && t.attachments.length ? `<div class="attachments">${t.attachments.map(a=> a.dataUri ? `<a href="${a.dataUri}" target="_blank"><img src="${a.dataUri}"/></a>` : a.path? `<a href="./${encodeURI(a.path)}" target="_blank">${escapeHtml(a.name||a.path)}</a>`:escapeHtml(a.name)).join(' ')}</div>` : ''}
-      `;
+        \${t.error ? \`<details><summary style="color:#a61e4d">Error: \${escapeHtml(shorten(t.error,120))}</summary><pre>\${escapeHtml(t.error)}</pre></details>\` : ''}
+        \${t.attachments && t.attachments.length ? \`<div class="attachments">\${t.attachments.map(a=> a.dataUri ? \`<a href="\${a.dataUri}" target="_blank"><img src="\${a.dataUri}"/></a>\` : a.path? \`<a href="./\${encodeURI(a.path)}" target="_blank">\${escapeHtml(a.name||a.path)}</a>\`:escapeHtml(a.name)).join(' ')}</div>\` : ''}
+      \`;
       return el;
     }
 
@@ -342,13 +282,12 @@ Custom TypeScript report generated: ${outPath}`);
 
     function render(){
       container.innerHTML = '';
-      let tests = report.tests.slice();
+      let tests = (report.tests || []).slice();
       const q = (search.value||'').toLowerCase().trim();
       const status = statusFilter.value;
       if (q){ tests = tests.filter(t => (t.fullTitle||'').toLowerCase().includes(q) || (t.file||'').toLowerCase().includes(q)); }
       if (status && status !== 'all') tests = tests.filter(t => t.status === status);
 
-      // sorting
       const sort = sortBy.value;
       if (sort === 'duration') tests.sort((a,b)=> (b.durationMs||0) - (a.durationMs||0));
       else if (sort === 'failures') tests.sort((a,b)=> (history[b.id]||0) - (history[a.id]||0));
@@ -362,9 +301,8 @@ Custom TypeScript report generated: ${outPath}`);
     search.addEventListener('input', render);
     statusFilter.addEventListener('change', render);
     sortBy.addEventListener('change', render);
-    toggleCompare.addEventListener('click', ()=>{ showCompare = !showCompare; /* currently compare always uses lastReport if present; this button could toggle details in advanced UI */ alert('Compare toggled (note: UI currently highlights changes vs last run if present)'); });
+    toggleCompare.addEventListener('click', ()=>{ showCompare = !showCompare; alert('Compare toggled (note: UI currently highlights changes vs last run if present)'); });
 
-    // initial render
     render();
   </script>
 </body>
@@ -374,34 +312,4 @@ Custom TypeScript report generated: ${outPath}`);
   }
 }
 
-/*
-USAGE
-1. Save this file as reporter/custom-ts-reporter.ts in your repo.
-2. Compile with TypeScript (or use ts-node) to produce reporter/custom-ts-reporter.js and point Playwright at it.
-
-   tsc reporter/custom-ts-reporter.ts --outDir reporter --esModuleInterop true --module commonjs --target es2019
-
-3. Install the optional `open` package if you want auto-open capability:
-
-   npm install -D open
-
-4. How auto-open works now:
-   - If you set OPEN_REPORT=1 (or true) the reporter will try to open the generated HTML after the run.
-   - If OPEN_REPORT is not set, the reporter will automatically open the report only when NOT running in CI (process.env.CI is falsy) and if the `open` package is available.
-   - To explicitly disable auto-open even locally set OPEN_REPORT=0.
-
-Examples:
-  # Open report automatically (local)
-  OPEN_REPORT=1 npx playwright test
-
-  # No auto-open (CI)
-  npx playwright test
-
-  # Explicitly disable auto-open locally
-  OPEN_REPORT=0 npx playwright test
-
-Notes:
-- The reporter writes results.json, last-results.json (from previous run), history.json, and custom-report.html into the outputDir (default playwright-report).
-- History stores a simple map of test id -> number-of-times-failed.
-- Matching between runs uses deterministic id: relative file path + full suite > title. If your suite reorders or renames, counts may not match.
-*/
+module.exports = CustomTsReporter;
