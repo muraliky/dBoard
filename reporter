@@ -1,0 +1,407 @@
+// reporter/custom-ts-reporter.ts
+// TypeScript Playwright Reporter + Embedded interactive HTML UI
+// Updated: now supports automatically opening the generated HTML report after the run
+// with a CI-safe toggle via environment variable OPEN_REPORT=1
+
+import fs from 'fs';
+import path from 'path';
+import { Reporter, TestCase, TestResult, FullConfig, Suite } from '@playwright/test/reporter';
+// Optional runtime opener. We conditionally require it (so CI without the package won't crash).
+let opener: ((p: string) => Promise<void>) | null = null;
+try {
+  // Use dynamic import so tsc doesn't force it if not installed
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const openPkg = require('open');
+  opener = (p: string) => openPkg(p);
+} catch (e) {
+  opener = null;
+}
+
+type Attach = { name?: string; contentType?: string; path?: string | undefined; }
+
+interface CollectedTest {
+  id: string; // deterministic id (file + title)
+  title: string;
+  fullTitle: string;
+  file?: string;
+  location?: any;
+  status: string; // passed | failed | skipped | timedOut
+  durationMs?: number;
+  error?: string | null;
+  attachments: { name?: string; contentType?: string | null; path?: string | null; dataUri?: string | null }[];
+}
+
+interface Summary {
+  startTime: string;
+  endTime: string;
+  durationMs: number;
+  total: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+}
+
+interface FullReport {
+  summary: Summary;
+  tests: CollectedTest[];
+  meta?: { commit?: string; ci?: boolean };
+}
+
+const HISTORY_FILENAME = 'history.json';
+const LAST_RESULTS_FILENAME = 'last-results.json';
+const RESULTS_FILENAME = 'results.json';
+const REPORT_FILENAME = 'custom-report.html';
+
+export default class CustomTsReporter implements Reporter {
+  private outDir: string;
+  private results: CollectedTest[] = [];
+  private startTime: Date | null = null;
+  private config: FullConfig | undefined;
+
+  constructor(private options: { outputDir?: string } = {}) {
+    this.outDir = path.resolve(process.cwd(), options.outputDir || 'playwright-report');
+    if (!fs.existsSync(this.outDir)) fs.mkdirSync(this.outDir, { recursive: true });
+  }
+
+  onBegin(config: FullConfig, suite: Suite) {
+    this.startTime = new Date();
+    this.config = config;
+    // rotate previous results to last-results.json (if exists)
+    const resultsPath = path.join(this.outDir, RESULTS_FILENAME);
+    const lastPath = path.join(this.outDir, LAST_RESULTS_FILENAME);
+    try {
+      if (fs.existsSync(resultsPath)) {
+        fs.copyFileSync(resultsPath, lastPath);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  async onTestEnd(test: TestCase, result: TestResult) {
+    const fullTitle = this._getFullTitle(test as any);
+    const id = this._makeId(test as any, fullTitle);
+
+    const attachments = (result.attachments || []).map((a: Attach) => {
+      const attachment: any = { name: a.name, contentType: a.contentType || null, path: null, dataUri: null };
+      try {
+        if (a.path && fs.existsSync(a.path)) {
+          const raw = fs.readFileSync(a.path);
+          const mime = a.contentType || this._guessMime(a.name || '');
+          // embed images as data uris when small
+          if (mime && mime.startsWith('image/')) {
+            attachment.dataUri = `data:${mime};base64,${raw.toString('base64')}`;
+          } else {
+            // copy file into outDir
+            const outName = `${Date.now()}-${path.basename(a.path)}`;
+            const outPath = path.join(this.outDir, outName);
+            fs.writeFileSync(outPath, raw);
+            attachment.path = outName;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+      return attachment;
+    });
+
+    const ct: CollectedTest = {
+      id,
+      title: test.title,
+      fullTitle,
+      file: (test.location && (test.location as any).file) || (test as any)._file || undefined,
+      location: test.location || null,
+      status: result.status,
+      durationMs: result.duration,
+      error: result.error ? (result.error.message || String(result.error)) : null,
+      attachments,
+    };
+
+    this.results.push(ct);
+  }
+
+  async onEnd() {
+    const endTime = new Date();
+    const summary: Summary = {
+      startTime: this.startTime ? this.startTime.toISOString() : new Date().toISOString(),
+      endTime: endTime.toISOString(),
+      durationMs: this.startTime ? (endTime.getTime() - this.startTime.getTime()) : 0,
+      total: this.results.length,
+      passed: this.results.filter(r => r.status === 'passed').length,
+      failed: this.results.filter(r => r.status === 'failed').length,
+      skipped: this.results.filter(r => r.status === 'skipped').length,
+    };
+
+    // read previous history and last results
+    const historyPath = path.join(this.outDir, HISTORY_FILENAME);
+    const lastResultsPath = path.join(this.outDir, LAST_RESULTS_FILENAME);
+    let history: Record<string, number> = {};
+    try {
+      if (fs.existsSync(historyPath)) {
+        history = JSON.parse(fs.readFileSync(historyPath, 'utf8')) as Record<string, number>;
+      }
+    } catch (e) { history = {}; }
+
+    let lastResults: FullReport | null = null;
+    try {
+      if (fs.existsSync(lastResultsPath)) {
+        lastResults = JSON.parse(fs.readFileSync(lastResultsPath, 'utf8')) as FullReport;
+      }
+    } catch (e) { lastResults = null; }
+
+    // update history: increment failure counts for tests that failed this run
+    for (const t of this.results) {
+      const prev = history[t.id] || 0;
+      if (t.status === 'failed') history[t.id] = prev + 1;
+      else history[t.id] = prev; // ensure presence for UI
+    }
+    // persist history
+    try { fs.writeFileSync(historyPath, JSON.stringify(history, null, 2), 'utf8'); } catch(e){}
+
+    const fullReport: FullReport = { summary, tests: this.results, meta: { commit: process.env.GIT_COMMIT || process.env.GITHUB_SHA || undefined, ci: !!process.env.CI } };
+
+    // write results.json
+    try { fs.writeFileSync(path.join(this.outDir, RESULTS_FILENAME), JSON.stringify(fullReport, null, 2), 'utf8'); } catch (e) {}
+
+    // write the HTML report (self-contained)
+    try {
+      const html = this._renderHtml(fullReport, history, lastResults);
+      const outPath = path.join(this.outDir, REPORT_FILENAME);
+      fs.writeFileSync(outPath, html, 'utf8');
+      console.log(`
+Custom TypeScript report generated: ${outPath}`);
+
+      // AUTO-OPEN: Only open when explicitly requested or if not in CI.
+      // Use environment variable OPEN_REPORT=1 to force open locally.
+      // If OPEN_REPORT is not set, we'll open only when not running in CI and opener is available.
+      const openRequested = process.env.OPEN_REPORT === '1' || process.env.OPEN_REPORT === 'true';
+      const inCi = !!process.env.CI;
+      if ((openRequested || !inCi) && opener) {
+        try {
+          // Respect explicit negative env var OPEN_REPORT=0
+          if (process.env.OPEN_REPORT === '0' || process.env.OPEN_REPORT === 'false') {
+            // don't open
+          } else if (openRequested || !inCi) {
+            await opener(outPath);
+          }
+        } catch (e) {
+          console.error('Failed to open report automatically:', e);
+        }
+      } else if ((openRequested || !inCi) && !opener) {
+        console.log('Note: report auto-open requested but `open` package is not installed. Run `npm i -D open` to enable.');
+      }
+
+    } catch (e) {
+      console.error('Failed to write HTML report', e);
+    }
+  }
+
+  // Helpers
+  _getFullTitle(test: any) {
+    if (!test) return '';
+    const names: string[] = [];
+    let p = test.parent;
+    while (p && p.title) {
+      names.unshift(p.title);
+      p = p.parent;
+    }
+    return names.concat([test.title]).join(' > ');
+  }
+
+  _makeId(test: any, fullTitle: string) {
+    // deterministic id: file + fullTitle
+    const file = (test.location && (test.location as any).file) || (test as any)._file || 'unknown-file';
+    return `${path.relative(process.cwd(), file)}::${fullTitle}`;
+  }
+
+  _guessMime(name = '') {
+    const n = (name || '').toLowerCase();
+    if (n.endsWith('.png')) return 'image/png';
+    if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'image/jpeg';
+    if (n.endsWith('.webp')) return 'image/webp';
+    if (n.endsWith('.html')) return 'text/html';
+    if (n.endsWith('.txt') || n.endsWith('.log')) return 'text/plain';
+    return 'application/octet-stream';
+  }
+
+  _renderHtml(report: FullReport, history: Record<string, number>, lastReport: FullReport | null) {
+    // Create a self-contained HTML file with embedded JS that provides:
+    // - search box
+    // - filters (status)
+    // - sort (duration, failures)
+    // - compare with last run (if lastReport present)
+    // - show failure count from history
+
+    const css = `
+    body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; padding:18px; background:#f4f6fb}
+    .header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .title{font-size:20px;font-weight:700}
+    .controls{display:flex;gap:8px;align-items:center}
+    .search{padding:8px 10px;border-radius:8px;border:1px solid #e3e6ee;background:#fff}
+    .chip{padding:6px 10px;border-radius:999px;background:#fff;border:1px solid #e7e9f1}
+    .tests{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px}
+    .card{background:#fff;padding:12px;border-radius:10px;box-shadow:0 4px 14px rgba(20,30,60,0.04)}
+    .status-passed{color:#116530;font-weight:600}
+    .status-failed{color:#a61e4d;font-weight:700}
+    .status-skipped{color:#6b7280;font-weight:600}
+    .meta{font-size:12px;color:#6b7280}
+    .attachments img{max-width:100%;border-radius:6px;margin-top:8px}
+    details summary{cursor:pointer}
+    `;
+
+    const escaped = (s: any) => {
+      if (s === undefined || s === null) return '';
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    };
+
+    const payload = { report, history, lastReport };
+    const payloadJson = JSON.stringify(payload).replace(/</g, '\u003c'); // avoid HTML break
+
+    const html = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Playwright Custom Report (TS)</title>
+<style>${css}</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="title">Playwright Custom Report</div>
+      <div class="meta">Start: ${escaped(report.summary.startTime)} • Duration: ${Math.round(report.summary.durationMs/1000)}s • Tests: ${report.summary.total} • Failed: ${report.summary.failed}</div>
+    </div>
+    <div class="controls">
+      <input id="search" class="search" placeholder="Search tests... (title, file)" />
+      <select id="statusFilter" class="chip">
+        <option value="all">All</option>
+        <option value="failed">Failed</option>
+        <option value="passed">Passed</option>
+        <option value="skipped">Skipped</option>
+      </select>
+      <select id="sortBy" class="chip">
+        <option value="none">Sort</option>
+        <option value="duration">Longest</option>
+        <option value="failures">Most historical failures</option>
+      </select>
+      <button id="toggleCompare" class="chip">${lastReport ? 'Toggle Compare' : 'No last run'}</button>
+    </div>
+  </div>
+
+  <div id="tests" class="tests"></div>
+
+  <script>
+    const payload = ${payloadJson};
+    const report = payload.report;
+    const history = payload.history || {};
+    const lastReport = payload.lastReport || null;
+
+    function makeTestCard(t){
+      const el = document.createElement('div'); el.className='card';
+      const statusClass = t.status==='passed' ? 'status-passed' : t.status==='failed' ? 'status-failed' : 'status-skipped';
+      const failures = history[t.id] || 0;
+
+      let compareHtml = '';
+      if (lastReport){
+        const last = lastReport.tests.find(x => x.id === t.id);
+        if (last){
+          if (last.status !== t.status){
+            compareHtml = `<div class="meta">Compared to last run: <strong>${escapeHtml(last.status)}</strong></div>`;
+          } else {
+            compareHtml = `<div class="meta">Status unchanged vs last run</div>`;
+          }
+        }
+      }
+
+      el.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="flex:1">
+            <div style="font-weight:700">${escapeHtml(t.fullTitle)}</div>
+            <div class="meta">${escapeHtml(t.file||'')} • ${t.durationMs? t.durationMs+'ms':''}</div>
+          </div>
+          <div style="margin-left:12px;text-align:right">
+            <div class="${statusClass}">${escapeHtml(t.status)}</div>
+            <div class="meta">Historical failures: <strong>${failures}</strong></div>
+          </div>
+        </div>
+        ${t.error ? `<details><summary style="color:#a61e4d">Error: ${escapeHtml(shorten(t.error,120))}</summary><pre>${escapeHtml(t.error)}</pre></details>` : ''}
+        ${t.attachments && t.attachments.length ? `<div class="attachments">${t.attachments.map(a=> a.dataUri ? `<a href="${a.dataUri}" target="_blank"><img src="${a.dataUri}"/></a>` : a.path? `<a href="./${encodeURI(a.path)}" target="_blank">${escapeHtml(a.name||a.path)}</a>`:escapeHtml(a.name)).join(' ')}</div>` : ''}
+      `;
+      return el;
+    }
+
+    function escapeHtml(s){ if(s==null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function shorten(s,n){ if(!s) return ''; return s.length>n? s.slice(0,n)+'…':s; }
+
+    const container = document.getElementById('tests');
+    const search = document.getElementById('search');
+    const statusFilter = document.getElementById('statusFilter');
+    const sortBy = document.getElementById('sortBy');
+    const toggleCompare = document.getElementById('toggleCompare');
+    let showCompare = !!lastReport;
+
+    function render(){
+      container.innerHTML = '';
+      let tests = report.tests.slice();
+      const q = (search.value||'').toLowerCase().trim();
+      const status = statusFilter.value;
+      if (q){ tests = tests.filter(t => (t.fullTitle||'').toLowerCase().includes(q) || (t.file||'').toLowerCase().includes(q)); }
+      if (status && status !== 'all') tests = tests.filter(t => t.status === status);
+
+      // sorting
+      const sort = sortBy.value;
+      if (sort === 'duration') tests.sort((a,b)=> (b.durationMs||0) - (a.durationMs||0));
+      else if (sort === 'failures') tests.sort((a,b)=> (history[b.id]||0) - (history[a.id]||0));
+
+      for (const t of tests){
+        const card = makeTestCard(t);
+        container.appendChild(card);
+      }
+    }
+
+    search.addEventListener('input', render);
+    statusFilter.addEventListener('change', render);
+    sortBy.addEventListener('change', render);
+    toggleCompare.addEventListener('click', ()=>{ showCompare = !showCompare; /* currently compare always uses lastReport if present; this button could toggle details in advanced UI */ alert('Compare toggled (note: UI currently highlights changes vs last run if present)'); });
+
+    // initial render
+    render();
+  </script>
+</body>
+</html>`;
+
+    return html;
+  }
+}
+
+/*
+USAGE
+1. Save this file as reporter/custom-ts-reporter.ts in your repo.
+2. Compile with TypeScript (or use ts-node) to produce reporter/custom-ts-reporter.js and point Playwright at it.
+
+   tsc reporter/custom-ts-reporter.ts --outDir reporter --esModuleInterop true --module commonjs --target es2019
+
+3. Install the optional `open` package if you want auto-open capability:
+
+   npm install -D open
+
+4. How auto-open works now:
+   - If you set OPEN_REPORT=1 (or true) the reporter will try to open the generated HTML after the run.
+   - If OPEN_REPORT is not set, the reporter will automatically open the report only when NOT running in CI (process.env.CI is falsy) and if the `open` package is available.
+   - To explicitly disable auto-open even locally set OPEN_REPORT=0.
+
+Examples:
+  # Open report automatically (local)
+  OPEN_REPORT=1 npx playwright test
+
+  # No auto-open (CI)
+  npx playwright test
+
+  # Explicitly disable auto-open locally
+  OPEN_REPORT=0 npx playwright test
+
+Notes:
+- The reporter writes results.json, last-results.json (from previous run), history.json, and custom-report.html into the outputDir (default playwright-report).
+- History stores a simple map of test id -> number-of-times-failed.
+- Matching between runs uses deterministic id: relative file path + full suite > title. If your suite reorders or renames, counts may not match.
+*/
