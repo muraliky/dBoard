@@ -1,83 +1,60 @@
 Option Explicit
 
-Sub ClearTableRange_Safe_V2()
-    ' Robust clearing for mixed merged rows & columns.
-    ' Clears:
-    '  - all non-merged cells inside the target rectangle
-    '  - the master (top-left) cell of any merged area that overlaps the rectangle
-    '
-    ' Configure:
-    Const sheetName As String = "Sheet1"   ' <-- sheet name
-    Const startRow  As Long = 3            ' <-- first row of table
-    Const endRow    As Long = 12           ' <-- last row of table
-    Const firstCol  As Long = 2            ' <-- first column number (B=2)
-    Const lastCol   As Long = 8            ' <-- last column number (H=8)
-    Const sheetPwd  As String = ""         ' <-- sheet password if protected ("" if none)
+Sub ClearTable_NoProtection()
+    ' --- USER SETTINGS ---
+    Const sheetName As String = "Sheet1"   ' change this to your sheet name
+    Const startRow As Long = 3              ' first row of your table
+    Const endRow As Long = 12               ' last row of your table
+    Const firstCol As Long = 2              ' B = 2
+    Const lastCol As Long = 8               ' H = 8
+    ' ----------------------
 
     Dim ws As Worksheet
-    Dim r As Long, c As Long
     Dim targetRange As Range
     Dim cell As Range
     Dim masterAddr As String
-    Dim clearedMasters As Object   ' Scripting.Dictionary (late bound)
-    Dim inter As Range
+    Dim clearedMasters As Object
+    Dim clearedMergedCount As Long, clearedSingleCount As Long
 
     On Error GoTo ErrHandler
     Set ws = ThisWorkbook.Worksheets(sheetName)
     Set targetRange = ws.Range(ws.Cells(startRow, firstCol), ws.Cells(endRow, lastCol))
-
-    ' Create dictionary to track which merged masters we've already cleared
     Set clearedMasters = CreateObject("Scripting.Dictionary")
-
-    ' Unprotect sheet if needed
-    If ws.ProtectContents Then
-        ws.Unprotect Password:=sheetPwd
-    End If
 
     Application.ScreenUpdating = False
     Application.EnableEvents = False
     Application.Calculation = xlCalculationManual
 
-    ' Loop through each cell in the target rectangle
-    For r = startRow To endRow
-        For c = firstCol To lastCol
-            Set cell = ws.Cells(r, c)
-
-            If cell.MergeCells Then
-                ' Get the entire merged area for this cell
-                masterAddr = cell.MergeArea.Cells(1, 1).Address(External:=False)
-                ' If we have not already cleared this merged area's master, clear it now
-                If Not clearedMasters.Exists(masterAddr) Then
-                    ' Clear the master (this clears the whole merged area safely)
-                    cell.MergeArea.Cells(1, 1).ClearContents
-                    clearedMasters.Add masterAddr, 1
-                End If
-            Else
-                ' Non-merged cell inside rectangle: clear directly
-                cell.ClearContents
+    ' Loop through each cell in the target area
+    For Each cell In targetRange
+        If cell.MergeCells Then
+            ' Only clear the top-left cell of each merged area once
+            masterAddr = cell.MergeArea.Cells(1, 1).Address(False, False)
+            If Not clearedMasters.Exists(masterAddr) Then
+                cell.MergeArea.Cells(1, 1).ClearContents
+                clearedMasters.Add masterAddr, 1
+                clearedMergedCount = clearedMergedCount + 1
             End If
-        Next c
-    Next r
+        Else
+            ' Not merged — clear directly
+            cell.ClearContents
+            clearedSingleCount = clearedSingleCount + 1
+        End If
+    Next cell
 
-    ' Restore application settings
     Application.Calculation = xlCalculationAutomatic
     Application.EnableEvents = True
     Application.ScreenUpdating = True
 
-    ' Re-protect sheet if it originally had a password
-    If Len(sheetPwd) > 0 Then
-        ws.Protect Password:=sheetPwd, UserInterfaceOnly:=True
-    End If
+    MsgBox "✅ Cleared data in rows " & startRow & " to " & endRow & vbCrLf & _
+           clearedMergedCount & " merged cells cleared" & vbCrLf & _
+           clearedSingleCount & " single cells cleared", vbInformation, "Clear Complete"
 
-    MsgBox "Cleared rows " & startRow & " to " & endRow & " on sheet '" & sheetName & "'.", vbInformation
     Exit Sub
 
 ErrHandler:
-    ' Restore application settings on error
-    On Error Resume Next
     Application.Calculation = xlCalculationAutomatic
     Application.EnableEvents = True
     Application.ScreenUpdating = True
-    If Len(sheetPwd) > 0 Then ws.Protect Password:=sheetPwd, UserInterfaceOnly:=True
-    MsgBox "Error " & Err.Number & ": " & Err.Description, vbExclamation
+    MsgBox "⚠️ Error " & Err.Number & ": " & Err.Description, vbExclamation, "Error"
 End Sub
