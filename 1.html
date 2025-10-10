@@ -1,60 +1,76 @@
 Option Explicit
 
-Sub ClearTable_NoProtection()
+Sub ClearTable_MergedSafe()
     ' --- USER SETTINGS ---
-    Const sheetName As String = "Sheet1"   ' change this to your sheet name
-    Const startRow As Long = 3              ' first row of your table
-    Const endRow As Long = 12               ' last row of your table
-    Const firstCol As Long = 2              ' B = 2
-    Const lastCol As Long = 8               ' H = 8
+    Const sheetName As String = "Sheet1"   ' << change to your sheet name
+    Const startRow As Long = 3             ' << first row of table area
+    Const endRow As Long = 12              ' << last row of table area
+    Const firstCol As Long = 2             ' << first column (A=1,B=2...)
+    Const lastCol As Long = 8              ' << last column
     ' ----------------------
 
     Dim ws As Worksheet
-    Dim targetRange As Range
+    Dim targetRng As Range
+    Dim mergedCells As Range
     Dim cell As Range
-    Dim masterAddr As String
-    Dim clearedMasters As Object
+    Dim clearedMasters As Collection
+    Dim masterKey As String
     Dim clearedMergedCount As Long, clearedSingleCount As Long
 
     On Error GoTo ErrHandler
     Set ws = ThisWorkbook.Worksheets(sheetName)
-    Set targetRange = ws.Range(ws.Cells(startRow, firstCol), ws.Cells(endRow, lastCol))
-    Set clearedMasters = CreateObject("Scripting.Dictionary")
+    Set targetRng = ws.Range(ws.Cells(startRow, firstCol), ws.Cells(endRow, lastCol))
+    Set clearedMasters = New Collection
 
     Application.ScreenUpdating = False
     Application.EnableEvents = False
     Application.Calculation = xlCalculationManual
 
-    ' Loop through each cell in the target area
-    For Each cell In targetRange
-        If cell.MergeCells Then
-            ' Only clear the top-left cell of each merged area once
-            masterAddr = cell.MergeArea.Cells(1, 1).Address(False, False)
-            If Not clearedMasters.Exists(masterAddr) Then
-                cell.MergeArea.Cells(1, 1).ClearContents
-                clearedMasters.Add masterAddr, 1
-                clearedMergedCount = clearedMergedCount + 1
+    ' --- 1) Clear any merged area that overlaps the target rectangle ---
+    On Error Resume Next
+    Set mergedCells = ws.UsedRange.SpecialCells(xlCellTypeAllMergedCells)
+    On Error GoTo 0
+
+    If Not mergedCells Is Nothing Then
+        For Each cell In mergedCells
+            If Not Intersect(cell, targetRng) Is Nothing Then
+                masterKey = cell.MergeArea.Address(False, False) ' unique key for this merge
+                On Error Resume Next
+                clearedMasters.Add masterKey, masterKey   ' try to add; duplicate key will error
+                If Err.Number = 0 Then
+                    ' newly added -> clear the entire merged area safely
+                    cell.MergeArea.ClearContents
+                    clearedMergedCount = clearedMergedCount + 1
+                End If
+                Err.Clear
+                On Error GoTo ErrHandler
             End If
-        Else
-            ' Not merged — clear directly
+        Next cell
+    End If
+
+    ' --- 2) Clear the remaining non-merged cells inside the rectangle ---
+    For Each cell In targetRng.Cells
+        If Not cell.MergeCells Then
             cell.ClearContents
             clearedSingleCount = clearedSingleCount + 1
         End If
     Next cell
 
+    ' Restore
     Application.Calculation = xlCalculationAutomatic
     Application.EnableEvents = True
     Application.ScreenUpdating = True
 
-    MsgBox "✅ Cleared data in rows " & startRow & " to " & endRow & vbCrLf & _
-           clearedMergedCount & " merged cells cleared" & vbCrLf & _
-           clearedSingleCount & " single cells cleared", vbInformation, "Clear Complete"
-
+    MsgBox "Done. Cleared " & clearedMergedCount & " merged block(s) and " & _
+           clearedSingleCount & " single cell(s).", vbInformation, "Clear Complete"
     Exit Sub
 
 ErrHandler:
+    ' Restore app state and show helpful info
+    On Error Resume Next
     Application.Calculation = xlCalculationAutomatic
     Application.EnableEvents = True
     Application.ScreenUpdating = True
-    MsgBox "⚠️ Error " & Err.Number & ": " & Err.Description, vbExclamation, "Error"
+    MsgBox "Error " & Err.Number & ": " & Err.Description & vbCrLf & _
+           "If this persists, tell me the exact line highlighted in the VBA editor.", vbExclamation, "Error"
 End Sub
