@@ -1,76 +1,81 @@
 Option Explicit
 
-Sub ClearTable_MergedSafe()
-    ' --- USER SETTINGS ---
-    Const sheetName As String = "Sheet1"   ' << change to your sheet name
-    Const startRow As Long = 3             ' << first row of table area
-    Const endRow As Long = 12              ' << last row of table area
-    Const firstCol As Long = 2             ' << first column (A=1,B=2...)
-    Const lastCol As Long = 8              ' << last column
-    ' ----------------------
+Sub ClearTable_EnsureMergedCleared()
+    ' --- USER SETTINGS: change these to match your sheet/table ---
+    Const sheetName As String = "Sheet1"
+    Const startRow As Long = 3
+    Const endRow As Long = 12
+    Const firstCol As Long = 2     ' B = 2
+    Const lastCol As Long = 8      ' H = 8
+    ' ----------------------------------------------------------
 
     Dim ws As Worksheet
     Dim targetRng As Range
-    Dim mergedCells As Range
     Dim cell As Range
-    Dim clearedMasters As Collection
-    Dim masterKey As String
-    Dim clearedMergedCount As Long, clearedSingleCount As Long
+    Dim dict As Object
+    Dim singleUnion As Range
+    Dim k As Variant
+    Dim mergedCount As Long, singleCount As Long
+    Dim logRow As Long
 
     On Error GoTo ErrHandler
+
     Set ws = ThisWorkbook.Worksheets(sheetName)
     Set targetRng = ws.Range(ws.Cells(startRow, firstCol), ws.Cells(endRow, lastCol))
-    Set clearedMasters = New Collection
+    Set dict = CreateObject("Scripting.Dictionary")   ' holds unique merged-area addresses
 
     Application.ScreenUpdating = False
     Application.EnableEvents = False
     Application.Calculation = xlCalculationManual
 
-    ' --- 1) Clear any merged area that overlaps the target rectangle ---
-    On Error Resume Next
-    Set mergedCells = ws.UsedRange.SpecialCells(xlCellTypeAllMergedCells)
-    On Error GoTo 0
-
-    If Not mergedCells Is Nothing Then
-        For Each cell In mergedCells
-            If Not Intersect(cell, targetRng) Is Nothing Then
-                masterKey = cell.MergeArea.Address(False, False) ' unique key for this merge
-                On Error Resume Next
-                clearedMasters.Add masterKey, masterKey   ' try to add; duplicate key will error
-                If Err.Number = 0 Then
-                    ' newly added -> clear the entire merged area safely
-                    cell.MergeArea.ClearContents
-                    clearedMergedCount = clearedMergedCount + 1
-                End If
-                Err.Clear
-                On Error GoTo ErrHandler
-            End If
-        Next cell
-    End If
-
-    ' --- 2) Clear the remaining non-merged cells inside the rectangle ---
+    ' iterate target rectangle and collect merged-area addresses + non-merged cells
     For Each cell In targetRng.Cells
-        If Not cell.MergeCells Then
-            cell.ClearContents
-            clearedSingleCount = clearedSingleCount + 1
+        If cell.MergeCells Then
+            If Not dict.Exists(cell.MergeArea.Address(False, False)) Then
+                dict.Add cell.MergeArea.Address(False, False), True
+            End If
+        Else
+            ' build Union of non-merged cells to clear them in one go
+            If singleUnion Is Nothing Then
+                Set singleUnion = cell
+            Else
+                Set singleUnion = Union(singleUnion, cell)
+            End If
         End If
     Next cell
 
-    ' Restore
+    ' Clear merged areas (each address once)
+    mergedCount = 0
+    For Each k In dict.Keys
+        ws.Range(k).ClearContents
+        mergedCount = mergedCount + 1
+    Next k
+
+    ' Clear non-merged cells (if any)
+    singleCount = 0
+    If Not singleUnion Is Nothing Then
+        singleUnion.ClearContents
+        ' estimate singleCount by counting cells in the union
+        singleCount = singleUnion.Count
+    End If
+
+    ' write a small log on the sheet so you can verify quickly
+    logRow = 1
+    ws.Cells(logRow, 1).Resize(3, 1).ClearContents
+    ws.Cells(logRow, 1).Value = "Cleared merged blocks: " & mergedCount
+    ws.Cells(logRow + 1, 1).Value = "Cleared single cells: " & singleCount
+    ws.Cells(logRow + 2, 1).Value = "Target area: " & targetRng.Address(False, False)
+
     Application.Calculation = xlCalculationAutomatic
     Application.EnableEvents = True
     Application.ScreenUpdating = True
 
-    MsgBox "Done. Cleared " & clearedMergedCount & " merged block(s) and " & _
-           clearedSingleCount & " single cell(s).", vbInformation, "Clear Complete"
+    MsgBox "Done. Cleared " & mergedCount & " merged block(s) and " & singleCount & " single cell(s).", vbInformation
     Exit Sub
 
 ErrHandler:
-    ' Restore app state and show helpful info
-    On Error Resume Next
     Application.Calculation = xlCalculationAutomatic
     Application.EnableEvents = True
     Application.ScreenUpdating = True
-    MsgBox "Error " & Err.Number & ": " & Err.Description & vbCrLf & _
-           "If this persists, tell me the exact line highlighted in the VBA editor.", vbExclamation, "Error"
+    MsgBox "Error " & Err.Number & ": " & Err.Description, vbExclamation
 End Sub
