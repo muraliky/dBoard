@@ -1,46 +1,70 @@
-// Function to handle month filter visibility/state
-function updateMonthFilterState() {
-    const monthFilter = document.getElementById('monthFilter');
-    if (!monthFilter) return;
-    
-    if (currentPage === 'automation' || currentPage === 'standardization') {
-        monthFilter.disabled = true;
-        monthFilter.style.opacity = '0.5';
-        monthFilter.style.cursor = 'not-allowed';
-    } else {
-        monthFilter.disabled = false;
-        monthFilter.style.opacity = '1';
-        monthFilter.style.cursor = 'pointer';
-    }
-}
+Option Explicit
 
-// Update data based on page
-setTimeout(() => {
-    if (page === 'quality') {
-        updateQualityMetrics();
-    } else if (page === 'automation') {
-        if (typeof updateAutomationMetrics === 'function') {
-            updateAutomationMetrics();
-        }
-    } else if (page === 'standardization') {
-        if (typeof updateStandardizationMetrics === 'function') {
-            updateStandardizationMetrics();
-        }
-    } else if (page === 'initiatives') {
-        if (typeof updateInitiativesMetrics === 'function') {
-            updateInitiativesMetrics();
-        }
-    } else if (page === 'training' || page === 'rto' || page === 'engagement') {
-        console.log(`Switched to ${page} page - showing coming soon message`);
-    }
-    
-    // Update month filter state based on current page
-    updateMonthFilterState();
-}, 100);
+Sub ClearTableRange_Safe()
+    ' --- CONFIGURE THESE VALUES ---
+    Const sheetName As String = "Sheet1"   ' <-- change to your sheet name
+    Const startRow  As Long = 3            ' <-- first row of the table area to clear
+    Const endRow    As Long = 12           ' <-- last row of the table area to clear
+    Const firstCol  As Long = 2            ' <-- first column number (B = 2)
+    Const lastCol   As Long = 8            ' <-- last column number (H = 8)
+    Const sheetPwd  As String = ""         ' <-- sheet password if protected ("" if none)
+    ' ---------------------------------
 
-async function loadData() {
-    await loadQualityData();
-    populateFilters();
-    updateQualityMetrics();
-    updateMonthFilterState(); // Add this line
-}
+    Dim ws As Worksheet
+    Dim r As Long, c As Long
+    Dim targetRange As Range
+    Dim cell As Range
+    Dim topLeft As Range
+
+    On Error GoTo ErrHandler
+    Set ws = ThisWorkbook.Worksheets(sheetName)
+
+    ' define target rectangular area
+    Set targetRange = ws.Range(ws.Cells(startRow, firstCol), ws.Cells(endRow, lastCol))
+
+    ' Unprotect sheet if needed
+    If ws.ProtectContents Then
+        ws.Unprotect Password:=sheetPwd
+    End If
+
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+
+    ' Approach:
+    ' - For each cell in the target area:
+    '     * If it is part of a merged area, only clear the top-left (master) cell of that MergeArea.
+    '     * If not merged, clear it directly.
+    ' This avoids "Cannot change part of a merged cell" errors and preserves merges/formatting.
+    For Each cell In targetRange
+        If cell.MergeCells Then
+            Set topLeft = cell.MergeArea.Cells(1, 1)
+            ' Only clear when we encounter the master cell (top-left of the merged area)
+            If cell.Address = topLeft.Address Then
+                ' Only clear if the master cell lies within our targetRange (it will)
+                topLeft.ClearContents
+            End If
+        Else
+            cell.ClearContents
+        End If
+    Next cell
+
+    ' Optional: remove formulas? If you want to only clear constants (not formulas), use:
+    ' If Not cell.HasFormula Then cell.ClearContents
+
+    ' Re-protect sheet if it was protected
+    If Len(sheetPwd) > 0 Then
+        ws.Protect Password:=sheetPwd, UserInterfaceOnly:=True
+    End If
+
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+
+    MsgBox "Cleared rows " & startRow & " to " & endRow & " in " & ws.Name & ".", vbInformation
+
+    Exit Sub
+
+ErrHandler:
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+    MsgBox "Error: " & Err.Number & " - " & Err.Description, vbExclamation
+End Sub
