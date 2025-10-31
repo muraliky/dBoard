@@ -1,81 +1,20 @@
-Option Explicit
+public class SharePointUploader
+{
+    public async Task UploadAsync(string sharepointFolderUrl, string localFilePath)
+    {
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new() { Channel = "msedge", Headless = true });
+        var context = await browser.NewContextAsync();
+        var page = await context.NewPageAsync();
+        await page.GotoAsync(sharepointFolderUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
 
-Sub ClearTable_EnsureMergedCleared()
-    ' --- USER SETTINGS: change these to match your sheet/table ---
-    Const sheetName As String = "Sheet1"
-    Const startRow As Long = 3
-    Const endRow As Long = 12
-    Const firstCol As Long = 2     ' B = 2
-    Const lastCol As Long = 8      ' H = 8
-    ' ----------------------------------------------------------
-
-    Dim ws As Worksheet
-    Dim targetRng As Range
-    Dim cell As Range
-    Dim dict As Object
-    Dim singleUnion As Range
-    Dim k As Variant
-    Dim mergedCount As Long, singleCount As Long
-    Dim logRow As Long
-
-    On Error GoTo ErrHandler
-
-    Set ws = ThisWorkbook.Worksheets(sheetName)
-    Set targetRng = ws.Range(ws.Cells(startRow, firstCol), ws.Cells(endRow, lastCol))
-    Set dict = CreateObject("Scripting.Dictionary")   ' holds unique merged-area addresses
-
-    Application.ScreenUpdating = False
-    Application.EnableEvents = False
-    Application.Calculation = xlCalculationManual
-
-    ' iterate target rectangle and collect merged-area addresses + non-merged cells
-    For Each cell In targetRng.Cells
-        If cell.MergeCells Then
-            If Not dict.Exists(cell.MergeArea.Address(False, False)) Then
-                dict.Add cell.MergeArea.Address(False, False), True
-            End If
-        Else
-            ' build Union of non-merged cells to clear them in one go
-            If singleUnion Is Nothing Then
-                Set singleUnion = cell
-            Else
-                Set singleUnion = Union(singleUnion, cell)
-            End If
-        End If
-    Next cell
-
-    ' Clear merged areas (each address once)
-    mergedCount = 0
-    For Each k In dict.Keys
-        ws.Range(k).ClearContents
-        mergedCount = mergedCount + 1
-    Next k
-
-    ' Clear non-merged cells (if any)
-    singleCount = 0
-    If Not singleUnion Is Nothing Then
-        singleUnion.ClearContents
-        ' estimate singleCount by counting cells in the union
-        singleCount = singleUnion.Count
-    End If
-
-    ' write a small log on the sheet so you can verify quickly
-    logRow = 1
-    ws.Cells(logRow, 1).Resize(3, 1).ClearContents
-    ws.Cells(logRow, 1).Value = "Cleared merged blocks: " & mergedCount
-    ws.Cells(logRow + 1, 1).Value = "Cleared single cells: " & singleCount
-    ws.Cells(logRow + 2, 1).Value = "Target area: " & targetRng.Address(False, False)
-
-    Application.Calculation = xlCalculationAutomatic
-    Application.EnableEvents = True
-    Application.ScreenUpdating = True
-
-    MsgBox "Done. Cleared " & mergedCount & " merged block(s) and " & singleCount & " single cell(s).", vbInformation
-    Exit Sub
-
-ErrHandler:
-    Application.Calculation = xlCalculationAutomatic
-    Application.EnableEvents = True
-    Application.ScreenUpdating = True
-    MsgBox "Error " & Err.Number & ": " & Err.Description, vbExclamation
-End Sub
+        var uploadButton = await page.QuerySelectorAsync("button[aria-label='Upload'], button:has-text('Upload')");
+        if (uploadButton != null) { await uploadButton.ClickAsync(); await page.WaitForTimeoutAsync(500); }
+        var fileInput = await page.QuerySelectorAsync("input[type='file']");
+        if (fileInput == null) throw new Exception("Upload input not found");
+        await fileInput.SetInputFilesAsync(localFilePath);
+        await page.WaitForSelectorAsync($"text=\"{Path.GetFileName(localFilePath)}\"", new() { Timeout = 60000 });
+        await context.CloseAsync();
+        await browser.CloseAsync();
+    }
+}
