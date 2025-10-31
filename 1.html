@@ -1,20 +1,201 @@
-public class SharePointUploader
+// Required usings
+using Microsoft.Playwright;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+
+public class PlaywrightSharePointUploader
 {
-    public async Task UploadAsync(string sharepointFolderUrl, string localFilePath)
+    /// <summary>
+    /// Upload a file to a SharePoint folder page by clicking Upload -> Files and setting the file input,
+    /// avoiding the native file picker.
+    /// </summary>
+    public async Task UploadFileAvoidingDialogAsync(string pageUrl, string localFilePath, int timeoutMs = 60000)
     {
+        if (!File.Exists(localFilePath))
+            throw new FileNotFoundException("File not found", localFilePath);
+
         using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new() { Channel = "msedge", Headless = true });
+
+        // Use system Edge in headless mode; change Headless=false for debugging
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        {
+            Channel = "msedge",
+            Headless = true
+        });
+
         var context = await browser.NewContextAsync();
         var page = await context.NewPageAsync();
-        await page.GotoAsync(sharepointFolderUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
 
-        var uploadButton = await page.QuerySelectorAsync("button[aria-label='Upload'], button:has-text('Upload')");
-        if (uploadButton != null) { await uploadButton.ClickAsync(); await page.WaitForTimeoutAsync(500); }
-        var fileInput = await page.QuerySelectorAsync("input[type='file']");
-        if (fileInput == null) throw new Exception("Upload input not found");
+        // Navigate to the SharePoint folder page
+        await page.GotoAsync(pageUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle, Timeout = timeoutMs });
+
+        // 1) Click the main Upload button/menu
+        // Try several common selectors for modern SharePoint
+        var uploadButtonSelectors = new[]
+        {
+            "button[aria-label='Upload']",
+            "button:has-text('Upload')",
+            "button[title='Upload']",
+            "button.ms-Button:has-text('Upload')"
+        };
+
+        IElementHandle uploadButton = null;
+        foreach (var sel in uploadButtonSelectors)
+        {
+            uploadButton = await page.QuerySelectorAsync(sel);
+            if (uploadButton != null) break;
+        }
+
+        if (uploadButton == null)
+        {
+            // If no visible Upload button, optionally try command bar or new button
+            uploadButton = await page.QuerySelectorAsync("div[role='toolbar'] button");
+        }
+
+        if (uploadButton == null)
+            throw new InvalidOperationException("Could not find the Upload button. Inspect page and adjust selectors.");
+
+        await uploadButton.ClickAsync();
+
+        // 2) Click the 'Files' menu item (the menu entry that opens file explorer)
+        // Wait a short while for the menu to appear
+        await page.WaitForTimeoutAsync(300);
+
+        // Look for a menu item that contains "Files" text; try multiple strategies
+        IElementHandle filesMenuItem = null;
+        var menuItemCandidates = await page.QuerySelectorAllAsync("button, a, span"); // wide net; we'll filter by text
+        foreach (var candidate in menuItemCandidates)
+        {
+            var text = (await candidate.InnerTextAsync()).Trim();
+            if (string.Equals(text, "Files", StringComparison.OrdinalIgnoreCase) ||
+                text.IndexOf("file", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                filesMenuItem = candidate;
+                break;
+            }
+        }
+
+        if (filesMenuItem != null)
+        {
+            await filesMenuItem.ClickAsync();
+            await page.WaitForTimeoutAsync(300);
+        }
+        else
+        {
+            // It's possible the Upload button is a direct input trigger (no menu). Continue.
+        }
+
+        // 3) Try to find an <input type="file"> in multiple ways:
+        IElementHandle fileInput = null;
+
+        // 3a: simple query
+        fileInput = await page.QuerySelectorAsync("input[type=file]");
+
+        // 3b: search inside shadow roots (modern controls sometimes use shadow DOM)
+        if (fileInput == null)
+        {
+            // Evaluate in page context to find inputs inside shadow roots and return the first as a handle
+            var handle = await page.EvaluateHandleAsync(@"() => {
+                function findInput(root) {
+                    const inputs = root.querySelectorAll ? root.querySelectorAll('input[type=file]') : [];
+                    if (inputs.length) return inputs[0];
+                    // search shadow roots
+                    const all = root.querySelectorAll('*');
+                    for (const el of all) {
+                        if (el.shadowRoot) {
+                            const found = findInput(el.shadowRoot);
+                            if (found) return found;
+                        }
+                    }
+                    return null;
+                }
+                return findInput(document);
+            }");
+
+            fileInput = handle?.AsElement();
+        }
+
+        // 3c: if still not found, create a temporary hidden input and append it to body (Playwright can set files on it)
+        if (fileInput == null)
+        {
+            var createdHandle = await page.EvaluateHandleAsync(@"() => {
+                const inp = document.createElement('input');
+                inp.type = 'file';
+                inp.style.display = 'none';
+                document.body.appendChild(inp);
+                return inp;
+            }");
+            fileInput = createdHandle.AsElement();
+        }
+
+        if (fileInput == null)
+            throw new InvalidOperationException("Could not obtain an input[type=file] element to set files on.");
+
+        // 4) Set file(s) on the input element (this bypasses native file dialog)
         await fileInput.SetInputFilesAsync(localFilePath);
-        await page.WaitForSelectorAsync($"text=\"{Path.GetFileName(localFilePath)}\"", new() { Timeout = 60000 });
+
+        // 5) Wait for upload confirmation — wait for filename to appear or network idle
+        var filename = Path.GetFileName(localFilePath);
+
+        try
+        {
+            // Wait for visible filename text in the page
+            await page.WaitForSelectorAsync($"text=\"{filename}\"", new PageWaitForSelectorOptions { Timeout = timeoutMs });
+        }
+        catch (TimeoutException)
+        {
+            // fallback: wait until network is quiet then continue
+            await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions { Timeout = 10000 });
+        }
+
+        // Optionally remove the temporary input we added
+        try
+        {
+            await page.EvaluateAsync(@"() => {
+                document.querySelectorAll('input[type=file]').forEach(i => {
+                    if (i.style && i.style.display === 'none' && i.files && i.files.length) {
+                        // keep if it has files; otherwise remove
+                        i.remove();
+                    }
+                });
+            }");
+        }
+        catch { /* ignore cleanup errors */ }
+
         await context.CloseAsync();
         await browser.CloseAsync();
+    }
+
+    // OPTIONAL: alternative helper that simulates drag-and-drop to a drop zone (if your UI supports it)
+    // It constructs a DataTransfer with file(s) and dispatches 'drop' events into the drop area.
+    public async Task DragAndDropUploadAsync(IPage page, string selectorForDropZone, string localFilePath)
+    {
+        // Create a file chooser-like DataTransfer in page context and dispatch drop
+        // This trick sometimes fails if SharePoint expects real OS files, but it's worth trying.
+        var fullPath = localFilePath.Replace("\\", "\\\\");
+        string script = $@"
+            async (selector, path) => {{
+                const readFile = (p) => fetch('file:///' + p).then(r => r.blob()).catch(() => null);
+                const zone = document.querySelector(selector);
+                if(!zone) return false;
+                const resp = await window.fetch('file:///{fullPath}');
+                const blob = await resp.blob();
+                const file = new File([blob], '{Path.GetFileName(localFilePath)}');
+                const data = new DataTransfer();
+                data.items.add(file);
+                const ev = new DragEvent('drop', {{ bubbles: true, cancelable: true, dataTransfer: data }});
+                zone.dispatchEvent(ev);
+                return true;
+            }}";
+        try
+        {
+            await page.EvaluateAsync(script, selectorForDropZone, localFilePath);
+        }
+        catch
+        {
+            // ignore - drag/drop may not be supported
+        }
     }
 }
