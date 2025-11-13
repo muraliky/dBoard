@@ -1,201 +1,204 @@
-// Required usings
-using Microsoft.Playwright;
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+# QAF-specific: Generate Selenium Page Objects using GitHub Copilot
 
-public class PlaywrightSharePointUploader
-{
-    /// <summary>
-    /// Upload a file to a SharePoint folder page by clicking Upload -> Files and setting the file input,
-    /// avoiding the native file picker.
-    /// </summary>
-    public async Task UploadFileAvoidingDialogAsync(string pageUrl, string localFilePath, int timeoutMs = 60000)
-    {
-        if (!File.Exists(localFilePath))
-            throw new FileNotFoundException("File not found", localFilePath);
+> This document instructs how to generate **QAF-style** Selenium Page Objects in **Java** using GitHub Copilot. It is intentionally strict about QAF conventions: repository-backed locators, QAFWebElement, correct QAF base classes, use of @FindBy(locator=...), and no hard-coded locators in code.
 
-        using var playwright = await Playwright.CreateAsync();
+---
 
-        // Use system Edge in headless mode; change Headless=false for debugging
-        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-        {
-            Channel = "msedge",
-            Headless = true
-        });
+## Overview (short)
 
-        var context = await browser.NewContextAsync();
-        var page = await context.NewPageAsync();
+- Page classes must use QAF types (e.g. `com.qmetry.qaf.automation.ui.webdriver.QAFWebElement`) and `@FindBy(locator = "repo.key")` to reference locators defined in the QAF object repository (`*.properties` or `*.yml`).
+- Page classes should extend the QAF page base class used in your project (commonly `WebDriverBaseTestPage< WebDriverTestPage >` or `WebDriverTestPage`). Use whichever your project requires — update the prompt to include it.
+- Avoid raw Selenium `By` locators or hard-coded locator strings inside the Java class. Keep locators in the repository.
 
-        // Navigate to the SharePoint folder page
-        await page.GotoAsync(pageUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle, Timeout = timeoutMs });
+---
 
-        // 1) Click the main Upload button/menu
-        // Try several common selectors for modern SharePoint
-        var uploadButtonSelectors = new[]
-        {
-            "button[aria-label='Upload']",
-            "button:has-text('Upload')",
-            "button[title='Upload']",
-            "button.ms-Button:has-text('Upload')"
-        };
+## Where to put repository locators
 
-        IElementHandle uploadButton = null;
-        foreach (var sel in uploadButtonSelectors)
-        {
-            uploadButton = await page.QuerySelectorAsync(sel);
-            if (uploadButton != null) break;
-        }
+QAF supports multiple repository layouts. Common patterns:
 
-        if (uploadButton == null)
-        {
-            // If no visible Upload button, optionally try command bar or new button
-            uploadButton = await page.QuerySelectorAsync("div[role='toolbar'] button");
-        }
+- `resources/pages/<page>.properties` (recommended per-page file)
+- `resources/object-repository.properties` (single file)
 
-        if (uploadButton == null)
-            throw new InvalidOperationException("Could not find the Upload button. Inspect page and adjust selectors.");
+Example: `resources/pages/login.properties`
 
-        await uploadButton.ClickAsync();
+```properties
+login.username = id=user
+login.password = id=pass
+login.submit   = id=loginBtn
+login.error    = id=errorMsg
+```
 
-        // 2) Click the 'Files' menu item (the menu entry that opens file explorer)
-        // Wait a short while for the menu to appear
-        await page.WaitForTimeoutAsync(300);
+Use `css=`, `xpath=`, `id=`, `name=` prefixes as required. Parameterized keys are supported:  
+`product.item = xpath=//div[@data-id='${id}']`
 
-        // Look for a menu item that contains "Files" text; try multiple strategies
-        IElementHandle filesMenuItem = null;
-        var menuItemCandidates = await page.QuerySelectorAllAsync("button, a, span"); // wide net; we'll filter by text
-        foreach (var candidate in menuItemCandidates)
-        {
-            var text = (await candidate.InnerTextAsync()).Trim();
-            if (string.Equals(text, "Files", StringComparison.OrdinalIgnoreCase) ||
-                text.IndexOf("file", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                filesMenuItem = candidate;
-                break;
-            }
-        }
+---
 
-        if (filesMenuItem != null)
-        {
-            await filesMenuItem.ClickAsync();
-            await page.WaitForTimeoutAsync(300);
-        }
-        else
-        {
-            // It's possible the Upload button is a direct input trigger (no menu). Continue.
-        }
+## Copilot prompt templates (QAF-focused)
 
-        // 3) Try to find an <input type="file"> in multiple ways:
-        IElementHandle fileInput = null;
+### Minimal (quick)
 
-        // 3a: simple query
-        fileInput = await page.QuerySelectorAsync("input[type=file]");
+```java
+// Copilot: generate a QAF Page Object in Java for the following HTML
+// Page class name: LoginPage
+// Locator prefix: login
+// Base class: WebDriverBaseTestPage (or WebDriverTestPage)
+// Output: Java class + suggested properties file entries
 
-        // 3b: search inside shadow roots (modern controls sometimes use shadow DOM)
-        if (fileInput == null)
-        {
-            // Evaluate in page context to find inputs inside shadow roots and return the first as a handle
-            var handle = await page.EvaluateHandleAsync(@"() => {
-                function findInput(root) {
-                    const inputs = root.querySelectorAll ? root.querySelectorAll('input[type=file]') : [];
-                    if (inputs.length) return inputs[0];
-                    // search shadow roots
-                    const all = root.querySelectorAll('*');
-                    for (const el of all) {
-                        if (el.shadowRoot) {
-                            const found = findInput(el.shadowRoot);
-                            if (found) return found;
-                        }
-                    }
-                    return null;
-                }
-                return findInput(document);
-            }");
+<!-- paste html below -->
+```
 
-            fileInput = handle?.AsElement();
-        }
+### Detailed (recommended)
 
-        // 3c: if still not found, create a temporary hidden input and append it to body (Playwright can set files on it)
-        if (fileInput == null)
-        {
-            var createdHandle = await page.EvaluateHandleAsync(@"() => {
-                const inp = document.createElement('input');
-                inp.type = 'file';
-                inp.style.display = 'none';
-                document.body.appendChild(inp);
-                return inp;
-            }");
-            fileInput = createdHandle.AsElement();
-        }
+```java
+/* Copilot: Generate a Java Page Object following QAF conventions.
+   - Language: Java
+   - QAF types: use QAFWebElement and @FindBy(locator = "<repo.key>")
+   - Page class name: LoginPage
+   - Locator repository prefix: login
+   - Base class: WebDriverBaseTestPage<WebDriverTestPage>  
+   - Responsibilities: enterUsername(String), enterPassword(String), clickLogin(), getErrorMessageText(), isLoaded(), waitForReady()
+   - Also output suggested entries for resources/pages/login.properties (with keys prefixed by 'login.')
+*/
+```
 
-        if (fileInput == null)
-            throw new InvalidOperationException("Could not obtain an input[type=file] element to set files on.");
+**Prompting tips:**  
+Include your package (e.g. `package com.mycompany.pages;`) and your preferred base class in the prompt. Ask Copilot to output both the Java class and the properties file in a single completion.
 
-        // 4) Set file(s) on the input element (this bypasses native file dialog)
-        await fileInput.SetInputFilesAsync(localFilePath);
+---
 
-        // 5) Wait for upload confirmation — wait for filename to appear or network idle
-        var filename = Path.GetFileName(localFilePath);
+## QAF best practices & mandatory rules
 
-        try
-        {
-            // Wait for visible filename text in the page
-            await page.WaitForSelectorAsync($"text=\"{filename}\"", new PageWaitForSelectorOptions { Timeout = timeoutMs });
-        }
-        catch (TimeoutException)
-        {
-            // fallback: wait until network is quiet then continue
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions { Timeout = 10000 });
-        }
+1. **Locators in repository only** — no hard-coded locators anywhere in the class.
+2. **Use QAF element types only** — `QAFWebElement`, not `WebElement`.
+3. **Extend correct QAF base class** — match your framework setup.
+4. **No Thread.sleep()** — rely on QAF wait utilities or QAFWebElement wait methods.
+5. **Consistent keys** — prefix keys by page: `login.`, `product.`, `cart.`.
+6. **Metadata required** — always use `@FindBy(locator="...")`.
+7. **No By fields** — those violate QAF object repository convention.
 
-        // Optionally remove the temporary input we added
-        try
-        {
-            await page.EvaluateAsync(@"() => {
-                document.querySelectorAll('input[type=file]').forEach(i => {
-                    if (i.style && i.style.display === 'none' && i.files && i.files.length) {
-                        // keep if it has files; otherwise remove
-                        i.remove();
-                    }
-                });
-            }");
-        }
-        catch { /* ignore cleanup errors */ }
+---
 
-        await context.CloseAsync();
-        await browser.CloseAsync();
+## Example: QAF Page Object + properties (strict)
+
+### File: `src/main/java/com/yourcompany/pages/LoginPage.java`
+
+```java
+package com.yourcompany.pages;
+
+import com.qmetry.qaf.automation.ui.WebDriverBaseTestPage;
+import com.qmetry.qaf.automation.ui.webdriver.QAFWebElement;
+import com.qmetry.qaf.automation.ui.api.PageLocator;
+import org.openqa.selenium.support.FindBy;
+
+/**
+ * QAF Page Object for the Login page.
+ * Locators are stored in resources/pages/login.properties
+ */
+public class LoginPage extends WebDriverBaseTestPage<LoginPage> {
+
+    @FindBy(locator = "login.username")
+    private QAFWebElement username;
+
+    @FindBy(locator = "login.password")
+    private QAFWebElement password;
+
+    @FindBy(locator = "login.submit")
+    private QAFWebElement loginButton;
+
+    @FindBy(locator = "login.error")
+    private QAFWebElement errorMessage;
+
+    @Override
+    protected void openPage(PageLocator locator, Object... args) {
+        getDriver().get("https://example.com/login");
     }
 
-    // OPTIONAL: alternative helper that simulates drag-and-drop to a drop zone (if your UI supports it)
-    // It constructs a DataTransfer with file(s) and dispatches 'drop' events into the drop area.
-    public async Task DragAndDropUploadAsync(IPage page, string selectorForDropZone, string localFilePath)
-    {
-        // Create a file chooser-like DataTransfer in page context and dispatch drop
-        // This trick sometimes fails if SharePoint expects real OS files, but it's worth trying.
-        var fullPath = localFilePath.Replace("\\", "\\\\");
-        string script = $@"
-            async (selector, path) => {{
-                const readFile = (p) => fetch('file:///' + p).then(r => r.blob()).catch(() => null);
-                const zone = document.querySelector(selector);
-                if(!zone) return false;
-                const resp = await window.fetch('file:///{fullPath}');
-                const blob = await resp.blob();
-                const file = new File([blob], '{Path.GetFileName(localFilePath)}');
-                const data = new DataTransfer();
-                data.items.add(file);
-                const ev = new DragEvent('drop', {{ bubbles: true, cancelable: true, dataTransfer: data }});
-                zone.dispatchEvent(ev);
-                return true;
-            }}";
-        try
-        {
-            await page.EvaluateAsync(script, selectorForDropZone, localFilePath);
+    private void waitForReady() {
+        username.waitForVisible();
+    }
+
+    public LoginPage enterUsername(String user) {
+        username.clear();
+        username.sendKeys(user);
+        return this;
+    }
+
+    public LoginPage enterPassword(String pass) {
+        password.clear();
+        password.sendKeys(pass);
+        return this;
+    }
+
+    public void clickLogin() {
+        loginButton.click();
+    }
+
+    public String getErrorMessageText() {
+        if (errorMessage.isPresent() && errorMessage.isDisplayed()) {
+            return errorMessage.getText();
         }
-        catch
-        {
-            // ignore - drag/drop may not be supported
-        }
+        return "";
+    }
+
+    public boolean isLoaded() {
+        return username.isPresent() && username.isDisplayed();
     }
 }
+```
+
+### File: `resources/pages/login.properties`
+
+```properties
+login.username = id=user
+login.password = id=pass
+login.submit   = id=loginBtn
+login.error    = id=errorMsg
+```
+
+---
+
+## Advanced patterns
+
+### Parameterized locators
+
+```properties
+product.item = xpath=//div[@data-id='${id}']
+```
+
+Usage:
+
+```java
+QAFWebElement item = getDriver().findElement("product.item", id);
+item.click();
+```
+
+---
+
+## Copilot validation checklist (strict QAF)
+
+- [ ] Extends correct QAF base class.
+- [ ] Uses only `@FindBy(locator="repo.key")`.
+- [ ] Repository keys exist in properties.
+- [ ] Uses `QAFWebElement` instead of WebElement.
+- [ ] No raw locators or `By` fields.
+- [ ] No sleeps; proper QAF waits.
+- [ ] Method names follow Java standards.
+
+---
+
+## Copy‑paste Copilot prompt
+
+```java
+/* Copilot: generate a QAF-compliant Java Page Object and properties file.
+   - Package: com.yourcompany.pages
+   - Page class: LoginPage
+   - Base class: WebDriverBaseTestPage<LoginPage>
+   - Locator prefix: login
+   - Output: LoginPage.java + login.properties
+   - Requirements: QAFWebElement, @FindBy(locator="repo.key"), no raw Selenium locators
+*/
+```
+
+---
+
+If you want, I can now generate **any specific QAF page object + properties file** from an HTML snippet you provide.
