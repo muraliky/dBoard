@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2025 Infrastructure Upgrade</title>
     <style>
+        /*
+         * CORE PRINT STYLES
+         * Setting margin: 0 here is key to removing browser defaults.
+         */
         @page {
             size: A4;
             margin: 0;
@@ -28,6 +32,7 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             page-break-after: always;
             position: relative;
+            /* Screen-only background grid pattern */
             background-image: 
                 linear-gradient(rgba(0,120,215,0.03) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0,120,215,0.03) 1px, transparent 1px);
@@ -183,14 +188,54 @@
             color: #666;
             text-align: center;
         }
+
+        /* *******************************************
+         * CRITICAL PDF/PRINT FIXES
+         * These rules ensure content flows tightly and prevents large gaps.
+         ******************************************* */
         @media print {
+            /* 1. Global Cleanup and Overrides */
             body {
-                background: white;
-                padding: 0;
+                background: white !important;
+                padding: 0 !important;
+                background-image: none !important; /* Prevent background pattern from printing */
             }
             .page {
-                box-shadow: none;
-                margin: 0;
+                box-shadow: none !important;
+                margin: 0 !important;
+                background-image: none !important; /* Prevent background pattern from printing */
+            }
+            
+            /* 2. Block Avoidance: Prevent logical units from being split */
+            .metric-box,
+            .highlight-box,
+            .tools-grid,
+            ul, 
+            .cover-details,
+            .footer-note {
+                /* Primary property to keep blocks intact */
+                break-inside: avoid !important;
+                /* Older property for compatibility */
+                page-break-inside: avoid !important;
+            }
+
+            /* 3. Text Flow Control: Prevent single lines from being stranded */
+            p, li {
+                /* Ensures at least 3 lines of text stay together at the top of a page */
+                orphans: 3;
+                /* Ensures at least 3 lines of text stay together at the bottom of a page */
+                widows: 3;
+            }
+            
+            /* 4. Heading Stickiness: Prevent headings from being separated from the following content */
+            h3, h4 {
+                break-after: avoid !important;
+                page-break-after: avoid !important;
+            }
+            
+            /* Ensure the last page doesn't try to break to a new page */
+            .page:last-child {
+                page-break-after: auto !important;
             }
         }
     </style>
