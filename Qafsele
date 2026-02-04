@@ -1,0 +1,835 @@
+You’re absolutely right! Here’s the updated instructions file with QAF WebElement specifics:
+
+# GitHub Copilot Instructions for Page Object Generation
+
+## Context
+This project uses Selenium with QAF (Qmetry Automation Framework) + BDD framework in Java, following the Page Object Model (POM) design pattern.
+
+## Task
+Generate Page Object class files from provided HTML/DOM files with proper QAF locators and methods following project coding standards.
+
+## Input
+- HTML/DOM files located in `/dom-files/` folder
+- Each file represents a specific page/component of the application
+
+## Output Requirements
+
+### 1. Class Structure
+```java
+package com.project.pages;
+
+import com.qmetry.qaf.automation.ui.WebDriverBaseTestPage;
+import com.qmetry.qaf.automation.ui.annotations.FindBy;
+import com.qmetry.qaf.automation.ui.api.PageLocator;
+import com.qmetry.qaf.automation.ui.api.WebDriverTestPage;
+import com.qmetry.qaf.automation.ui.webdriver.QAFExtendedWebElement;
+import com.qmetry.qaf.automation.ui.webdriver.QAFWebElement;
+import java.util.List;
+
+/**
+ * Page Object for [Page Name]
+ * Represents the [brief description of page functionality]
+ */
+public class [PageName]Page extends WebDriverBaseTestPage<WebDriverTestPage> {
+    
+    // ==================== LOCATORS ====================
+    
+    // ==================== METHODS ====================
+    
+    @Override
+    protected void openPage(PageLocator pageLocator, Object... objects) {
+        // Implementation if needed
+    }
+}
+
+
+2. Locator Guidelines
+Locator Naming Convention
+	∙	Use descriptive camelCase names: loginButton, usernameInput, errorMessage
+	∙	Prefix with element type when helpful: btnSubmit, txtUsername, lnkForgotPassword
+	∙	For lists/collections: use plural form productCards, menuItems
+Locator Strategy Priority
+	1.	ID - Preferred (most stable)
+	2.	Name - When ID not available
+	3.	CSS Selector - For complex selections
+	4.	XPath - Last resort, use relative XPath only
+QAF Locator Declaration Format
+
+// Single Element
+@FindBy(locator = "id=elementId")
+private QAFWebElement elementName;
+
+@FindBy(locator = "name=elementName")
+private QAFWebElement elementName;
+
+@FindBy(locator = "css=.class-name")
+private QAFWebElement elementName;
+
+@FindBy(locator = "xpath=//button[@type='submit']")
+private QAFWebElement submitButton;
+
+// Multiple Elements (List)
+@FindBy(locator = "css=.product-card")
+private List<QAFWebElement> productCards;
+
+@FindBy(locator = "xpath=//ul[@class='menu']//li")
+private List<QAFWebElement> menuItems;
+
+// Using QAFExtendedWebElement for advanced operations
+@FindBy(locator = "id=complexElement")
+private QAFExtendedWebElement advancedElement;
+
+
+Dynamic Locators (String-based)
+
+// For elements that need runtime parameters
+private static final String DYNAMIC_PRODUCT_LOCATOR = "xpath=//div[@data-product='%s']";
+private static final String DYNAMIC_ROW_LOCATOR = "css=tr[data-id='%s']";
+private static final String DYNAMIC_CHECKBOX_LOCATOR = "xpath=//input[@type='checkbox' and @name='%s']";
+
+
+3. Method Guidelines
+Method Naming Convention
+	∙	Action methods: verb + noun → clickLoginButton(), enterUsername(), selectCountry()
+	∙	Verification methods: is + adjective → isLoginSuccessful(), isErrorDisplayed()
+	∙	Getter methods: get + property → getWelcomeMessage(), getErrorText()
+	∙	Wait methods: waitFor + condition → waitForPageLoad(), waitForElementVisible()
+Method Structure
+
+/**
+ * [Brief description of what method does]
+ * @param paramName - description of parameter
+ * @return description of return value
+ */
+public [ReturnType] methodName([Parameters]) {
+    // QAF WebElements have built-in waits
+    // Perform action
+    // Return value if applicable
+}
+
+
+Common Method Patterns
+Input Methods:
+
+/**
+ * Enter username in the username field
+ * @param username - username to enter
+ */
+public void enterUsername(String username) {
+    usernameInput.clear();
+    usernameInput.sendKeys(username);
+}
+
+/**
+ * Enter text in search box
+ * @param searchText - text to search
+ */
+public void enterSearchText(String searchText) {
+    searchInput.waitForVisible();
+    searchInput.clear();
+    searchInput.sendKeys(searchText);
+}
+
+
+Click Methods:
+
+/**
+ * Click on login button
+ */
+public void clickLoginButton() {
+    loginButton.click();
+}
+
+/**
+ * Click on submit button with wait
+ */
+public void clickSubmitButton() {
+    submitButton.waitForEnabled();
+    submitButton.click();
+}
+
+
+Verification Methods:
+
+/**
+ * Verify if error message is displayed
+ * @return true if error message is visible, false otherwise
+ */
+public boolean isErrorMessageDisplayed() {
+    return errorMessage.isDisplayed();
+}
+
+/**
+ * Verify if login button is enabled
+ * @return true if button is enabled
+ */
+public boolean isLoginButtonEnabled() {
+    return loginButton.isEnabled();
+}
+
+/**
+ * Verify element is present
+ * @return true if element is present in DOM
+ */
+public boolean isElementPresent() {
+    return elementName.isPresent();
+}
+
+/**
+ * Get error message text
+ * @return error message text as String
+ */
+public String getErrorMessageText() {
+    return errorMessage.getText();
+}
+
+/**
+ * Get attribute value
+ * @param attributeName - name of attribute
+ * @return attribute value
+ */
+public String getElementAttribute(String attributeName) {
+    return elementName.getAttribute(attributeName);
+}
+
+
+Wait Methods (using QAF built-in waits):
+
+/**
+ * Wait for page to load completely
+ */
+public void waitForPageLoad() {
+    pageTitle.waitForVisible();
+}
+
+/**
+ * Wait for element to be visible
+ */
+public void waitForElementToBeVisible() {
+    elementName.waitForVisible();
+}
+
+/**
+ * Wait for element to be enabled
+ */
+public void waitForElementToBeEnabled() {
+    elementName.waitForEnabled();
+}
+
+/**
+ * Wait for element to be present
+ */
+public void waitForElementToBePresent() {
+    elementName.waitForPresent();
+}
+
+/**
+ * Wait for text to be present in element
+ * @param text - expected text
+ */
+public void waitForText(String text) {
+    elementName.waitForText(text);
+}
+
+
+Dropdown/Select Methods:
+
+/**
+ * Select option from dropdown by visible text
+ * @param optionText - visible text of option
+ */
+public void selectDropdownByText(String optionText) {
+    dropdown.click();
+    dropdown.selectByVisibleText(optionText);
+}
+
+/**
+ * Select option from dropdown by value
+ * @param value - value attribute of option
+ */
+public void selectDropdownByValue(String value) {
+    dropdown.selectByValue(value);
+}
+
+/**
+ * Select option from dropdown by index
+ * @param index - index of option
+ */
+public void selectDropdownByIndex(int index) {
+    dropdown.selectByIndex(index);
+}
+
+/**
+ * Get selected option text
+ * @return selected option text
+ */
+public String getSelectedDropdownText() {
+    return dropdown.getSelectedOptionText();
+}
+
+
+Checkbox/Radio Button Methods:
+
+/**
+ * Check the checkbox if not already checked
+ */
+public void checkCheckbox() {
+    if (!checkbox.isSelected()) {
+        checkbox.click();
+    }
+}
+
+/**
+ * Uncheck the checkbox if checked
+ */
+public void uncheckCheckbox() {
+    if (checkbox.isSelected()) {
+        checkbox.click();
+    }
+}
+
+/**
+ * Select radio button
+ */
+public void selectRadioButton() {
+    radioButton.click();
+}
+
+/**
+ * Verify if checkbox is selected
+ * @return true if selected
+ */
+public boolean isCheckboxSelected() {
+    return checkbox.isSelected();
+}
+
+
+List/Table Methods:
+
+/**
+ * Get count of elements in list
+ * @return number of elements
+ */
+public int getProductCount() {
+    return productCards.size();
+}
+
+/**
+ * Get all product names from list
+ * @return list of product names
+ */
+public List<String> getAllProductNames() {
+    List<String> productNames = new ArrayList<>();
+    for (QAFWebElement product : productCards) {
+        productNames.add(product.getText());
+    }
+    return productNames;
+}
+
+/**
+ * Click on specific product by index
+ * @param index - index of product (0-based)
+ */
+public void clickProductByIndex(int index) {
+    productCards.get(index).click();
+}
+
+
+Dynamic Element Methods:
+
+/**
+ * Click on product by name using dynamic locator
+ * @param productName - name of the product to click
+ */
+public void clickProductByName(String productName) {
+    String locator = String.format(DYNAMIC_PRODUCT_LOCATOR, productName);
+    QAFWebElement product = new QAFExtendedWebElement(locator);
+    product.click();
+}
+
+/**
+ * Get text from dynamic element
+ * @param identifier - unique identifier for element
+ * @return text content of element
+ */
+public String getDynamicElementText(String identifier) {
+    String locator = String.format(DYNAMIC_ROW_LOCATOR, identifier);
+    QAFWebElement element = new QAFExtendedWebElement(locator);
+    return element.getText();
+}
+
+/**
+ * Verify dynamic element is displayed
+ * @param identifier - unique identifier
+ * @return true if element is displayed
+ */
+public boolean isDynamicElementDisplayed(String identifier) {
+    String locator = String.format(DYNAMIC_PRODUCT_LOCATOR, identifier);
+    QAFWebElement element = new QAFExtendedWebElement(locator);
+    return element.isDisplayed();
+}
+
+
+File Upload Methods:
+
+/**
+ * Upload file using file input element
+ * @param filePath - absolute path to file
+ */
+public void uploadFile(String filePath) {
+    fileInput.sendKeys(filePath);
+}
+
+
+JavaScript Interaction Methods:
+
+/**
+ * Scroll element into view
+ */
+public void scrollToElement() {
+    elementName.scrollIntoView();
+}
+
+/**
+ * Click element using JavaScript
+ */
+public void jsClick() {
+    elementName.executeScript("arguments[0].click();");
+}
+
+
+4. Coding Standards
+General Rules
+	∙	Use QAFWebElement for standard elements
+	∙	Use QAFExtendedWebElement for advanced operations or dynamic elements
+	∙	Use List<QAFWebElement> for collections of elements
+	∙	QAF WebElements have built-in smart waits - no need for explicit waits in most cases
+	∙	One locator per unique element
+	∙	Group related locators together with comments
+	∙	Add JavaDoc comments for all public methods
+	∙	Use meaningful variable and method names
+	∙	Follow single responsibility principle for methods
+	∙	Leverage QAF’s built-in wait methods (waitForVisible, waitForEnabled, waitForPresent, waitForText)
+QAF WebElement Advantages
+
+// QAF WebElements automatically handle:
+// - StaleElementReferenceException
+// - Implicit waits
+// - Element synchronization
+// - NoSuchElementException
+
+// Built-in QAF wait methods
+element.waitForVisible();          // Wait until visible
+element.waitForEnabled();          // Wait until enabled
+element.waitForPresent();          // Wait until present in DOM
+element.waitForText("expected");   // Wait for specific text
+element.waitForNotVisible();       // Wait until not visible
+element.waitForAttribute("class", "active"); // Wait for attribute value
+
+
+Code Organization
+
+// ==================== LOCATORS ====================
+
+// Header Section
+@FindBy(locator = "css=.header-logo")
+private QAFWebElement headerLogo;
+
+@FindBy(locator = "xpath=//nav[@class='main-nav']//a")
+private List<QAFWebElement> navigationLinks;
+
+// Login Form Section
+@FindBy(locator = "id=username")
+private QAFWebElement usernameInput;
+
+@FindBy(locator = "id=password")
+private QAFWebElement passwordInput;
+
+@FindBy(locator = "css=button[type='submit']")
+private QAFWebElement loginButton;
+
+// Error/Success Messages
+@FindBy(locator = "css=.error-message")
+private QAFWebElement errorMessage;
+
+@FindBy(locator = "css=.success-message")
+private QAFWebElement successMessage;
+
+// Dynamic Locators
+private static final String PRODUCT_BY_NAME = "xpath=//div[@data-product='%s']";
+private static final String ROW_BY_ID = "css=tr[data-id='%s']";
+
+// ==================== METHODS ====================
+
+// Navigation Methods
+public void navigateToLoginPage() { ... }
+
+// Input Methods
+public void enterUsername(String username) { ... }
+public void enterPassword(String password) { ... }
+
+// Action Methods
+public void clickLoginButton() { ... }
+public void login(String username, String password) { ... }
+
+// Verification Methods
+public boolean isLoginSuccessful() { ... }
+public boolean isErrorDisplayed() { ... }
+public String getErrorText() { ... }
+
+// Wait Methods
+public void waitForPageLoad() { ... }
+
+
+Best Practices
+	∙	Leverage QAF’s auto-sync capabilities
+	∙	Use waitForVisible() before interactions with dynamic content
+	∙	Use waitForEnabled() before clicking buttons that may be disabled initially
+	∙	Use isPresent() to check element existence without waiting
+	∙	Use isDisplayed() to check visibility
+	∙	Keep methods atomic and reusable
+	∙	Create compound methods for common workflows
+	∙	Use descriptive names that explain intent
+	∙	Handle dynamic content using parameterized locators
+	∙	Utilize QAF annotations and utilities
+5. Example Complete Page Object
+
+package com.project.pages;
+
+import com.qmetry.qaf.automation.ui.WebDriverBaseTestPage;
+import com.qmetry.qaf.automation.ui.annotations.FindBy;
+import com.qmetry.qaf.automation.ui.api.PageLocator;
+import com.qmetry.qaf.automation.ui.api.WebDriverTestPage;
+import com.qmetry.qaf.automation.ui.webdriver.QAFExtendedWebElement;
+import com.qmetry.qaf.automation.ui.webdriver.QAFWebElement;
+import java.util.List;
+import java.util.ArrayList;
+
+/**
+ * Page Object for Login Page
+ * Handles all interactions with the login page
+ */
+public class LoginPage extends WebDriverBaseTestPage<WebDriverTestPage> {
+    
+    // ==================== LOCATORS ====================
+    
+    // Login Form Elements
+    @FindBy(locator = "id=username")
+    private QAFWebElement usernameInput;
+    
+    @FindBy(locator = "id=password")
+    private QAFWebElement passwordInput;
+    
+    @FindBy(locator = "css=button[type='submit']")
+    private QAFWebElement loginButton;
+    
+    @FindBy(locator = "css=input[type='checkbox'][name='remember']")
+    private QAFWebElement rememberMeCheckbox;
+    
+    @FindBy(locator = "link=Forgot Password?")
+    private QAFWebElement forgotPasswordLink;
+    
+    // Message Elements
+    @FindBy(locator = "css=.error-message")
+    private QAFWebElement errorMessage;
+    
+    @FindBy(locator = "css=.success-message")
+    private QAFWebElement successMessage;
+    
+    // Page Header
+    @FindBy(locator = "css=h1.login-title")
+    private QAFWebElement pageTitle;
+    
+    // Social Login Buttons
+    @FindBy(locator = "css=.social-login-button")
+    private List<QAFWebElement> socialLoginButtons;
+    
+    // Dynamic Locators
+    private static final String SOCIAL_LOGIN_BY_PROVIDER = "xpath=//button[@data-provider='%s']";
+    
+    // ==================== METHODS ====================
+    
+    /**
+     * Wait for login page to load completely
+     */
+    public void waitForPageLoad() {
+        pageTitle.waitForVisible();
+        loginButton.waitForVisible();
+    }
+    
+    /**
+     * Enter username
+     * @param username - username to enter
+     */
+    public void enterUsername(String username) {
+        usernameInput.waitForVisible();
+        usernameInput.clear();
+        usernameInput.sendKeys(username);
+    }
+    
+    /**
+     * Enter password
+     * @param password - password to enter
+     */
+    public void enterPassword(String password) {
+        passwordInput.waitForVisible();
+        passwordInput.clear();
+        passwordInput.sendKeys(password);
+    }
+    
+    /**
+     * Click login button
+     */
+    public void clickLoginButton() {
+        loginButton.waitForEnabled();
+        loginButton.click();
+    }
+    
+    /**
+     * Check remember me checkbox
+     */
+    public void checkRememberMe() {
+        if (!rememberMeCheckbox.isSelected()) {
+            rememberMeCheckbox.click();
+        }
+    }
+    
+    /**
+     * Uncheck remember me checkbox
+     */
+    public void uncheckRememberMe() {
+        if (rememberMeCheckbox.isSelected()) {
+            rememberMeCheckbox.click();
+        }
+    }
+    
+    /**
+     * Click forgot password link
+     */
+    public void clickForgotPassword() {
+        forgotPasswordLink.click();
+    }
+    
+    /**
+     * Perform login with credentials
+     * @param username - username
+     * @param password - password
+     */
+    public void login(String username, String password) {
+        enterUsername(username);
+        enterPassword(password);
+        clickLoginButton();
+    }
+    
+    /**
+     * Perform login with remember me option
+     * @param username - username
+     * @param password - password
+     * @param rememberMe - true to check remember me
+     */
+    public void login(String username, String password, boolean rememberMe) {
+        enterUsername(username);
+        enterPassword(password);
+        if (rememberMe) {
+            checkRememberMe();
+        }
+        clickLoginButton();
+    }
+    
+    /**
+     * Click social login button by provider name
+     * @param provider - provider name (google, facebook, twitter)
+     */
+    public void clickSocialLogin(String provider) {
+        String locator = String.format(SOCIAL_LOGIN_BY_PROVIDER, provider);
+        QAFWebElement socialButton = new QAFExtendedWebElement(locator);
+        socialButton.waitForVisible();
+        socialButton.click();
+    }
+    
+    /**
+     * Get count of social login options
+     * @return number of social login buttons
+     */
+    public int getSocialLoginCount() {
+        return socialLoginButtons.size();
+    }
+    
+    /**
+     * Get all social login provider names
+     * @return list of provider names
+     */
+    public List<String> getSocialLoginProviders() {
+        List<String> providers = new ArrayList<>();
+        for (QAFWebElement button : socialLoginButtons) {
+            providers.add(button.getAttribute("data-provider"));
+        }
+        return providers;
+    }
+    
+    /**
+     * Check if error message is displayed
+     * @return true if error is visible
+     */
+    public boolean isErrorDisplayed() {
+        return errorMessage.isDisplayed();
+    }
+    
+    /**
+     * Check if error message is present in DOM
+     * @return true if error is present
+     */
+    public boolean isErrorPresent() {
+        return errorMessage.isPresent();
+    }
+    
+    /**
+     * Get error message text
+     * @return error text
+     */
+    public String getErrorText() {
+        errorMessage.waitForVisible();
+        return errorMessage.getText();
+    }
+    
+    /**
+     * Check if success message is displayed
+     * @return true if success message is visible
+     */
+    public boolean isSuccessDisplayed() {
+        return successMessage.isDisplayed();
+    }
+    
+    /**
+     * Get success message text
+     * @return success message text
+     */
+    public String getSuccessText() {
+        successMessage.waitForVisible();
+        return successMessage.getText();
+    }
+    
+    /**
+     * Check if login button is enabled
+     * @return true if button is enabled
+     */
+    public boolean isLoginButtonEnabled() {
+        return loginButton.isEnabled();
+    }
+    
+    /**
+     * Get page title text
+     * @return page title
+     */
+    public String getPageTitle() {
+        return pageTitle.getText();
+    }
+    
+    /**
+     * Verify if remember me checkbox is selected
+     * @return true if selected
+     */
+    public boolean isRememberMeSelected() {
+        return rememberMeCheckbox.isSelected();
+    }
+    
+    /**
+     * Wait for error message to appear
+     */
+    public void waitForErrorMessage() {
+        errorMessage.waitForVisible();
+    }
+    
+    /**
+     * Wait for success message to appear
+     */
+    public void waitForSuccessMessage() {
+        successMessage.waitForVisible();
+    }
+    
+    @Override
+    protected void openPage(PageLocator pageLocator, Object... objects) {
+        // Page navigation logic if needed
+        driver.get(pageLocator.getUrl());
+    }
+}
+
+
+6. Advanced QAF Features to Utilize
+QAF WebElement Methods
+
+// Visibility and State
+element.isDisplayed();
+element.isEnabled();
+element.isSelected();
+element.isPresent();
+
+// Waits
+element.waitForVisible();
+element.waitForEnabled();
+element.waitForPresent();
+element.waitForNotVisible();
+element.waitForText("expected text");
+element.waitForAttribute("class", "active");
+element.waitForCssValue("color", "rgba(0, 0, 0, 1)");
+
+// Actions
+element.click();
+element.clear();
+element.sendKeys("text");
+element.submit();
+element.scrollIntoView();
+
+// Information
+element.getText();
+element.getAttribute("attributeName");
+element.getCssValue("propertyName");
+element.getTagName();
+element.getLocation();
+element.getSize();
+
+// Dropdown specific (for select elements)
+element.selectByVisibleText("option");
+element.selectByValue("value");
+element.selectByIndex(0);
+element.getSelectedOptionText();
+element.getSelectedOption();
+element.getAllOptions();
+
+// JavaScript execution
+element.executeScript("arguments[0].click();");
+
+
+Generation Instructions for Copilot
+When analyzing HTML/DOM files:
+	1.	Identify all interactive elements: inputs, buttons, links, dropdowns, checkboxes, radio buttons
+	2.	Identify display elements: text, labels, error messages, success messages, headings
+	3.	Identify collections: lists, tables, menus, card grids
+	4.	Identify sections: header, footer, navigation, forms, modals
+	5.	Generate unique, stable locators using the priority order specified
+	6.	Declare all locators as QAFWebElement or List<QAFWebElement> for collections
+	7.	Create basic methods for each interactive element (enter, click, select)
+	8.	Create verification methods using QAF’s isDisplayed(), isPresent(), isEnabled()
+	9.	Create getter methods for retrieving text and attributes
+	10.	Create wait methods using QAF’s built-in wait capabilities
+	11.	Create compound methods for common user workflows
+	12.	Use dynamic locators for parameterized elements
+	13.	Follow naming conventions strictly
+	14.	Add JavaDoc comments for all public methods
+	15.	Organize code with clear sections and comments
+	16.	Leverage QAF features - built-in waits, auto-sync, stale element handling
+Additional Notes
+	∙	Avoid using index-based XPath
+	∙	Prefer data attributes (data-testid, data-qa, data-*) when available
+	∙	Consider accessibility attributes (aria-label, role) for locators
+	∙	QAF handles StaleElementReferenceException automatically
+	∙	QAF provides implicit waits and smart synchronization
+	∙	Use QAFExtendedWebElement for dynamic locator creation
+	∙	Keep page objects focused on UI interactions only
+	∙	Business logic should be in step definitions
+	∙	Use List<QAFWebElement> for multiple similar elements
+	∙	Utilize QAF’s built-in wait methods instead of explicit waits
+	∙	Create reusable methods for repetitive patterns
+
+
+Save this as `.github/copilot-instructions.md` or `COPILOT_INSTRUCTIONS.md` in your repository root or in your dom-files folder for context-specific generation.​​​​​​​​​​​​​​​​
