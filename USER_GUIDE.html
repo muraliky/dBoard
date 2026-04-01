@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UAT COE Dashboard — User Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --wf-red: #D71E28;
+    --wf-red-dark: #B8181F;
+    --wf-gold: #FFCD41;
+    --wf-gold-muted: #F5D78E;
+    --bg: #FAFAF8;
+    --surface: #FFFFFF;
+    --surface-alt: #F3F1ED;
+    --text: #1A1A1A;
+    --text-secondary: #5A5A5A;
+    --text-muted: #8A8A8A;
+    --border: #E5E2DC;
+    --border-light: #F0EDE7;
+    --code-bg: #2B2B2B;
+    --code-text: #E8E8E8;
+    --accent-blue: #2563EB;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+    --shadow-lg: 0 12px 40px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; scroll-padding-top: 90px; }
+
+  body {
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15.5px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Top bar ── */
+  .top-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 56px;
+    background: var(--wf-red);
+    display: flex; align-items: center; padding: 0 32px;
+    box-shadow: 0 2px 12px rgba(215,30,40,0.25);
+  }
+  .top-bar .logo {
+    font-family: 'Fraunces', serif;
+    font-weight: 700; font-size: 18px; color: #fff;
+    letter-spacing: -0.3px;
+  }
+  .top-bar .logo span { color: var(--wf-gold); }
+  .top-bar .badge {
+    margin-left: 16px; padding: 3px 10px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 20px; font-size: 11px;
+    color: rgba(255,255,255,0.9); font-weight: 500;
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    position: fixed; top: 56px; left: 0;
+    width: 260px; height: calc(100vh - 56px);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 0;
+    overflow-y: auto;
+    z-index: 50;
+  }
+  .sidebar-label {
+    padding: 0 24px; margin-bottom: 12px;
+    font-size: 10.5px; font-weight: 700;
+    letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .sidebar nav a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 24px;
+    text-decoration: none; color: var(--text-secondary);
+    font-size: 14px; font-weight: 500;
+    border-left: 3px solid transparent;
+    transition: all 0.2s ease;
+  }
+  .sidebar nav a:hover {
+    background: var(--surface-alt);
+    color: var(--text);
+  }
+  .sidebar nav a.active {
+    color: var(--wf-red);
+    border-left-color: var(--wf-red);
+    background: rgba(215,30,40,0.04);
+    font-weight: 600;
+  }
+  .sidebar nav a .icon {
+    width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; opacity: 0.75;
+  }
+
+  /* ── Main content ── */
+  .main { margin-left: 260px; flex: 1; padding: 48px 56px 80px; max-width: 880px; }
+
+  /* ── Hero ── */
+  .hero {
+    margin-bottom: 48px;
+    padding: 40px 44px;
+    background: linear-gradient(135deg, var(--wf-red) 0%, var(--wf-red-dark) 100%);
+    border-radius: var(--radius);
+    color: #fff;
+    position: relative; overflow: hidden;
+    box-shadow: 0 8px 32px rgba(215,30,40,0.2);
+  }
+  .hero::before {
+    content: ''; position: absolute; top: -60px; right: -40px;
+    width: 220px; height: 220px;
+    background: rgba(255,205,65,0.12);
+    border-radius: 50%;
+  }
+  .hero::after {
+    content: ''; position: absolute; bottom: -30px; right: 60px;
+    width: 120px; height: 120px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 50%;
+  }
+  .hero h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 30px; font-weight: 700;
+    letter-spacing: -0.5px; margin-bottom: 8px;
+    position: relative;
+  }
+  .hero p {
+    font-size: 15px; opacity: 0.88; line-height: 1.6;
+    max-width: 520px; position: relative;
+  }
+  .hero .meta {
+    margin-top: 20px; display: flex; gap: 20px;
+    font-size: 12.5px; opacity: 0.7; position: relative;
+  }
+  .hero .meta span { display: flex; align-items: center; gap: 5px; }
+
+  /* ── Sections ── */
+  section { margin-bottom: 44px; }
+  section:last-child { margin-bottom: 0; }
+
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px; font-weight: 600;
+    letter-spacing: -0.3px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px;
+    background: var(--wf-red);
+    color: #fff; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 700;
+    border-radius: 8px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 30px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s;
+  }
+  .card:hover { box-shadow: var(--shadow-md); }
+
+  .card h4 {
+    font-size: 15px; font-weight: 700;
+    margin-bottom: 12px; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* ── Steps ── */
+  .steps { counter-reset: step; }
+  .step {
+    display: flex; gap: 16px;
+    margin-bottom: 14px;
+    align-items: flex-start;
+  }
+  .step::before {
+    counter-increment: step;
+    content: counter(step);
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    background: var(--surface-alt);
+    border: 1.5px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    color: var(--wf-red);
+    margin-top: 1px;
+  }
+  .step p { flex: 1; }
+
+  /* ── Code ── */
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border-light);
+    padding: 2px 7px;
+    border-radius: 5px;
+    color: var(--wf-red-dark);
+    font-weight: 500;
+  }
+
+  /* ── Info blocks ── */
+  .info-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .info-item {
+    background: var(--surface-alt);
+    border-radius: var(--radius-sm);
+    padding: 16px 18px;
+  }
+  .info-item .label {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--text-muted); margin-bottom: 4px;
+  }
+  .info-item .value { font-size: 14px; font-weight: 500; }
+
+  /* ── Role badges ── */
+  .roles { display: flex; flex-direction: column; gap: 10px; }
+  .role {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px;
+    background: var(--surface-alt);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--wf-red);
+  }
+  .role.gold { border-left-color: var(--wf-gold); }
+  .role.blue { border-left-color: var(--accent-blue); }
+  .role .role-name {
+    font-weight: 700; font-size: 13.5px;
+    margin-bottom: 2px;
+  }
+  .role .role-desc { font-size: 13.5px; color: var(--text-secondary); }
+
+  /* ── Nav pages list ── */
+  .page-list {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .page-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    background: var(--surface-alt);
+    border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 500;
+    transition: transform 0.15s;
+  }
+  .page-item:hover { transform: translateX(3px); }
+  .page-item .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--wf-red);
+    flex-shrink: 0;
+  }
+  .page-item:nth-child(even) .dot { background: var(--wf-gold); }
+
+  /* ── Filter tags ── */
+  .filter-tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .filter-tag {
+    padding: 6px 14px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px; font-weight: 500;
+  }
+
+  /* ── Troubleshooting accordion ── */
+  .trouble-item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .trouble-header {
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+    font-weight: 600; font-size: 14.5px;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .trouble-header:hover { background: var(--surface-alt); }
+  .trouble-header .arrow {
+    transition: transform 0.25s; font-size: 12px; color: var(--text-muted);
+  }
+  .trouble-item.open .trouble-header .arrow { transform: rotate(90deg); }
+  .trouble-body {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .trouble-item.open .trouble-body { max-height: 300px; }
+  .trouble-body-inner {
+    padding: 0 20px 18px 20px;
+  }
+  .trouble-body-inner p {
+    font-size: 14px; color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .trouble-body-inner .cause { color: var(--text-muted); }
+  .trouble-body-inner .fix {
+    background: rgba(37,99,235,0.06);
+    border-left: 3px solid var(--accent-blue);
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin-top: 8px;
+    font-size: 13.5px;
+    color: var(--text);
+  }
+
+  /* ── Contact box ── */
+  .contact-box {
+    background: linear-gradient(135deg, #FFF9E6 0%, #FFF5D6 100%);
+    border: 1px solid var(--wf-gold-muted);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .contact-box .envelope {
+    width: 44px; height: 44px;
+    background: var(--wf-gold);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .contact-box .contact-text { font-size: 14px; }
+  .contact-box .contact-text strong { display: block; margin-bottom: 2px; }
+  .contact-box .email {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; color: var(--wf-red);
+    text-decoration: none; font-weight: 500;
+  }
+
+  /* ── Changelog ── */
+  .changelog-entry {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 12px 0;
+  }
+  .changelog-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px; color: var(--text-muted);
+    background: var(--surface-alt);
+    padding: 4px 10px; border-radius: 5px;
+    white-space: nowrap; font-weight: 500;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 32px 24px 60px; }
+    .info-grid, .page-list { grid-template-columns: 1fr; }
+  }
+
+  /* ── Print ── */
+  @media print {
+    .top-bar, .sidebar { display: none; }
+    .main { margin-left: 0; padding: 20px; }
+    .hero { box-shadow: none; }
+    .card { box-shadow: none; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="top-bar">
+  <div class="logo">Wells Fargo <span>·</span> UAT CoE</div>
+  <div class="badge">User Guide</div>
+</div>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-label">Contents</div>
+    <nav>
+      <a href="#overview" class="active"><span class="icon">📋</span> Overview</a>
+      <a href="#prerequisites"><span class="icon">⚙️</span> Before You Start</a>
+      <a href="#download"><span class="icon">📥</span> Download &amp; Open</a>
+      <a href="#login"><span class="icon">🔐</span> Login</a>
+      <a href="#access"><span class="icon">👥</span> Access Levels</a>
+      <a href="#navigation"><span class="icon">🧭</span> Navigation</a>
+      <a href="#filters"><span class="icon">🔍</span> Filters &amp; Controls</a>
+      <a href="#signout"><span class="icon">🚪</span> Signing Out</a>
+      <a href="#troubleshooting"><span class="icon">🛠️</span> Troubleshooting</a>
+      <a href="#contact"><span class="icon">✉️</span> Support / Contact</a>
+      <a href="#changelog"><span class="icon">📝</span> Change Log</a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Hero -->
+    <div class="hero" id="overview">
+      <h1>UAT COE Dashboard</h1>
+      <p>Quick reference to open and use the UAT COE Dashboard delivered as a static HTML bundle.</p>
+      <div class="meta">
+        <span>📦 Delivered files: <code style="background:rgba(255,255,255,0.15);border:none;color:#fff;">index.html</code></span>
+        <span>📅 Updated: 2026-04-01</span>
+      </div>
+    </div>
+
+    <!-- Before You Start -->
+    <section id="prerequisites">
+      <div class="section-title"><span class="num">1</span> Before You Start</div>
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="label">Platform</div>
+          <div class="value">Windows 10 / 11 recommended</div>
+        </div>
+        <div class="info-item">
+          <div class="label">Browser</div>
+          <div class="value">Microsoft Edge (Chromium)</div>
+        </div>
+        <div class="info-item" style="grid-column: 1 / -1;">
+          <div class="label">Distribution</div>
+          <div class="value">Files are shared via SharePoint. When users click the SharePoint link, SharePoint will download a local copy of the dashboard folder.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Download & Open -->
+    <section id="download">
+      <div class="section-title"><span class="num">2</span> Download &amp; Open</div>
+      <div class="card">
+        <div class="steps">
+          <div class="step"><p>Click on the shared SharePoint link provided to you. An <code>index.html</code> file will be downloaded to your <code>Downloads</code> folder.</p></div>
+          <div class="step"><p>Locate the downloaded <code>index.html</code> file on your machine (usually in <code>Downloads</code>).</p></div>
+          <div class="step"><p>Double-click <code>index.html</code> OR right-click <code>index.html</code> → "Open with" → choose "Microsoft Edge".</p></div>
+          <div class="step"><p>If Edge is not the default browser, explicitly select Microsoft Edge for the first open.</p></div>
+          <div class="step"><p>If Windows offers to always use Edge for <code>.html</code> files, accept that to make future opens easier.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Login -->
+    <section id="login">
+      <div class="section-title"><span class="num">3</span> Login</div>
+      <div class="card">
+        <div class="steps">
+          <div class="step"><p>After opening <code>index.html</code>, the dashboard will show the Login overlay (or you may be presented <code>login.html</code>).</p></div>
+          <div class="step"><p>Enter your KID (employee ID) into the Employee ID field. IDs are case-insensitive.</p></div>
+          <div class="step"><p>Click the <strong>Sign In / Login</strong> button.</p></div>
+          <div class="step"><p>If your KID exists in the registry, you will be signed in and navigated to the dashboard.</p></div>
+          <div class="step"><p>If your KID is not recognised, you will see an error: <em>"Employee ID not recognised. Please contact your administrator."</em> Contact the dashboard admin and provide your KID.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Access Levels -->
+    <section id="access">
+      <div class="section-title"><span class="num">4</span> Access Levels</div>
+      <div class="roles">
+        <div class="role">
+          <div>
+            <div class="role-name">🔴 Superuser</div>
+            <div class="role-desc">Sees all groups and all data across the dashboard.</div>
+          </div>
+        </div>
+        <div class="role gold">
+          <div>
+            <div class="role-name">🟡 Group User</div>
+            <div class="role-desc">Sees data for their assigned <code>group</code> (e.g., Payments, WIM).</div>
+          </div>
+        </div>
+        <div class="role blue">
+          <div>
+            <div class="role-name">🔵 Subgroup User</div>
+            <div class="role-desc">Sees only the specific <code>subGroup</code> within a <code>group</code>.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Navigation -->
+    <section id="navigation">
+      <div class="section-title"><span class="num">5</span> Navigation</div>
+      <p style="margin-bottom:16px; color:var(--text-secondary); font-size:14.5px;">Use the left sidebar to switch between pages:</p>
+      <div class="page-list">
+        <div class="page-item"><span class="dot"></span> Quality Metrics</div>
+        <div class="page-item"><span class="dot"></span> Automation Metrics</div>
+        <div class="page-item"><span class="dot"></span> Automation Standardization</div>
+        <div class="page-item"><span class="dot"></span> CATS (Initiatives)</div>
+        <div class="page-item"><span class="dot"></span> Training</div>
+        <div class="page-item"><span class="dot"></span> RTO (Return To Office)</div>
+        <div class="page-item"><span class="dot"></span> People &amp; Engagement</div>
+      </div>
+      <div class="card" style="margin-top:16px;">
+        <h4>📄 Page Layout</h4>
+        <p style="font-size:14px; color:var(--text-secondary);">Each page contains charts, tables, and filters. The header displays your user name and role badge in the top-right corner.</p>
+      </div>
+    </section>
+
+    <!-- Filters -->
+    <section id="filters">
+      <div class="section-title"><span class="num">6</span> Filters &amp; Controls</div>
+      <div class="card">
+        <h4>Available Filters</h4>
+        <div class="filter-tags">
+          <span class="filter-tag">Group</span>
+          <span class="filter-tag">Sub Group</span>
+          <span class="filter-tag">Year</span>
+          <span class="filter-tag">Month</span>
+          <span class="filter-tag">Page-specific controls</span>
+        </div>
+        <p style="font-size:14px; color:var(--text-secondary); margin-top:12px;">
+          Filters are locked or limited according to your role. For example, group users cannot change the <code>group</code> filter to view another team's data.
+        </p>
+        <p style="font-size:14px; color:var(--text-secondary); margin-top:8px;">
+          Use the chart legends and dropdowns to refine what you see. Use the refresh/load buttons (if present) to reload data.
+        </p>
+      </div>
+    </section>
+
+    <!-- Signing Out -->
+    <section id="signout">
+      <div class="section-title"><span class="num">7</span> Signing Out</div>
+      <div class="card">
+        <p style="font-size:14.5px;">Use the <strong>Logout</strong> button in the header to clear your session and return to the login overlay.</p>
+      </div>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section id="troubleshooting">
+      <div class="section-title"><span class="num">8</span> Troubleshooting</div>
+
+      <div class="trouble-item">
+        <div class="trouble-header" onclick="this.parentElement.classList.toggle('open')">
+          <span class="arrow">▶</span>
+          Blank page or blocked scripts
+        </div>
+        <div class="trouble-body"><div class="trouble-body-inner">
+          <p class="cause">⚠️ <strong>Cause:</strong> Browser may be blocking local file access for scripts.</p>
+          <div class="fix">✅ <strong>Fix:</strong> Open <code>index.html</code> in Microsoft Edge (Chromium). If you continue to face issues, clear your cookies and browsing history for the past 24 hours and reload the page.</div>
+        </div></div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-header" onclick="this.parentElement.classList.toggle('open')">
+          <span class="arrow">▶</span>
+          "Employee ID not recognised"
+        </div>
+        <div class="trouble-body"><div class="trouble-body-inner">
+          <p class="cause">⚠️ <strong>Cause:</strong> KID not present in <code>data/users.js</code> registry.</p>
+          <div class="fix">✅ <strong>Fix:</strong> Confirm your KID and contact the dashboard administrator to add it.</div>
+        </div></div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-header" onclick="this.parentElement.classList.toggle('open')">
+          <span class="arrow">▶</span>
+          I prefer a browser other than Edge
+        </div>
+        <div class="trouble-body"><div class="trouble-body-inner">
+          <p class="cause">ℹ️ <strong>Note:</strong> The dashboard is tested on Edge (Chromium). Other modern Chromium browsers (Chrome) may work, but Edge is recommended by default.</p>
+        </div></div>
+      </div>
+    </section>
+
+
+    <!-- Contact -->
+    <section id="contact">
+      <div class="section-title"><span class="num">9</span> Support / Contact</div>
+      <div class="contact-box">
+        <div class="envelope">✉️</div>
+        <div class="contact-text">
+          <strong>Need help or have access issues?</strong>
+          Send an email with your KID and a short description of the issue to:<br>
+          <a href="mailto:murali.k.yanamadala@wellsfargo.com" class="email">murali.k.yanamadala@wellsfargo.com</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Changelog -->
+    <section id="changelog">
+      <div class="section-title"><span class="num">10</span> Change Log</div>
+      <div class="changelog-entry">
+        <span class="changelog-date">2026-04-01</span>
+        <span>Initial user guide created.</span>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Sidebar active state tracking -->
+<script>
+  const sections = document.querySelectorAll('section, .hero');
+  const navLinks = document.querySelectorAll('.sidebar nav a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        const id = entry.target.id;
+        const link = document.querySelector(`.sidebar nav a[href="#${id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { threshold: 0.3, rootMargin: '-80px 0px -60% 0px' });
+
+  sections.forEach(s => { if (s.id) observer.observe(s); });
+</script>
+
+</body>
+</html>
