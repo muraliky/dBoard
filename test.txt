@@ -1,0 +1,63 @@
+All expressions using inline replace — no Compose action needed:
+
+SubmitterName:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'Full Name:')[1],'AD Ent ID:')[0])
+ADEntID:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'AD Ent ID:')[1],'Email:')[0])
+Email:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'Email:')[1],'UAT Area / Team:')[0])
+UATArea:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'UAT Area / Team:')[1],'Sub Area:')[0])
+SubArea:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'Sub Area:')[1],'Application Name:')[0])
+ApplicationName:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'Application Name:')[1],'Request Type:')[0])
+RequestType:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'Request Type:')[1],'Title:')[0])
+Title:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'Title:')[1],'Category:')[0])
+Category:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'Category:')[1],'Priority:')[0])
+Priority:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'Priority:')[1],'Problem Description:')[0])
+ProblemDescription:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'Problem Description:')[1],'Proposed Solution:')[0])
+ProposedSolution:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'Proposed Solution:')[1],'Users Affected:')[0])
+UsersAffected:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'Users Affected:')[1],'Expected Benefits:')[0])
+ExpectedBenefits:
+
+trim(split(split(replace(replace(replace(triggerBody()?['body/content'],'&nbsp;',' '),'<br>',''),'<p>',''),'Expected Benefits:')[1],'This email was')[0])
+Status:
+
+New
+Updated flow — much simpler now:
+
+TRIGGER: When new email arrives (V3)
+         ↓
+ACTION 1: SharePoint → Create item
+          (inline expressions — no Compose needed)
+         ↓
+ACTION 2: Initialize variable → TrackingID
+         ↓
+ACTION 3: SharePoint → Update item
+         ↓
+         Done ✅
+Delete the Compose action, paste all expressions above directly, save and test — this will work regardless of action naming issues!
+
+
+
